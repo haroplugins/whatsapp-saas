@@ -1,0 +1,174 @@
+import { Injectable } from '@nestjs/common';
+import { ActionType, Automation, Message, MessageSender, TriggerType } from '@prisma/client';
+import { AutomationsService } from '../automations/automations.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+type CreateMessageInput = {
+  conversationId: string;
+  sender: MessageSender;
+  content: string;
+};
+
+@Injectable()
+export class MessagesService {
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly automationsService: AutomationsService,
+  ) {}
+
+  async create(data: CreateMessageInput): Promise<Message> {
+    const conversation = await this.prismaService.conversation.findUniqueOrThrow({
+      where: {
+        id: data.conversationId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+      },
+    });
+
+    const message = await this.prismaService.message.create({
+      data,
+    });
+
+    if (data.sender !== MessageSender.USER) {
+      await this.executeAutomations(conversation.tenantId, conversation.id, data.content);
+    }
+
+    return message;
+  }
+
+  listByConversation(conversationId: string): Promise<Message[]> {
+    return this.prismaService.message.findMany({
+      where: {
+        conversationId,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  private async executeAutomations(
+    tenantId: string,
+    conversationId: string,
+    messageContent: string,
+  ): Promise<void> {
+    const automations = await this.automationsService.listActiveByTenant(tenantId);
+    const normalizedMessage = this.normalizeText(messageContent);
+
+    for (const automation of automations) {
+      if (automation.actionType !== ActionType.SEND_MESSAGE) {
+        continue;
+      }
+
+      if (automation.triggerType === TriggerType.KEYWORD) {
+        const normalizedKeyword = this.normalizeText(automation.triggerValue);
+
+        if (
+          normalizedKeyword.length > 0 &&
+          normalizedMessage.includes(normalizedKeyword)
+        ) {
+          await this.createAutomatedMessage(conversationId, automation.actionValue);
+        }
+      }
+
+      if (automation.triggerType === TriggerType.TIME_DELAY) {
+        this.scheduleDelayedAutomation(tenantId, conversationId, automation);
+      }
+    }
+  }
+
+  private normalizeText(text: string): string {
+    return text
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private async createAutomatedMessage(
+    conversationId: string,
+    content: string,
+  ): Promise<void> {
+    await this.prismaService.message.create({
+      data: {
+        conversationId,
+        sender: MessageSender.USER,
+        content,
+      },
+    });
+  }
+
+  private scheduleDelayedAutomation(
+    tenantId: string,
+    conversationId: string,
+    automation: Automation,
+  ): void {
+    const delayInMs = this.parseDelayToMs(automation.triggerValue);
+
+    if (delayInMs === null) {
+      return;
+    }
+
+    setTimeout(() => {
+      void this.createDelayedAutomatedMessage(
+        tenantId,
+        conversationId,
+        automation.actionValue,
+      ).catch(() => undefined);
+    }, delayInMs);
+  }
+
+  private async createDelayedAutomatedMessage(
+    tenantId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<void> {
+    const conversation = await this.prismaService.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conversation) {
+      return;
+    }
+
+    await this.createAutomatedMessage(conversationId, content);
+  }
+
+  private parseDelayToMs(triggerValue: string): number | null {
+    const normalizedValue = triggerValue.trim().toLowerCase();
+    const match = /^(\d+)([smh])$/.exec(normalizedValue);
+
+    if (!match) {
+      return null;
+    }
+
+    const amount = Number(match[1]);
+    const unit = match[2];
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return null;
+    }
+
+    if (unit === 's') {
+      return amount * 1000;
+    }
+
+    if (unit === 'm') {
+      return amount * 60 * 1000;
+    }
+
+    if (unit === 'h') {
+      return amount * 60 * 60 * 1000;
+    }
+
+    return null;
+  }
+}

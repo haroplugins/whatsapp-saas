@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConversationStatus {
+  NEW
+  INTERESTED
+  QUOTE_SENT
+  PENDING
+  CLOSED
+  LOST
+}
+
+enum MessageSender {
+  USER
+  CLIENT
+}
+
+enum TriggerType {
+  KEYWORD
+  STATUS_CHANGE
+  TIME_DELAY
+}
+
+enum ActionType {
+  SEND_MESSAGE
+  TAG
+  CHANGE_STATUS
+}
+
+model Tenant {
+  id            String         @id @default(cuid())
+  name          String
+  users         User[]
+  conversations Conversation[]
+  automations   Automation[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  fullName     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@unique([tenantId, email])
+}
+
+model Conversation {
+  id         String   @id @default(cuid())
+  tenantId   String
+  phone      String
+  name       String?
+  status     ConversationStatus
+  isBusiness Boolean
+  messages   Message[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  sender         MessageSender
+  content        String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model Automation {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  triggerType  TriggerType
+  triggerValue String
+  actionType   ActionType
+  actionValue  String
+  isActive     Boolean
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}

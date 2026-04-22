@@ -1,0 +1,28 @@
+{
+  "name": "whatsapp-saas",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "scripts\\run-parallel.cmd dev @whatsapp-saas/web @whatsapp-saas/app @whatsapp-saas/api",
+    "dev:web": "scripts\\run-workspace.cmd dev @whatsapp-saas/web",
+    "dev:app": "scripts\\run-workspace.cmd dev @whatsapp-saas/app",
+    "dev:api": "scripts\\run-workspace.cmd dev @whatsapp-saas/api",
+    "lint": "scripts\\run-workspaces.cmd lint @whatsapp-saas/web @whatsapp-saas/app @whatsapp-saas/api",
+    "typecheck": "scripts\\run-workspaces.cmd typecheck @whatsapp-saas/web @whatsapp-saas/app @whatsapp-saas/api",
+    "format": "scripts\\bin\\prettier.cmd --check .",
+    "format:write": "scripts\\bin\\prettier.cmd --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@next/eslint-plugin-next": "^15.0.0",
+    "@types/node": "^22.15.18",
+    "eslint": "^9.25.1",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.30.1"
+  }
+}

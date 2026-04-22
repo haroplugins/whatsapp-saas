@@ -1,0 +1,35 @@
+{
+  "name": "@whatsapp-saas/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "..\\..\\scripts\\bin\\nest.cmd start --watch",
+    "build": "..\\..\\scripts\\bin\\nest.cmd build",
+    "start": "node dist/main.js",
+    "lint": "..\\..\\scripts\\bin\\eslint.cmd .",
+    "typecheck": "..\\..\\scripts\\bin\\tsc.cmd --noEmit",
+    "prisma:generate": "..\\..\\scripts\\bin\\prisma.cmd generate --schema prisma/schema.prisma",
+    "prisma:migrate:dev": "..\\..\\scripts\\bin\\prisma.cmd migrate dev --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "6.16.2",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/bcrypt": "^6.0.0",
+    "prisma": "6.16.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0"
+  }
+}
