@@ -1,0 +1,117 @@
+# Task 025 — Inbox Operativo (v1 simulada)
+
+## Objetivo
+Convertir el inbox actual en una experiencia viva donde el usuario vea conversaciones, pueda interactuar y entender el valor del producto, aunque todo sea mock.
+
+---
+
+## Contexto
+
+- Ya existe navegación a /inbox
+- Ya hay layout tipo panel (sidebar + contenido)
+- No hay backend real de conversaciones
+- No hay WhatsApp real aún
+
+Queremos simular comportamiento real sin complejidad.
+
+---
+
+## Requisitos
+
+### 1. Simulación de conversaciones
+
+Añadir un botón visible en el inbox:
+
+- “Simular mensaje entrante”
+
+Al hacer click:
+- se crea una nueva conversación mock
+- debe aparecer en la lista izquierda
+
+Datos mock ejemplo:
+- nombre: “Cliente Juan”, “María”, etc.
+- mensaje: “Hola, quería información”, etc.
+- timestamp simple
+
+No hace falta persistencia (puede ser state en memoria)
+
+---
+
+### 2. Lista de conversaciones (panel izquierdo)
+
+Debe mostrar:
+- nombre del cliente
+- preview del último mensaje
+- estado básico (opcional: unread)
+
+Orden:
+- más recientes arriba
+
+Click en conversación:
+- carga el chat en el panel central
+
+---
+
+### 3. Chat central
+
+Debe permitir:
+
+- ver mensajes de la conversación
+- distinguir:
+  - mensajes del cliente
+  - mensajes del usuario
+
+- input para responder:
+  - escribir texto
+  - enviar mensaje
+
+Al enviar:
+- se añade mensaje al chat
+- se actualiza preview en lista
+
+---
+
+### 4. Estado vacío
+
+Si no hay conversaciones:
+
+Mostrar mensaje tipo:
+- “Aún no tienes conversaciones”
+- CTA: “Simular primer mensaje”
+
+---
+
+### 5. UX simple tipo WhatsApp
+
+Sin copiar exactamente, pero:
+
+- lista izquierda
+- chat central
+- sensación familiar
+
+---
+
+### 6. No backend
+
+- usar estado en frontend (useState)
+- no API
+- no DB
+
+---
+
+## Importante
+
+- No romper layout actual
+- No tocar onboarding
+- No añadir librerías nuevas
+- No complicar en exceso
+
+---
+
+## Resultado esperado
+
+El usuario entra al inbox y:
+- puede simular mensajes
+- ve conversaciones aparecer
+- puede responder
+- siente que “esto funciona”

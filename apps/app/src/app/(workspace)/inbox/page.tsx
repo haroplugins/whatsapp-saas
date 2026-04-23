@@ -1,95 +1,52 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { apiFetch } from '../../../lib/api';
-
-type Conversation = {
-  id: string;
-  phone: string;
-  name: string | null;
-  status: string;
-  isBusiness: boolean;
-};
 
 type Message = {
   id: string;
   sender: 'USER' | 'CLIENT';
   content: string;
-  createdAt: string;
+  createdAt: number;
 };
+
+type Conversation = {
+  id: string;
+  name: string;
+  updatedAt: number;
+  messages: Message[];
+};
+
+const mockCustomerNames = [
+  'Cliente Juan',
+  'Maria Garcia',
+  'Cliente Laura',
+  'Carlos Ruiz',
+  'Ana Lopez',
+  'Cliente Sofia',
+];
+
+const mockIncomingMessages = [
+  'Hola, queria informacion',
+  'Buenas, tengo una duda',
+  'Hola, queria saber precios',
+  'Me interesa vuestro servicio',
+  'Hola, podeis ayudarme?',
+];
 
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [draftMessage, setDraftMessage] = useState('');
-  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [conversationsError, setConversationsError] = useState<string | null>(null);
-  const [messagesError, setMessagesError] = useState<string | null>(null);
-  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const sortedConversations = useMemo(
+    () => [...conversations].sort((first, second) => second.updatedAt - first.updatedAt),
+    [conversations],
+  );
 
-    async function loadConversations() {
-      setIsLoadingConversations(true);
-      setConversationsError(null);
-
-      try {
-        const response = await apiFetch<Conversation[]>('/conversations');
-
-        if (!isMounted) {
-          return;
-        }
-
-        setConversations(response);
-        setSelectedConversationId((currentSelectedConversationId) => {
-          if (
-            currentSelectedConversationId &&
-            response.some((conversation) => conversation.id === currentSelectedConversationId)
-          ) {
-            return currentSelectedConversationId;
-          }
-
-          return response[0]?.id ?? null;
-        });
-      } catch (loadError) {
-        if (!isMounted) {
-          return;
-        }
-
-        setConversationsError(
-          loadError instanceof Error
-            ? loadError.message
-            : 'No se pudieron cargar las conversaciones.',
-        );
-      } finally {
-        if (isMounted) {
-          setIsLoadingConversations(false);
-        }
-      }
-    }
-
-    void loadConversations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedConversationId) {
-      setMessages([]);
-      setMessagesError(null);
-      setIsLoadingMessages(false);
-      return;
-    }
-
-    void loadMessages(selectedConversationId);
-  }, [selectedConversationId]);
+  const selectedConversation =
+    conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+  const isDraftEmpty = draftMessage.trim().length === 0;
 
   useEffect(() => {
     if (!chatBottomRef.current) {
@@ -100,113 +57,107 @@ export default function InboxPage() {
       block: 'end',
       behavior: 'smooth',
     });
-  }, [messages, isLoadingMessages, selectedConversationId]);
+  }, [selectedConversation?.messages.length, selectedConversationId]);
 
-  const selectedConversation =
-    conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
-  const isDraftEmpty = useMemo(() => draftMessage.trim().length === 0, [draftMessage]);
+  function simulateIncomingMessage() {
+    const now = Date.now();
+    const customerName = getRandomItem(mockCustomerNames);
+    const initialMessage = getRandomItem(mockIncomingMessages);
+    const conversationId = `mock-conversation-${now}`;
 
-  async function loadMessages(conversationId: string): Promise<void> {
-    setIsLoadingMessages(true);
-    setMessagesError(null);
+    const conversation: Conversation = {
+      id: conversationId,
+      name: customerName,
+      updatedAt: now,
+      messages: [
+        {
+          id: `mock-message-${now}`,
+          sender: 'CLIENT',
+          content: initialMessage,
+          createdAt: now,
+        },
+      ],
+    };
 
-    try {
-      const response = await apiFetch<Message[]>(
-        `/conversations/${conversationId}/messages`,
-      );
-
-      setMessages(response);
-    } catch (loadError) {
-      setMessagesError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'No se pudieron cargar los mensajes.',
-      );
-    } finally {
-      setIsLoadingMessages(false);
-    }
+    setConversations((currentConversations) => [conversation, ...currentConversations]);
+    setSelectedConversationId(conversationId);
+    setDraftMessage('');
   }
 
-  async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
+  function handleSendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedConversationId) {
+    if (!selectedConversationId || isDraftEmpty) {
       return;
     }
 
+    const now = Date.now();
     const content = draftMessage.trim();
 
-    if (!content) {
-      return;
-    }
+    setConversations((currentConversations) =>
+      currentConversations.map((conversation) => {
+        if (conversation.id !== selectedConversationId) {
+          return conversation;
+        }
 
-    if (isSendingMessage) {
-      return;
-    }
-
-    setIsSendingMessage(true);
-    setMessagesError(null);
-
-    try {
-      await apiFetch(`/conversations/${selectedConversationId}/messages`, {
-        method: 'POST',
-        body: {
-          content,
-        },
-      });
-
-      setDraftMessage('');
-      await loadMessages(selectedConversationId);
-    } catch (sendError) {
-      setMessagesError(
-        sendError instanceof Error
-          ? sendError.message
-          : 'No se pudo enviar el mensaje.',
-      );
-    } finally {
-      setIsSendingMessage(false);
-    }
+        return {
+          ...conversation,
+          updatedAt: now,
+          messages: [
+            ...conversation.messages,
+            {
+              id: `mock-message-${now}`,
+              sender: 'USER',
+              content,
+              createdAt: now,
+            },
+          ],
+        };
+      }),
+    );
+    setDraftMessage('');
   }
 
   return (
     <section className="inbox-page">
-      <div className="dashboard-hero">
+      <div className="dashboard-hero inbox-hero">
         <div>
           <span className="workspace-header__eyebrow">Inbox</span>
-          <h2>Conversaciones reales del tenant</h2>
+          <h2>Responde mensajes como si ya estuvieran entrando.</h2>
           <p>
-            La bandeja ya consume conversaciones y mensajes del backend en una
-            vista simple tipo chat.
+            Simula conversaciones de clientes, abre el chat y practica respuestas
+            sin conectar todavia ningun backend.
           </p>
         </div>
+        <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>
+          Simular mensaje entrante
+        </button>
       </div>
 
       <div className="inbox-layout">
         <aside className="inbox-list">
           <div className="inbox-list__header">
             <strong>Conversaciones</strong>
-            <span>{isLoadingConversations ? 'Cargando...' : `${conversations.length} items`}</span>
+            <span>{sortedConversations.length} chats</span>
           </div>
 
-          {conversationsError ? <p className="form-error">{conversationsError}</p> : null}
-
           <div className="inbox-list__items">
-            {isLoadingConversations ? (
-              <>
-                <div className="conversation-skeleton" />
-                <div className="conversation-skeleton" />
-                <div className="conversation-skeleton" />
-              </>
-            ) : null}
-
-            {!isLoadingConversations && conversations.length === 0 ? (
-              <div className="inbox-empty">
-                No hay conversaciones todavia.
-                <span>Cuando entren nuevos chats apareceran aqui.</span>
+            {sortedConversations.length === 0 ? (
+              <div className="inbox-empty inbox-empty--action">
+                Aun no tienes conversaciones
+                <span>Genera un primer mensaje entrante para ver el inbox en accion.</span>
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={simulateIncomingMessage}
+                >
+                  Simular primer mensaje
+                </button>
               </div>
             ) : null}
 
-            {conversations.map((conversation) => {
+            {sortedConversations.map((conversation) => {
+              const lastMessage = conversation.messages.at(-1);
               const isActive = conversation.id === selectedConversationId;
 
               return (
@@ -217,19 +168,13 @@ export default function InboxPage() {
                   onClick={() => setSelectedConversationId(conversation.id)}
                 >
                   <div className="conversation-item__top">
-                    <strong>{conversation.name || conversation.phone}</strong>
-                    <span
-                      className={`conversation-badge ${
-                        conversation.isBusiness
-                          ? 'conversation-badge--business'
-                          : 'conversation-badge--personal'
-                      }`}
-                    >
-                      {conversation.isBusiness ? 'Business' : 'Personal'}
-                    </span>
+                    <strong>{conversation.name}</strong>
+                    <time>{formatMessageTime(conversation.updatedAt)}</time>
                   </div>
-                  <span className="conversation-item__phone">{conversation.phone}</span>
-                  <span className="conversation-item__status">{conversation.status}</span>
+                  <span className="conversation-item__preview">
+                    {lastMessage?.sender === 'USER' ? 'Tu: ' : ''}
+                    {lastMessage?.content}
+                  </span>
                 </button>
               );
             })}
@@ -241,59 +186,31 @@ export default function InboxPage() {
             <>
               <header className="chat-panel__header">
                 <div>
-                  <strong>{selectedConversation.name || selectedConversation.phone}</strong>
-                  <span>{selectedConversation.phone}</span>
+                  <strong>{selectedConversation.name}</strong>
+                  <span>{selectedConversation.messages.length} mensajes</span>
                 </div>
-                <div className="chat-panel__meta">
-                  <span className="chat-panel__status">{selectedConversation.status}</span>
-                  <span
-                    className={`conversation-badge ${
-                      selectedConversation.isBusiness
-                        ? 'conversation-badge--business'
-                        : 'conversation-badge--personal'
-                    }`}
-                  >
-                    {selectedConversation.isBusiness ? 'Business' : 'Personal'}
-                  </span>
-                </div>
+                <span className="conversation-badge conversation-badge--business">
+                  Mock
+                </span>
               </header>
 
-              {messagesError ? <p className="form-error">{messagesError}</p> : null}
-
-              <div ref={chatMessagesRef} className="chat-messages">
-                {isLoadingMessages ? (
-                  <>
-                    <div className="message-skeleton message-skeleton--client" />
-                    <div className="message-skeleton message-skeleton--user" />
-                    <div className="message-skeleton message-skeleton--client" />
-                  </>
-                ) : null}
-
-                {!isLoadingMessages && messages.length === 0 ? (
-                  <div className="inbox-empty">
-                    Esta conversacion aun no tiene mensajes.
-                    <span>Puedes enviar la primera respuesta desde abajo.</span>
-                  </div>
-                ) : null}
-
-                {!isLoadingMessages
-                  ? messages.map((message) => (
-                      <article
-                        key={message.id}
-                        className={`chat-message ${
-                          message.sender === 'USER'
-                            ? 'chat-message--user'
-                            : 'chat-message--client'
-                        }`}
-                      >
-                        <span className="chat-message__sender">
-                          {message.sender === 'USER' ? 'User' : 'Client'}
-                        </span>
-                        <p>{message.content}</p>
-                        <time>{formatMessageTime(message.createdAt)}</time>
-                      </article>
-                    ))
-                  : null}
+              <div className="chat-messages">
+                {selectedConversation.messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`chat-message ${
+                      message.sender === 'USER'
+                        ? 'chat-message--user'
+                        : 'chat-message--client'
+                    }`}
+                  >
+                    <span className="chat-message__sender">
+                      {message.sender === 'USER' ? 'Tu' : selectedConversation.name}
+                    </span>
+                    <p>{message.content}</p>
+                    <time>{formatMessageTime(message.createdAt)}</time>
+                  </article>
+                ))}
                 <div ref={chatBottomRef} />
               </div>
 
@@ -304,24 +221,21 @@ export default function InboxPage() {
                   placeholder="Escribe una respuesta..."
                   value={draftMessage}
                   onChange={(event) => setDraftMessage(event.target.value)}
-                  disabled={!selectedConversationId || isSendingMessage}
                 />
                 <button
                   className="button button--primary"
                   type="submit"
-                  disabled={!selectedConversationId || isSendingMessage || isDraftEmpty}
+                  disabled={isDraftEmpty}
                 >
-                  {isSendingMessage ? 'Enviando...' : 'Enviar'}
+                  Enviar
                 </button>
-                <span className="chat-composer__hint">
-                  {isSendingMessage ? 'Sending...' : 'Pulsa Enter para enviar'}
-                </span>
+                <span className="chat-composer__hint">Pulsa Enter para enviar</span>
               </form>
             </>
           ) : (
             <div className="inbox-empty inbox-empty--large">
-              Selecciona una conversacion para ver el chat.
-              <span>La columna derecha mostrara aqui el historial completo.</span>
+              Selecciona una conversacion para ver el chat
+              <span>O simula un mensaje entrante para empezar.</span>
             </div>
           )}
         </section>
@@ -330,11 +244,13 @@ export default function InboxPage() {
   );
 }
 
-function formatMessageTime(value: string): string {
+function getRandomItem(items: string[]): string {
+  return items[Math.floor(Math.random() * items.length)] ?? items[0] ?? 'Cliente';
+}
+
+function formatMessageTime(value: number): string {
   return new Intl.DateTimeFormat('es-ES', {
     hour: '2-digit',
     minute: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
   }).format(new Date(value));
 }

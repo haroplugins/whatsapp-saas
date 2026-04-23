@@ -408,6 +408,13 @@ input:focus {
   gap: 1.2rem;
 }
 
+.inbox-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .dashboard-hero,
 .placeholder-page,
 .metric-card {
@@ -579,10 +586,23 @@ input:focus {
   gap: 0.75rem;
 }
 
+.conversation-item__top time {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
 .conversation-item__phone,
-.conversation-item__status {
+.conversation-item__status,
+.conversation-item__preview {
   color: var(--text-muted);
   font-size: 0.94rem;
+}
+
+.conversation-item__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversation-item__status {
@@ -739,6 +759,14 @@ input:focus {
   margin: 1rem;
 }
 
+.inbox-empty--action {
+  align-content: center;
+}
+
+.inbox-empty--action .button {
+  margin-top: 0.75rem;
+}
+
 .entry-page {
   display: grid;
   min-height: 100vh;
@@ -787,7 +815,7 @@ input:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
   gap: 1.2rem;
-  align-items: end;
+  align-items: flex-end;
   overflow: hidden;
   padding: 1.6rem;
   background:
@@ -963,6 +991,11 @@ input:focus {
 
   .workspace-sidebar {
     padding-bottom: 1.25rem;
+  }
+
+  .inbox-hero {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
