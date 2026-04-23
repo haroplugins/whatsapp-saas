@@ -16,6 +16,9 @@ type Conversation = {
   messages: Message[];
 };
 
+const mockConversationsStorageKey = 'mockInbox.conversations';
+const privateNotesStorageKey = 'mockInbox.privateNotes';
+
 const mockCustomerNames = [
   'Cliente Juan',
   'Maria Garcia',
@@ -37,6 +40,8 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState('');
+  const [privateNotes, setPrivateNotes] = useState<Record<string, string>>({});
+  const [isHydrated, setIsHydrated] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
   const sortedConversations = useMemo(
@@ -47,6 +52,34 @@ export default function InboxPage() {
   const selectedConversation =
     conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
   const isDraftEmpty = draftMessage.trim().length === 0;
+  const selectedConversationNote = selectedConversation
+    ? privateNotes[selectedConversation.id] ?? ''
+    : '';
+
+  useEffect(() => {
+    setConversations(readStoredConversations());
+    setPrivateNotes(readStoredPrivateNotes());
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      mockConversationsStorageKey,
+      JSON.stringify(conversations),
+    );
+  }, [conversations, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || selectedConversationId) {
+      return;
+    }
+
+    setSelectedConversationId(sortedConversations[0]?.id ?? null);
+  }, [isHydrated, selectedConversationId, sortedConversations]);
 
   useEffect(() => {
     if (!chatBottomRef.current) {
@@ -118,6 +151,38 @@ export default function InboxPage() {
     setDraftMessage('');
   }
 
+  function handlePrivateNoteChange(note: string) {
+    if (!selectedConversation) {
+      return;
+    }
+
+    const nextPrivateNotes = {
+      ...privateNotes,
+      [selectedConversation.id]: note,
+    };
+
+    setPrivateNotes(nextPrivateNotes);
+    window.localStorage.setItem(
+      privateNotesStorageKey,
+      JSON.stringify(nextPrivateNotes),
+    );
+  }
+
+  function deletePrivateNote() {
+    if (!selectedConversation) {
+      return;
+    }
+
+    const nextPrivateNotes = { ...privateNotes };
+    delete nextPrivateNotes[selectedConversation.id];
+
+    setPrivateNotes(nextPrivateNotes);
+    window.localStorage.setItem(
+      privateNotesStorageKey,
+      JSON.stringify(nextPrivateNotes),
+    );
+  }
+
   return (
     <section className="inbox-page">
       <div className="dashboard-hero inbox-hero">
@@ -134,7 +199,7 @@ export default function InboxPage() {
         </button>
       </div>
 
-      <div className="inbox-layout">
+      <div className="inbox-layout inbox-layout--with-notes">
         <aside className="inbox-list">
           <div className="inbox-list__header">
             <strong>Conversaciones</strong>
@@ -239,6 +304,38 @@ export default function InboxPage() {
             </div>
           )}
         </section>
+
+        <aside className="private-notes-panel">
+          {selectedConversation ? (
+            <>
+              <div className="private-notes-panel__header">
+                <div>
+                  <strong>Notas privadas</strong>
+                  <span>Solo visible para ti</span>
+                </div>
+                <button
+                  className="private-notes-panel__delete"
+                  type="button"
+                  onClick={deletePrivateNote}
+                  disabled={!selectedConversationNote}
+                >
+                  Borrar
+                </button>
+              </div>
+              <textarea
+                className="private-notes-panel__textarea"
+                placeholder="Ej: Prefiere que le respondamos por la tarde. Pregunto por precios del plan mensual."
+                value={selectedConversationNote}
+                onChange={(event) => handlePrivateNoteChange(event.target.value)}
+              />
+            </>
+          ) : (
+            <div className="inbox-empty inbox-empty--large">
+              Selecciona una conversacion para ver sus notas privadas
+              <span>Las notas se guardan en este navegador.</span>
+            </div>
+          )}
+        </aside>
       </div>
     </section>
   );
@@ -253,4 +350,34 @@ function formatMessageTime(value: number): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function readStoredConversations(): Conversation[] {
+  const storedValue = window.localStorage.getItem(mockConversationsStorageKey);
+
+  if (!storedValue) {
+    return [];
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Conversation[];
+    return Array.isArray(parsedValue) ? parsedValue : [];
+  } catch {
+    return [];
+  }
+}
+
+function readStoredPrivateNotes(): Record<string, string> {
+  const storedValue = window.localStorage.getItem(privateNotesStorageKey);
+
+  if (!storedValue) {
+    return {};
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Record<string, string>;
+    return parsedValue && typeof parsedValue === 'object' ? parsedValue : {};
+  } catch {
+    return {};
+  }
 }
