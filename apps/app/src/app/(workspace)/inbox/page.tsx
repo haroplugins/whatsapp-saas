@@ -65,6 +65,10 @@ export default function InboxPage() {
   const [draftMessage, setDraftMessage] = useState('');
   const [privateNotes, setPrivateNotes] = useState<Record<string, string>>({});
   const [isHydrated, setIsHydrated] = useState(false);
+  const [openActionsConversationId, setOpenActionsConversationId] = useState<string | null>(null);
+  const [pendingDeleteConversationId, setPendingDeleteConversationId] = useState<string | null>(
+    null,
+  );
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const automationTimeoutsRef = useRef<number[]>([]);
 
@@ -145,6 +149,45 @@ export default function InboxPage() {
     setDraftMessage('');
 
     scheduleAutomationReply(conversationId);
+  }
+
+  function requestDeleteConversation(conversationId: string) {
+    setOpenActionsConversationId(null);
+    setPendingDeleteConversationId(conversationId);
+  }
+
+  function closeDeleteModal() {
+    setPendingDeleteConversationId(null);
+  }
+
+  function confirmDeleteConversation() {
+    if (!pendingDeleteConversationId) {
+      return;
+    }
+
+    const nextConversations = conversations.filter(
+      (conversation) => conversation.id !== pendingDeleteConversationId,
+    );
+
+    setConversations(nextConversations);
+    setPendingDeleteConversationId(null);
+
+    if (selectedConversationId === pendingDeleteConversationId) {
+      const nextSelectedConversation = nextConversations
+        .sort((first, second) => second.updatedAt - first.updatedAt)[0];
+
+      setSelectedConversationId(nextSelectedConversation?.id ?? null);
+      setDraftMessage('');
+    }
+
+    const nextPrivateNotes = { ...privateNotes };
+    delete nextPrivateNotes[pendingDeleteConversationId];
+
+    setPrivateNotes(nextPrivateNotes);
+    window.localStorage.setItem(
+      privateNotesStorageKey,
+      JSON.stringify(nextPrivateNotes),
+    );
   }
 
   function handleSendMessage(event: FormEvent<HTMLFormElement>) {
@@ -309,27 +352,72 @@ export default function InboxPage() {
             {sortedConversations.map((conversation) => {
               const lastMessage = conversation.messages.at(-1);
               const isActive = conversation.id === selectedConversationId;
+              const isActionsOpen = conversation.id === openActionsConversationId;
 
               return (
-                <button
+                <article
                   key={conversation.id}
                   className={`conversation-item${isActive ? ' conversation-item--active' : ''}`}
-                  type="button"
-                  onClick={() => setSelectedConversationId(conversation.id)}
                 >
-                  <div className="conversation-item__top">
-                    <strong>{conversation.name}</strong>
-                    <time>{formatMessageTime(conversation.updatedAt)}</time>
+                  <div className="conversation-item__actions">
+                    <button
+                      className="conversation-item__action-button"
+                      type="button"
+                      aria-label={`Eliminar ${conversation.name}`}
+                      onClick={() => requestDeleteConversation(conversation.id)}
+                    >
+                      ×
+                    </button>
+                    <div className="conversation-item__menu">
+                      <button
+                        className="conversation-item__action-button"
+                        type="button"
+                        aria-label={`Abrir acciones de ${conversation.name}`}
+                        onClick={() =>
+                          setOpenActionsConversationId((currentConversationId) =>
+                            currentConversationId === conversation.id ? null : conversation.id,
+                          )
+                        }
+                      >
+                        ⋯
+                      </button>
+
+                      {isActionsOpen ? (
+                        <div className="conversation-item__menu-panel">
+                          <button
+                            className="conversation-item__menu-option"
+                            type="button"
+                            onClick={() => requestDeleteConversation(conversation.id)}
+                          >
+                            Eliminar conversacion
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <span className="conversation-item__preview">
-                    {lastMessage?.sender === 'USER'
-                      ? 'Tu: '
-                      : lastMessage?.sender === 'AUTO'
-                        ? 'Auto: '
-                        : ''}
-                    {lastMessage?.content}
-                  </span>
-                </button>
+
+                  <button
+                    className="conversation-item__content"
+                    type="button"
+                    onClick={() => {
+                      setSelectedConversationId(conversation.id);
+                      setOpenActionsConversationId(null);
+                    }}
+                  >
+                    <div className="conversation-item__top">
+                      <strong>{conversation.name}</strong>
+                      <time>{formatMessageTime(conversation.updatedAt)}</time>
+                    </div>
+                    <span className="conversation-item__preview">
+                      {lastMessage?.sender === 'USER'
+                        ? 'Tu: '
+                        : lastMessage?.sender === 'AUTO'
+                          ? 'Auto: '
+                          : ''}
+                      {lastMessage?.content}
+                    </span>
+                  </button>
+                </article>
               );
             })}
           </div>
@@ -432,6 +520,38 @@ export default function InboxPage() {
           )}
         </aside>
       </div>
+
+      {pendingDeleteConversationId ? (
+        <div className="automation-modal-backdrop" role="presentation">
+          <div
+            className="automation-modal conversation-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-conversation-title"
+          >
+            <div className="automation-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Accion de bandeja</span>
+                <h3 id="delete-conversation-title">¿Eliminar esta conversación?</h3>
+              </div>
+              <p>Esto solo eliminara la conversacion de esta bandeja de prueba.</p>
+            </div>
+
+            <div className="automation-modal__body conversation-delete-modal__actions">
+              <button className="button button--ghost" type="button" onClick={closeDeleteModal}>
+                Cancelar
+              </button>
+              <button
+                className="button button--primary conversation-delete-modal__confirm"
+                type="button"
+                onClick={confirmDeleteConversation}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -565,16 +565,14 @@ input:focus {
 }
 
 .conversation-item {
+  position: relative;
   display: grid;
-  gap: 0.35rem;
-  width: 100%;
+  gap: 0.55rem;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: #ffffff;
   color: var(--text);
-  padding: 1rem;
-  text-align: left;
-  cursor: pointer;
+  padding: 0.9rem;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -591,6 +589,82 @@ input:focus {
 .conversation-item--active {
   border-color: rgba(13, 138, 106, 0.28);
   background: rgba(216, 243, 234, 0.4);
+}
+
+.conversation-item__content {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.conversation-item__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.conversation-item__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.conversation-item__action-button:hover {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  color: var(--text);
+}
+
+.conversation-item__menu {
+  position: relative;
+}
+
+.conversation-item__menu-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 3;
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-strong);
+  box-shadow: 0 18px 30px rgba(22, 53, 45, 0.12);
+  padding: 0.45rem;
+}
+
+.conversation-item__menu-option {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+}
+
+.conversation-item__menu-option:hover {
+  background: rgba(244, 239, 231, 0.72);
 }
 
 .conversation-item__top {
@@ -1048,6 +1122,16 @@ input:focus {
   box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
 }
 
+.conversation-delete-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.conversation-delete-modal__confirm {
+  min-width: 120px;
+}
+
 .onboarding-page {
   display: grid;
   gap: 1.2rem;
@@ -1277,6 +1361,10 @@ input:focus {
   .onboarding-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .conversation-delete-modal__actions {
+    flex-direction: column-reverse;
   }
 
   .chat-composer {
