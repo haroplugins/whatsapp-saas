@@ -5,6 +5,7 @@ type WorkspaceLayoutProps = Readonly<{
 }>;
 
 const navigation = [
+  { href: '/onboarding', label: 'Inicio', description: 'Primeros pasos' },
   { href: '/dashboard', label: 'Dashboard', description: 'Resumen general' },
   { href: '/inbox', label: 'Inbox', description: 'Conversaciones' },
   { href: '/automations', label: 'Automations', description: 'Reglas activas' },

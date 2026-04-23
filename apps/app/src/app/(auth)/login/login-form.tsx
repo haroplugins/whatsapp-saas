@@ -30,7 +30,7 @@ export function LoginForm() {
       });
 
       setAccessToken(response.accessToken);
-      router.push('/dashboard');
+      router.push('/onboarding');
       router.refresh();
     } catch (submissionError) {
       const message =
