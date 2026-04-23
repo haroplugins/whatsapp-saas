@@ -1133,6 +1133,11 @@ input:focus {
   padding: 0.95rem 1rem;
 }
 
+.automation-card__meta {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
 .automation-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1199,6 +1204,66 @@ input:focus {
   outline: none;
   border-color: rgba(13, 138, 106, 0.44);
   box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
+}
+
+.automation-modal__schedule {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(248, 252, 250, 0.72);
+  padding: 1rem;
+}
+
+.automation-modal__schedule-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.automation-modal__schedule-copy strong,
+.automation-modal__days legend {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.automation-modal__days {
+  display: grid;
+  gap: 0.8rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.automation-modal__days-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.automation-day-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  padding: 0.75rem 0.9rem;
+}
+
+.automation-day-pill input {
+  width: auto;
+  margin: 0;
+}
+
+.automation-day-pill span {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.automation-modal__time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
 }
 
 .conversation-delete-modal__actions {
@@ -1461,6 +1526,11 @@ input:focus {
   }
 
   .chat-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-modal__days-grid,
+  .automation-modal__time-grid {
     grid-template-columns: 1fr;
   }
 }
