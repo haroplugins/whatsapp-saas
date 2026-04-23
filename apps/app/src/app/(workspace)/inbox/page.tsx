@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type Message = {
   id: string;
@@ -31,9 +31,23 @@ type AutomationsState = {
   };
 };
 
+type InboxLayout = {
+  leftWidth: number;
+  centerWidth: number;
+  rightWidth: number;
+};
+
+type ActiveResizer = 'left' | 'right';
+
 const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
 const automationsStorageKey = 'automations';
+const layoutStorageKey = 'mockInbox.layout';
+const leftPanelMinWidth = 220;
+const centerPanelMinWidth = 300;
+const rightPanelMinWidth = 220;
+const resizerWidth = 12;
+const resizableViewportMinWidth = 1180;
 
 const mockCustomerNames = [
   'Cliente Juan',
@@ -73,8 +87,17 @@ export default function InboxPage() {
   const [pendingDeleteConversationId, setPendingDeleteConversationId] = useState<string | null>(
     null,
   );
+  const [layout, setLayout] = useState<InboxLayout | null>(null);
+  const [isResizableLayout, setIsResizableLayout] = useState(false);
+  const [activeResizer, setActiveResizer] = useState<ActiveResizer | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const automationTimeoutsRef = useRef<Record<string, number>>({});
+  const dragStateRef = useRef<{
+    startX: number;
+    startLayout: InboxLayout;
+    type: ActiveResizer;
+  } | null>(null);
 
   const sortedConversations = useMemo(
     () => [...conversations].sort((first, second) => second.updatedAt - first.updatedAt),
@@ -112,6 +135,14 @@ export default function InboxPage() {
   }, [conversations, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated || !layout) {
+      return;
+    }
+
+    window.localStorage.setItem(layoutStorageKey, JSON.stringify(layout));
+  }, [isHydrated, layout]);
+
+  useEffect(() => {
     if (!isHydrated || selectedConversationId) {
       return;
     }
@@ -133,6 +164,100 @@ export default function InboxPage() {
     selectedConversation?.messages.length,
     selectedConversationId,
   ]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    function syncLayoutWithViewport() {
+      const shouldEnableResizableLayout = window.innerWidth >= resizableViewportMinWidth;
+      setIsResizableLayout(shouldEnableResizableLayout);
+
+      if (!shouldEnableResizableLayout) {
+        setActiveResizer(null);
+        dragStateRef.current = null;
+        return;
+      }
+
+      const totalPanelWidth = getTotalPanelWidth(inboxLayoutRef.current);
+
+      if (!totalPanelWidth) {
+        return;
+      }
+
+      setLayout((currentLayout) =>
+        normalizeLayout(
+          currentLayout ?? readStoredLayout() ?? createDefaultLayout(totalPanelWidth),
+          totalPanelWidth,
+        ),
+      );
+    }
+
+    syncLayoutWithViewport();
+    window.addEventListener('resize', syncLayoutWithViewport);
+
+    return () => {
+      window.removeEventListener('resize', syncLayoutWithViewport);
+    };
+  }, [isHydrated]);
+
+  useEffect(() => {
+    if (!activeResizer) {
+      document.body.style.removeProperty('cursor');
+      document.body.style.removeProperty('user-select');
+      return;
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+      const dragState = dragStateRef.current;
+      const totalPanelWidth = getTotalPanelWidth(inboxLayoutRef.current);
+
+      if (!dragState || !totalPanelWidth) {
+        return;
+      }
+
+      const deltaX = event.clientX - dragState.startX;
+      const nextLayout =
+        dragState.type === 'left'
+          ? {
+              leftWidth: dragState.startLayout.leftWidth + deltaX,
+              centerWidth: dragState.startLayout.centerWidth - deltaX,
+              rightWidth: dragState.startLayout.rightWidth,
+            }
+          : {
+              leftWidth: dragState.startLayout.leftWidth,
+              centerWidth: dragState.startLayout.centerWidth + deltaX,
+              rightWidth: dragState.startLayout.rightWidth - deltaX,
+            };
+
+      setLayout(normalizeLayout(nextLayout, totalPanelWidth));
+    }
+
+    function stopResizing() {
+      setActiveResizer(null);
+      dragStateRef.current = null;
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopResizing);
+
+    return () => {
+      document.body.style.removeProperty('cursor');
+      document.body.style.removeProperty('user-select');
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [activeResizer]);
+
+  const inboxLayoutStyle =
+    isResizableLayout && layout
+      ? {
+          gridTemplateColumns: `${layout.leftWidth}px ${resizerWidth}px ${layout.centerWidth}px ${resizerWidth}px ${layout.rightWidth}px`,
+        }
+      : undefined;
 
   function simulateIncomingMessage() {
     const now = Date.now();
@@ -359,6 +484,20 @@ export default function InboxPage() {
     delete automationTimeoutsRef.current[conversationId];
   }
 
+  function startResizing(type: ActiveResizer, event: ReactMouseEvent<HTMLDivElement>) {
+    if (!layout || !isResizableLayout) {
+      return;
+    }
+
+    event.preventDefault();
+    dragStateRef.current = {
+      type,
+      startX: event.clientX,
+      startLayout: layout,
+    };
+    setActiveResizer(type);
+  }
+
   function getAutomationMessage(): string | null {
     const automations = readStoredAutomations();
 
@@ -389,7 +528,13 @@ export default function InboxPage() {
         </button>
       </div>
 
-      <div className="inbox-layout inbox-layout--with-notes">
+      <div
+        ref={inboxLayoutRef}
+        className={`inbox-layout inbox-layout--with-notes${
+          isResizableLayout ? ' inbox-layout--resizable' : ''
+        }`}
+        style={inboxLayoutStyle}
+      >
         <aside className="inbox-list">
           <div className="inbox-list__header">
             <strong>Conversaciones</strong>
@@ -485,6 +630,16 @@ export default function InboxPage() {
           </div>
         </aside>
 
+        {isResizableLayout ? (
+          <div
+            className={`inbox-resizer${activeResizer === 'left' ? ' inbox-resizer--active' : ''}`}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionar conversaciones"
+            onMouseDown={(event) => startResizing('left', event)}
+          />
+        ) : null}
+
         <section className="chat-panel">
           {selectedConversation ? (
             <>
@@ -564,6 +719,16 @@ export default function InboxPage() {
             </div>
           )}
         </section>
+
+        {isResizableLayout ? (
+          <div
+            className={`inbox-resizer${activeResizer === 'right' ? ' inbox-resizer--active' : ''}`}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionar notas"
+            onMouseDown={(event) => startResizing('right', event)}
+          />
+        ) : null}
 
         <aside className="private-notes-panel">
           {selectedConversation ? (
@@ -726,4 +891,99 @@ function getRandomDelay(min: number, max: number): number {
 
 function canSendAutoReply(conversation: Conversation): boolean {
   return !conversation.hasAutoReplied && !conversation.hasUserReplied;
+}
+
+function readStoredLayout(): InboxLayout | null {
+  const storedValue = window.localStorage.getItem(layoutStorageKey);
+
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Partial<InboxLayout>;
+
+    if (
+      typeof parsedValue.leftWidth !== 'number' ||
+      typeof parsedValue.centerWidth !== 'number' ||
+      typeof parsedValue.rightWidth !== 'number'
+    ) {
+      return null;
+    }
+
+    return {
+      leftWidth: parsedValue.leftWidth,
+      centerWidth: parsedValue.centerWidth,
+      rightWidth: parsedValue.rightWidth,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getTotalPanelWidth(element: HTMLDivElement | null): number {
+  if (!element) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(element.getBoundingClientRect().width) - resizerWidth * 2);
+}
+
+function createDefaultLayout(totalPanelWidth: number): InboxLayout {
+  const defaultSideWidth = Math.min(300, Math.max(260, Math.floor(totalPanelWidth * 0.24)));
+  return normalizeLayout(
+    {
+      leftWidth: defaultSideWidth,
+      centerWidth: totalPanelWidth - defaultSideWidth * 2,
+      rightWidth: defaultSideWidth,
+    },
+    totalPanelWidth,
+  );
+}
+
+function normalizeLayout(layout: InboxLayout, totalPanelWidth: number): InboxLayout {
+  const minTotalWidth = leftPanelMinWidth + centerPanelMinWidth + rightPanelMinWidth;
+
+  if (totalPanelWidth <= minTotalWidth) {
+    return {
+      leftWidth: leftPanelMinWidth,
+      centerWidth: centerPanelMinWidth,
+      rightWidth: rightPanelMinWidth,
+    };
+  }
+
+  let leftWidth = clampWidth(
+    layout.leftWidth,
+    leftPanelMinWidth,
+    totalPanelWidth - centerPanelMinWidth - rightPanelMinWidth,
+  );
+  let rightWidth = clampWidth(
+    layout.rightWidth,
+    rightPanelMinWidth,
+    totalPanelWidth - leftWidth - centerPanelMinWidth,
+  );
+  let centerWidth = totalPanelWidth - leftWidth - rightWidth;
+
+  if (centerWidth < centerPanelMinWidth) {
+    const missingWidth = centerPanelMinWidth - centerWidth;
+    const leftAdjustment = Math.min(leftWidth - leftPanelMinWidth, missingWidth);
+    leftWidth -= leftAdjustment;
+
+    const rightAdjustment = Math.min(
+      rightWidth - rightPanelMinWidth,
+      missingWidth - leftAdjustment,
+    );
+    rightWidth -= rightAdjustment;
+    centerWidth = totalPanelWidth - leftWidth - rightWidth;
+  }
+
+  return {
+    leftWidth,
+    centerWidth,
+    rightWidth,
+  };
+}
+
+function clampWidth(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }

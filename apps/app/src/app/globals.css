@@ -518,6 +518,10 @@ input:focus {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 320px);
 }
 
+.inbox-layout--resizable {
+  gap: 0;
+}
+
 .inbox-list,
 .chat-panel,
 .private-notes-panel {
@@ -531,6 +535,41 @@ input:focus {
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
+}
+
+.inbox-resizer {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  cursor: col-resize;
+}
+
+.inbox-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.inbox-resizer::after {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  bottom: 1rem;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(22, 65, 53, 0.08);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.inbox-resizer:hover::after,
+.inbox-resizer--active::after {
+  background: rgba(13, 138, 106, 0.28);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.08);
 }
 
 .inbox-list__header,
