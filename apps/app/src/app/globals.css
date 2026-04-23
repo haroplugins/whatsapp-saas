@@ -49,6 +49,10 @@ input {
   font: inherit;
 }
 
+textarea {
+  font: inherit;
+}
+
 input {
   width: 100%;
   border: 1px solid var(--line);
@@ -404,6 +408,11 @@ input:focus {
 }
 
 .inbox-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.automations-page {
   display: grid;
   gap: 1.2rem;
 }
@@ -864,6 +873,175 @@ input:focus {
   line-height: 1.65;
 }
 
+.automation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.automation-card {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  box-shadow: 0 14px 30px rgba(22, 53, 45, 0.06);
+  padding: 1.4rem;
+}
+
+.automation-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.automation-card h3,
+.automation-modal h3 {
+  margin: 0.7rem 0 0;
+  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-size: 1.9rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.automation-card p,
+.automation-modal p,
+.automation-card__message {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.automation-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(224, 142, 77, 0.14);
+  color: #a55510;
+  padding: 0.34rem 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.automation-status--enabled {
+  background: rgba(13, 138, 106, 0.12);
+  color: var(--accent-strong);
+}
+
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 3.35rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(22, 65, 53, 0.14);
+  cursor: pointer;
+  padding: 0.22rem;
+  transition: background 160ms ease;
+}
+
+.toggle-switch span {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(22, 53, 45, 0.18);
+  transition: transform 160ms ease;
+}
+
+.toggle-switch--enabled {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+}
+
+.toggle-switch--enabled span {
+  transform: translateX(1.32rem);
+}
+
+.automation-card__footer {
+  display: grid;
+  gap: 1rem;
+}
+
+.automation-card__message {
+  min-height: 4.8rem;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  background: rgba(248, 252, 250, 0.8);
+  padding: 0.95rem 1rem;
+}
+
+.automation-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 20, 16, 0.4);
+  padding: 1.5rem;
+  z-index: 40;
+}
+
+.automation-modal {
+  width: min(100%, 680px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface-strong);
+  box-shadow: 0 24px 70px rgba(17, 55, 47, 0.2);
+  overflow: hidden;
+}
+
+.automation-modal__header,
+.automation-modal__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.3rem;
+}
+
+.automation-modal__header {
+  border-bottom: 1px solid var(--line);
+}
+
+.automation-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(248, 252, 250, 0.75);
+  padding: 1rem;
+}
+
+.automation-modal__field {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.automation-modal__field span,
+.automation-modal__row strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.automation-modal__textarea {
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  padding: 1rem;
+}
+
+.automation-modal__textarea:focus {
+  outline: none;
+  border-color: rgba(13, 138, 106, 0.44);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
+}
+
 .onboarding-page {
   display: grid;
   gap: 1.2rem;
@@ -1046,6 +1224,7 @@ input:focus {
   .auth-page,
   .workspace-shell,
   .dashboard-grid,
+  .automation-grid,
   .inbox-layout,
   .inbox-layout--with-notes,
   .onboarding-hero,
