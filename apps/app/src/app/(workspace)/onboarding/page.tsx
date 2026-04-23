@@ -22,13 +22,13 @@ const integrations: Integration[] = [
   {
     key: 'whatsapp',
     name: 'WhatsApp',
-    description: 'Recibe y responde conversaciones desde una bandeja sencilla.',
+    description: 'Activa la bandeja principal para empezar a responder clientes.',
     storageKey: integrationStorageKeys.whatsapp,
   },
   {
     key: 'googleDrive',
     name: 'Google Drive',
-    description: 'Prepara el espacio para trabajar con archivos del negocio.',
+    description: 'Opcional: prepara archivos y contexto para el equipo.',
     storageKey: integrationStorageKeys.googleDrive,
   },
 ];
@@ -53,7 +53,7 @@ export default function OnboardingPage() {
   }, []);
 
   const isReady = useMemo(
-    () => connectedIntegrations.whatsapp && connectedIntegrations.googleDrive,
+    () => connectedIntegrations.whatsapp,
     [connectedIntegrations],
   );
 
@@ -70,16 +70,17 @@ export default function OnboardingPage() {
       <div className="onboarding-hero">
         <div>
           <span className="workspace-header__eyebrow">Primeros pasos</span>
-          <h2>Conecta tus herramientas y empieza a responder.</h2>
+          <h2>Conecta WhatsApp y empieza a responder clientes.</h2>
           <p>
-            Este onboarding es mock por ahora: no conectamos cuentas reales,
-            solo dejamos preparada la experiencia para WhatsApp y Google Drive.
+            En este primer paso dejamos listo el flujo principal: conectar
+            WhatsApp, abrir el inbox y empezar a gestionar conversaciones.
+            Google Drive puede quedar preparado como apoyo.
           </p>
         </div>
         <div className="onboarding-hero__steps">
           <span>1. Conecta WhatsApp</span>
-          <span>2. Conecta Google Drive</span>
-          <span>3. Entra al inbox</span>
+          <span>2. Suma Google Drive si lo necesitas</span>
+          <span>3. Entra al inbox y responde</span>
         </div>
       </div>
 
@@ -88,19 +89,29 @@ export default function OnboardingPage() {
           const isConnected = connectedIntegrations[integration.key];
 
           return (
-            <article key={integration.key} className="integration-card">
+            <article
+              key={integration.key}
+              className={`integration-card ${
+                integration.key === 'whatsapp' ? 'integration-card--primary' : ''
+              }`}
+            >
               <div className="integration-card__icon" aria-hidden="true">
                 {integration.key === 'whatsapp' ? 'WA' : 'GD'}
               </div>
               <div className="integration-card__content">
                 <div>
-                  <span
-                    className={`integration-status ${
-                      isConnected ? 'integration-status--connected' : ''
-                    }`}
-                  >
-                    {isConnected ? 'Conectado' : 'No conectado'}
-                  </span>
+                  <div className="integration-card__meta">
+                    <span
+                      className={`integration-status ${
+                        isConnected ? 'integration-status--connected' : ''
+                      }`}
+                    >
+                      {isConnected ? 'Conectado' : 'No conectado'}
+                    </span>
+                    <span className="integration-priority">
+                      {integration.key === 'whatsapp' ? 'Principal' : 'Opcional'}
+                    </span>
+                  </div>
                   <h3>{integration.name}</h3>
                   <p>{integration.description}</p>
                 </div>
@@ -127,9 +138,9 @@ export default function OnboardingPage() {
           disabled={!isHydrated || !isReady}
           onClick={() => router.push('/inbox')}
         >
-          {isReady ? 'Entrar al inbox' : 'Conecta tus herramientas para continuar'}
+          {isReady ? 'Entrar al inbox' : 'Conecta WhatsApp para empezar'}
         </button>
-        <Link className="button button--ghost" href="/dashboard">
+        <Link className="onboarding-actions__secondary" href="/dashboard">
           Ir al panel interno
         </Link>
       </div>

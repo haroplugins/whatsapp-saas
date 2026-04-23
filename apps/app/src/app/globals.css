@@ -838,6 +838,14 @@ input:focus {
   padding: 1.2rem;
 }
 
+.integration-card--primary {
+  border-color: rgba(13, 138, 106, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(13, 138, 106, 0.12), transparent 34%),
+    #ffffff;
+  box-shadow: 0 20px 44px rgba(13, 138, 106, 0.12);
+}
+
 .integration-card__icon {
   display: grid;
   place-items: center;
@@ -853,6 +861,13 @@ input:focus {
 .integration-card__content {
   display: grid;
   gap: 1.2rem;
+}
+
+.integration-card__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .integration-card h3 {
@@ -887,6 +902,19 @@ input:focus {
   color: var(--accent-strong);
 }
 
+.integration-priority {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(22, 65, 53, 0.07);
+  color: var(--text-muted);
+  padding: 0.34rem 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .onboarding-actions {
   display: flex;
   align-items: center;
@@ -897,6 +925,16 @@ input:focus {
 
 .onboarding-actions__primary {
   min-width: min(100%, 320px);
+}
+
+.onboarding-actions__secondary {
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 0.8rem 1rem;
+}
+
+.onboarding-actions__secondary:hover {
+  color: var(--accent-strong);
 }
 
 @keyframes shimmer {
