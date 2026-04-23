@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type Message = {
   id: string;
-  sender: 'USER' | 'CLIENT';
+  sender: 'USER' | 'CLIENT' | 'AUTO';
   content: string;
   createdAt: number;
 };
@@ -16,8 +16,20 @@ type Conversation = {
   messages: Message[];
 };
 
+type AutomationsState = {
+  welcome: {
+    enabled: boolean;
+    message: string;
+  };
+  off_hours: {
+    enabled: boolean;
+    message: string;
+  };
+};
+
 const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
+const automationsStorageKey = 'automations';
 
 const mockCustomerNames = [
   'Cliente Juan',
@@ -36,6 +48,17 @@ const mockIncomingMessages = [
   'Hola, podeis ayudarme?',
 ];
 
+const defaultAutomationsState: AutomationsState = {
+  welcome: {
+    enabled: false,
+    message: 'Hola, gracias por escribir. Enseguida te respondemos.',
+  },
+  off_hours: {
+    enabled: false,
+    message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.',
+  },
+};
+
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -43,6 +66,7 @@ export default function InboxPage() {
   const [privateNotes, setPrivateNotes] = useState<Record<string, string>>({});
   const [isHydrated, setIsHydrated] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const automationTimeoutsRef = useRef<number[]>([]);
 
   const sortedConversations = useMemo(
     () => [...conversations].sort((first, second) => second.updatedAt - first.updatedAt),
@@ -60,6 +84,10 @@ export default function InboxPage() {
     setConversations(readStoredConversations());
     setPrivateNotes(readStoredPrivateNotes());
     setIsHydrated(true);
+
+    return () => {
+      automationTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, []);
 
   useEffect(() => {
@@ -115,6 +143,8 @@ export default function InboxPage() {
     setConversations((currentConversations) => [conversation, ...currentConversations]);
     setSelectedConversationId(conversationId);
     setDraftMessage('');
+
+    scheduleAutomationReply(conversationId);
   }
 
   function handleSendMessage(event: FormEvent<HTMLFormElement>) {
@@ -183,6 +213,61 @@ export default function InboxPage() {
     );
   }
 
+  function scheduleAutomationReply(conversationId: string) {
+    const automationMessage = getAutomationMessage();
+
+    if (!automationMessage) {
+      return;
+    }
+
+    const delayInMs = getRandomDelay(500, 1200);
+    const timeoutId = window.setTimeout(() => {
+      const now = Date.now();
+
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) => {
+          if (conversation.id !== conversationId) {
+            return conversation;
+          }
+
+          return {
+            ...conversation,
+            updatedAt: now,
+            messages: [
+              ...conversation.messages,
+              {
+                id: `mock-message-auto-${now}`,
+                sender: 'AUTO',
+                content: automationMessage,
+                createdAt: now,
+              },
+            ],
+          };
+        }),
+      );
+
+      automationTimeoutsRef.current = automationTimeoutsRef.current.filter(
+        (currentTimeoutId) => currentTimeoutId !== timeoutId,
+      );
+    }, delayInMs);
+
+    automationTimeoutsRef.current.push(timeoutId);
+  }
+
+  function getAutomationMessage(): string | null {
+    const automations = readStoredAutomations();
+
+    if (automations.off_hours.enabled && automations.off_hours.message.trim()) {
+      return automations.off_hours.message.trim();
+    }
+
+    if (automations.welcome.enabled && automations.welcome.message.trim()) {
+      return automations.welcome.message.trim();
+    }
+
+    return null;
+  }
+
   return (
     <section className="inbox-page">
       <div className="dashboard-hero inbox-hero">
@@ -237,7 +322,11 @@ export default function InboxPage() {
                     <time>{formatMessageTime(conversation.updatedAt)}</time>
                   </div>
                   <span className="conversation-item__preview">
-                    {lastMessage?.sender === 'USER' ? 'Tu: ' : ''}
+                    {lastMessage?.sender === 'USER'
+                      ? 'Tu: '
+                      : lastMessage?.sender === 'AUTO'
+                        ? 'Auto: '
+                        : ''}
                     {lastMessage?.content}
                   </span>
                 </button>
@@ -266,11 +355,17 @@ export default function InboxPage() {
                     className={`chat-message ${
                       message.sender === 'USER'
                         ? 'chat-message--user'
-                        : 'chat-message--client'
+                        : message.sender === 'AUTO'
+                          ? 'chat-message--auto'
+                          : 'chat-message--client'
                     }`}
                   >
                     <span className="chat-message__sender">
-                      {message.sender === 'USER' ? 'Tu' : selectedConversation.name}
+                      {message.sender === 'USER'
+                        ? 'Tu'
+                        : message.sender === 'AUTO'
+                          ? 'Auto'
+                          : selectedConversation.name}
                     </span>
                     <p>{message.content}</p>
                     <time>{formatMessageTime(message.createdAt)}</time>
@@ -380,4 +475,33 @@ function readStoredPrivateNotes(): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+function readStoredAutomations(): AutomationsState {
+  const storedValue = window.localStorage.getItem(automationsStorageKey);
+
+  if (!storedValue) {
+    return defaultAutomationsState;
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Partial<AutomationsState>;
+
+    return {
+      welcome: {
+        ...defaultAutomationsState.welcome,
+        ...parsedValue.welcome,
+      },
+      off_hours: {
+        ...defaultAutomationsState.off_hours,
+        ...parsedValue.off_hours,
+      },
+    };
+  } catch {
+    return defaultAutomationsState;
+  }
+}
+
+function getRandomDelay(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

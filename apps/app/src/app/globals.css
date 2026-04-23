@@ -704,6 +704,12 @@ input:focus {
   border: 1px solid rgba(13, 138, 106, 0.16);
 }
 
+.chat-message--auto {
+  justify-self: end;
+  background: linear-gradient(135deg, #fff3dc 0%, #fffaf0 100%);
+  border: 1px solid rgba(224, 142, 77, 0.22);
+}
+
 .chat-message__sender,
 .chat-message time {
   color: var(--text-muted);
