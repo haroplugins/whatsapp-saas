@@ -797,6 +797,46 @@ input:focus {
   line-height: 1.6;
 }
 
+.chat-typing-indicator {
+  display: grid;
+  gap: 0.45rem;
+  justify-self: start;
+  max-width: min(62%, 340px);
+}
+
+.chat-typing-indicator__bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(22, 65, 53, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text-muted);
+  padding: 0.8rem 0.95rem;
+}
+
+.chat-typing-indicator__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.chat-typing-indicator__dots span {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: rgba(94, 116, 109, 0.72);
+  animation: typingPulse 1s ease-in-out infinite;
+}
+
+.chat-typing-indicator__dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing-indicator__dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
 .message-skeleton {
   height: 88px;
   max-width: min(76%, 520px);
@@ -1307,6 +1347,20 @@ input:focus {
 
   100% {
     background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes typingPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-1px);
   }
 }
 

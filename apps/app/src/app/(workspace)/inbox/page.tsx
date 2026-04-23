@@ -14,6 +14,10 @@ type Conversation = {
   name: string;
   updatedAt: number;
   messages: Message[];
+  hasAutoReplied: boolean;
+  hasUserReplied: boolean;
+  lastAutoReplyAt: number | null;
+  isAutoReplyTyping: boolean;
 };
 
 type AutomationsState = {
@@ -70,7 +74,7 @@ export default function InboxPage() {
     null,
   );
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
-  const automationTimeoutsRef = useRef<number[]>([]);
+  const automationTimeoutsRef = useRef<Record<string, number>>({});
 
   const sortedConversations = useMemo(
     () => [...conversations].sort((first, second) => second.updatedAt - first.updatedAt),
@@ -90,7 +94,9 @@ export default function InboxPage() {
     setIsHydrated(true);
 
     return () => {
-      automationTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      Object.values(automationTimeoutsRef.current).forEach((timeoutId) =>
+        window.clearTimeout(timeoutId),
+      );
     };
   }, []);
 
@@ -122,7 +128,11 @@ export default function InboxPage() {
       block: 'end',
       behavior: 'smooth',
     });
-  }, [selectedConversation?.messages.length, selectedConversationId]);
+  }, [
+    selectedConversation?.isAutoReplyTyping,
+    selectedConversation?.messages.length,
+    selectedConversationId,
+  ]);
 
   function simulateIncomingMessage() {
     const now = Date.now();
@@ -142,6 +152,10 @@ export default function InboxPage() {
           createdAt: now,
         },
       ],
+      hasAutoReplied: false,
+      hasUserReplied: false,
+      lastAutoReplyAt: null,
+      isAutoReplyTyping: false,
     };
 
     setConversations((currentConversations) => [conversation, ...currentConversations]);
@@ -164,6 +178,8 @@ export default function InboxPage() {
     if (!pendingDeleteConversationId) {
       return;
     }
+
+    clearAutomationTimeout(pendingDeleteConversationId);
 
     const nextConversations = conversations.filter(
       (conversation) => conversation.id !== pendingDeleteConversationId,
@@ -197,6 +213,8 @@ export default function InboxPage() {
       return;
     }
 
+    clearAutomationTimeout(selectedConversationId);
+
     const now = Date.now();
     const content = draftMessage.trim();
 
@@ -208,6 +226,8 @@ export default function InboxPage() {
 
         return {
           ...conversation,
+          hasUserReplied: true,
+          isAutoReplyTyping: false,
           updatedAt: now,
           messages: [
             ...conversation.messages,
@@ -263,18 +283,51 @@ export default function InboxPage() {
       return;
     }
 
+    setConversations((currentConversations) =>
+      currentConversations.map((conversation) => {
+        if (conversation.id !== conversationId || !canSendAutoReply(conversation)) {
+          return conversation;
+        }
+
+        return {
+          ...conversation,
+          isAutoReplyTyping: true,
+        };
+      }),
+    );
+
     const delayInMs = getRandomDelay(500, 1200);
     const timeoutId = window.setTimeout(() => {
       const now = Date.now();
 
-      setConversations((currentConversations) =>
-        currentConversations.map((conversation) => {
+      setConversations((currentConversations) => {
+        const conversationToUpdate = currentConversations.find(
+          (conversation) => conversation.id === conversationId,
+        );
+
+        if (!conversationToUpdate || !canSendAutoReply(conversationToUpdate)) {
+          return currentConversations.map((conversation) => {
+            if (conversation.id !== conversationId) {
+              return conversation;
+            }
+
+            return {
+              ...conversation,
+              isAutoReplyTyping: false,
+            };
+          });
+        }
+
+        return currentConversations.map((conversation) => {
           if (conversation.id !== conversationId) {
             return conversation;
           }
 
           return {
             ...conversation,
+            hasAutoReplied: true,
+            isAutoReplyTyping: false,
+            lastAutoReplyAt: now,
             updatedAt: now,
             messages: [
               ...conversation.messages,
@@ -286,15 +339,24 @@ export default function InboxPage() {
               },
             ],
           };
-        }),
-      );
+        });
+      });
 
-      automationTimeoutsRef.current = automationTimeoutsRef.current.filter(
-        (currentTimeoutId) => currentTimeoutId !== timeoutId,
-      );
+      clearAutomationTimeout(conversationId);
     }, delayInMs);
 
-    automationTimeoutsRef.current.push(timeoutId);
+    automationTimeoutsRef.current[conversationId] = timeoutId;
+  }
+
+  function clearAutomationTimeout(conversationId: string) {
+    const timeoutId = automationTimeoutsRef.current[conversationId];
+
+    if (!timeoutId) {
+      return;
+    }
+
+    window.clearTimeout(timeoutId);
+    delete automationTimeoutsRef.current[conversationId];
   }
 
   function getAutomationMessage(): string | null {
@@ -459,6 +521,21 @@ export default function InboxPage() {
                     <time>{formatMessageTime(message.createdAt)}</time>
                   </article>
                 ))}
+
+                {selectedConversation.isAutoReplyTyping ? (
+                  <article className="chat-typing-indicator">
+                    <span className="chat-message__sender">Auto</span>
+                    <div className="chat-typing-indicator__bubble" aria-live="polite">
+                      <span>Escribiendo</span>
+                      <span className="chat-typing-indicator__dots">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    </div>
+                  </article>
+                ) : null}
+
                 <div ref={chatBottomRef} />
               </div>
 
@@ -575,8 +652,29 @@ function readStoredConversations(): Conversation[] {
   }
 
   try {
-    const parsedValue = JSON.parse(storedValue) as Conversation[];
-    return Array.isArray(parsedValue) ? parsedValue : [];
+    const parsedValue = JSON.parse(storedValue) as Partial<Conversation>[];
+
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue.map((conversation, index) => ({
+      id:
+        typeof conversation.id === 'string'
+          ? conversation.id
+          : `mock-conversation-recovered-${index}`,
+      name: typeof conversation.name === 'string' ? conversation.name : 'Cliente',
+      updatedAt:
+        typeof conversation.updatedAt === 'number' ? conversation.updatedAt : Date.now(),
+      messages: Array.isArray(conversation.messages) ? conversation.messages : [],
+      hasAutoReplied: Boolean(conversation.hasAutoReplied),
+      hasUserReplied: Boolean(conversation.hasUserReplied),
+      lastAutoReplyAt:
+        typeof conversation.lastAutoReplyAt === 'number'
+          ? conversation.lastAutoReplyAt
+          : null,
+      isAutoReplyTyping: false,
+    }));
   } catch {
     return [];
   }
@@ -624,4 +722,8 @@ function readStoredAutomations(): AutomationsState {
 
 function getRandomDelay(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function canSendAutoReply(conversation: Conversation): boolean {
+  return !conversation.hasAutoReplied && !conversation.hasUserReplied;
 }
