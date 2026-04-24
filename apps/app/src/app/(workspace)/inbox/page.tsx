@@ -370,7 +370,7 @@ export default function InboxPage() {
                     <div className="conversation-item__body">
                       <div className="conversation-item__identity">
                         <strong>{conversation.name}</strong>
-                        <span className={`conversation-status-badge ${conversation.status === 'done' ? 'conversation-status-badge--done' : ''}`}>{conversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
+                        <span className={`conversation-status-badge ${conversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(conversation.status)}>{conversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
                       </div>
                       <span className="conversation-item__preview">{lastMessage?.sender === 'USER' ? 'Tu: ' : lastMessage?.sender === 'AUTO' ? 'Auto: ' : ''}{lastMessage?.content}</span>
                     </div>
@@ -404,7 +404,7 @@ export default function InboxPage() {
                 <div><strong>{selectedConversation.name}</strong><span>{selectedConversation.messages.length} mensajes</span></div>
                 <div className="chat-panel__header-actions">
                   <button className="button button--ghost chat-panel__header-button" type="button" onClick={() => simulateIncomingMessageInConversation(selectedConversation.id)}>Simular cliente</button>
-                  <span className={`conversation-status-badge ${selectedConversation.status === 'done' ? 'conversation-status-badge--done' : ''}`}>{selectedConversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
+                  <span className={`conversation-status-badge ${selectedConversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(selectedConversation.status)}>{selectedConversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
                   <span className="conversation-badge conversation-badge--business">Mock</span>
                 </div>
               </header>
@@ -441,7 +441,7 @@ export default function InboxPage() {
         <aside className="private-notes-panel">
           {selectedConversation ? (
             <>
-              <div className="private-notes-panel__header">
+              <div className="private-notes-panel__header" title="Solo visible para ti">
                 <div><strong>Notas privadas</strong><span>Solo visible para ti</span></div>
                 <button className="private-notes-panel__delete" type="button" onClick={deletePrivateNote} disabled={!selectedConversationNote}>Borrar</button>
               </div>
@@ -478,6 +478,11 @@ function getAvatarTone(name: string): 'amber' | 'mint' | 'lavender' {
   const seed = name.split('').reduce((total, character) => total + character.charCodeAt(0), 0);
   const tones: Array<'amber' | 'mint' | 'lavender'> = ['amber', 'mint', 'lavender'];
   return tones[seed % tones.length] ?? 'amber';
+}
+function getConversationStatusTooltip(status: ConversationStatus): string {
+  return status === 'pending'
+    ? 'Requiere tu atencion'
+    : 'Ya has respondido o revisado esta conversacion';
 }
 function getStatusWeight(status: ConversationStatus): number { return status === 'pending' ? 0 : 1; }
 function formatMessageTime(value: number): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }

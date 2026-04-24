@@ -149,7 +149,7 @@ export default function AutomationsPage() {
                   >
                     {config.enabled ? 'ON' : 'OFF'}
                   </span>
-                  <h3>{automation.title}</h3>
+                  <h3 title={getAutomationTooltip(automation.key)}>{automation.title}</h3>
                 </div>
                 <button
                   className={`toggle-switch ${
@@ -379,4 +379,10 @@ function formatScheduleSummary(schedule: AutomationSchedule): string {
 
 function isValidDay(day: unknown): day is number {
   return typeof day === 'number' && Number.isInteger(day) && day >= 0 && day <= 6;
+}
+
+function getAutomationTooltip(automationKey: AutomationKey): string {
+  return automationKey === 'welcome'
+    ? 'Se envia una sola vez al primer mensaje del cliente'
+    : 'Responde cuando no estas disponible';
 }
