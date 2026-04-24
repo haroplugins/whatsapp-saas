@@ -20,6 +20,7 @@ type AutomationConfig = { enabled: boolean; message: string; schedule?: Automati
 type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
 type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number };
 type ActiveResizer = 'left' | 'right';
+type ConversationFilter = 'all' | 'pending' | 'done';
 
 const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
@@ -49,6 +50,7 @@ export default function InboxPage() {
   const [layout, setLayout] = useState<InboxLayout | null>(null);
   const [isResizableLayout, setIsResizableLayout] = useState(false);
   const [activeResizer, setActiveResizer] = useState<ActiveResizer | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const automationTimeoutsRef = useRef<Record<string, number>>({});
@@ -62,6 +64,15 @@ export default function InboxPage() {
   const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
   const isDraftEmpty = draftMessage.trim().length === 0;
   const selectedConversationNote = selectedConversation ? privateNotes[selectedConversation.id] ?? '' : '';
+  const conversationCounts = useMemo(() => ({
+    all: sortedConversations.length,
+    pending: sortedConversations.filter((conversation) => conversation.status === 'pending').length,
+    done: sortedConversations.filter((conversation) => conversation.status === 'done').length,
+  }), [sortedConversations]);
+  const filteredConversations = useMemo(() => {
+    if (activeFilter === 'all') return sortedConversations;
+    return sortedConversations.filter((conversation) => conversation.status === activeFilter);
+  }, [activeFilter, sortedConversations]);
 
   useEffect(() => {
     setConversations(readStoredConversations());
@@ -323,16 +334,30 @@ export default function InboxPage() {
       </div>
       <div ref={inboxLayoutRef} className={`inbox-layout inbox-layout--with-notes${isResizableLayout ? ' inbox-layout--resizable' : ''}`} style={inboxLayoutStyle}>
         <aside className="inbox-list">
-          <div className="inbox-list__header"><strong>Conversaciones</strong><span>{sortedConversations.length} chats</span></div>
+          <div className="inbox-list__header">
+            <strong>Conversaciones</strong>
+            <span>{filteredConversations.length} chats</span>
+          </div>
+          <div className="inbox-filters" role="tablist" aria-label="Filtrar conversaciones">
+            <button className={`inbox-filter-chip${activeFilter === 'all' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('all')}>
+              Todas ({conversationCounts.all})
+            </button>
+            <button className={`inbox-filter-chip${activeFilter === 'pending' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('pending')}>
+              Pendientes ({conversationCounts.pending})
+            </button>
+            <button className={`inbox-filter-chip${activeFilter === 'done' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('done')}>
+              Atendidas ({conversationCounts.done})
+            </button>
+          </div>
           <div className="inbox-list__items">
-            {sortedConversations.length === 0 ? (
+            {filteredConversations.length === 0 ? (
               <div className="inbox-empty inbox-empty--action">
-                Aun no tienes conversaciones
-                <span>Genera un primer mensaje entrante para ver el inbox en accion.</span>
-                <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button>
+                {conversationCounts.all === 0 ? 'Aun no tienes conversaciones' : 'No hay conversaciones en este filtro'}
+                <span>{conversationCounts.all === 0 ? 'Genera un primer mensaje entrante para ver el inbox en accion.' : 'Prueba con otro filtro para ver mas conversaciones.'}</span>
+                {conversationCounts.all === 0 ? <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button> : null}
               </div>
             ) : null}
-            {sortedConversations.map((conversation) => {
+            {filteredConversations.map((conversation) => {
               const lastMessage = conversation.messages.at(-1);
               const isActive = conversation.id === selectedConversationId;
               const isActionsOpen = conversation.id === openActionsConversationId;
