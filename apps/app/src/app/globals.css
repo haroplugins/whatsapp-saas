@@ -713,6 +713,11 @@ input:focus {
   gap: 0.75rem;
 }
 
+.conversation-item__identity {
+  display: grid;
+  gap: 0.4rem;
+}
+
 .conversation-item__top time {
   color: var(--text-muted);
   font-size: 0.82rem;
@@ -735,6 +740,26 @@ input:focus {
 .conversation-item__status {
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.conversation-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(224, 142, 77, 0.14);
+  color: #a55510;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.conversation-status-badge--done {
+  background: rgba(13, 138, 106, 0.12);
+  color: var(--accent-strong);
 }
 
 .conversation-badge {
@@ -767,6 +792,18 @@ input:focus {
 .chat-panel__header strong {
   display: block;
   margin-bottom: 0.2rem;
+}
+
+.chat-panel__header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.chat-panel__header-button {
+  padding: 0.65rem 0.9rem;
 }
 
 .chat-panel__meta {
