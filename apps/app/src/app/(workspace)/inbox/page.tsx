@@ -363,29 +363,34 @@ export default function InboxPage() {
               const isActionsOpen = conversation.id === openActionsConversationId;
               return (
                 <article key={conversation.id} className={`conversation-item conversation-item--${conversation.status}${isActive ? ' conversation-item--active' : ''}`}>
-                  <div className="conversation-item__actions">
-                    <button className="conversation-item__action-button" type="button" aria-label={`Eliminar ${conversation.name}`} onClick={() => requestDeleteConversation(conversation.id)}>x</button>
-                    <div className="conversation-item__menu">
-                      <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.name}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
-                      {isActionsOpen ? (
-                        <div className="conversation-item__menu-panel">
-                          <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
-                          <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'done')}>Marcar como atendida</button>
-                          <button className="conversation-item__menu-option" type="button" onClick={() => requestDeleteConversation(conversation.id)}>Eliminar conversacion</button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
                   <button className="conversation-item__content" type="button" onClick={() => { setSelectedConversationId(conversation.id); setOpenActionsConversationId(null); }}>
-                    <div className="conversation-item__top">
+                    <span className={`conversation-item__avatar conversation-item__avatar--${getAvatarTone(conversation.name)}`}>
+                      {getConversationInitial(conversation.name)}
+                    </span>
+                    <div className="conversation-item__body">
                       <div className="conversation-item__identity">
                         <strong>{conversation.name}</strong>
                         <span className={`conversation-status-badge ${conversation.status === 'done' ? 'conversation-status-badge--done' : ''}`}>{conversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
                       </div>
-                      <time>{formatMessageTime(conversation.updatedAt)}</time>
+                      <span className="conversation-item__preview">{lastMessage?.sender === 'USER' ? 'Tu: ' : lastMessage?.sender === 'AUTO' ? 'Auto: ' : ''}{lastMessage?.content}</span>
                     </div>
-                    <span className="conversation-item__preview">{lastMessage?.sender === 'USER' ? 'Tu: ' : lastMessage?.sender === 'AUTO' ? 'Auto: ' : ''}{lastMessage?.content}</span>
                   </button>
+                  <div className="conversation-item__side">
+                    <div className="conversation-item__actions">
+                      <div className="conversation-item__menu">
+                        <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.name}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
+                        {isActionsOpen ? (
+                          <div className="conversation-item__menu-panel">
+                            <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
+                            <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'done')}>Marcar como atendida</button>
+                            <button className="conversation-item__menu-option" type="button" onClick={() => requestDeleteConversation(conversation.id)}>Eliminar conversacion</button>
+                          </div>
+                        ) : null}
+                      </div>
+                      <button className="conversation-item__action-button" type="button" aria-label={`Eliminar ${conversation.name}`} onClick={() => requestDeleteConversation(conversation.id)}>x</button>
+                    </div>
+                    <time className="conversation-item__time">{formatMessageTime(conversation.updatedAt)}</time>
+                  </div>
                 </article>
               );
             })}
@@ -466,6 +471,14 @@ export default function InboxPage() {
 }
 
 function getRandomItem(items: string[]): string { return items[Math.floor(Math.random() * items.length)] ?? items[0] ?? 'Cliente'; }
+function getConversationInitial(name: string): string {
+  return name.trim().charAt(name.trim().startsWith('Cliente ') ? 8 : 0).toUpperCase() || 'C';
+}
+function getAvatarTone(name: string): 'amber' | 'mint' | 'lavender' {
+  const seed = name.split('').reduce((total, character) => total + character.charCodeAt(0), 0);
+  const tones: Array<'amber' | 'mint' | 'lavender'> = ['amber', 'mint', 'lavender'];
+  return tones[seed % tones.length] ?? 'amber';
+}
 function getStatusWeight(status: ConversationStatus): number { return status === 'pending' ? 0 : 1; }
 function formatMessageTime(value: number): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
 function clearTimeoutById(store: MutableRefObject<Record<string, number>>, key: string) {
