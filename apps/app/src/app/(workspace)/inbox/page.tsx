@@ -362,7 +362,7 @@ export default function InboxPage() {
               const isActive = conversation.id === selectedConversationId;
               const isActionsOpen = conversation.id === openActionsConversationId;
               return (
-                <article key={conversation.id} className={`conversation-item${isActive ? ' conversation-item--active' : ''}`}>
+                <article key={conversation.id} className={`conversation-item conversation-item--${conversation.status}${isActive ? ' conversation-item--active' : ''}`}>
                   <div className="conversation-item__actions">
                     <button className="conversation-item__action-button" type="button" aria-label={`Eliminar ${conversation.name}`} onClick={() => requestDeleteConversation(conversation.id)}>x</button>
                     <div className="conversation-item__menu">
