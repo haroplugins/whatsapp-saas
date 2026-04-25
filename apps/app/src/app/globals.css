@@ -729,6 +729,54 @@ input:focus {
   align-items: center;
   justify-content: flex-end;
   gap: 0.4rem;
+  min-height: 2.5rem;
+}
+
+.conversation-item__quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0;
+  transform: translateX(6px);
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.conversation-item:hover .conversation-item__quick-actions,
+.conversation-item:focus-within .conversation-item__quick-actions,
+.conversation-item__menu:focus-within ~ .conversation-item__quick-actions,
+.conversation-item__quick-actions:focus-within {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.conversation-item__quick-action {
+  border: 1px solid rgba(22, 65, 53, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding: 0.52rem 0.7rem;
+  white-space: nowrap;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.conversation-item__quick-action:hover {
+  border-color: rgba(22, 65, 53, 0.18);
+  background: #ffffff;
+  color: var(--text);
+  transform: translateY(-1px);
 }
 
 .conversation-item__action-button {

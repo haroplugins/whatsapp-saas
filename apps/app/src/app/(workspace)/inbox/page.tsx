@@ -411,12 +411,30 @@ export default function InboxPage() {
                       </div>
                       <span className="conversation-item__preview">{lastMessage?.sender === 'USER' ? 'Tu: ' : lastMessage?.sender === 'AUTO' ? 'Auto: ' : ''}{lastMessage?.content}</span>
                     </div>
-                  </button>
-                  <div className="conversation-item__side">
-                    <div className="conversation-item__actions">
-                      <div className="conversation-item__menu">
-                        <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.name}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
-                        {isActionsOpen ? (
+                    </button>
+                    <div className="conversation-item__side">
+                      <div className="conversation-item__actions">
+                        <div className="conversation-item__quick-actions">
+                          <button
+                            className="conversation-item__quick-action"
+                            type="button"
+                            title={conversation.status === 'pending' ? 'Marcar como atendida' : 'Marcar como pendiente'}
+                            onClick={() => markConversationStatus(conversation.id, conversation.status === 'pending' ? 'done' : 'pending')}
+                          >
+                            {conversation.status === 'pending' ? 'Marcar como atendida' : 'Marcar como pendiente'}
+                          </button>
+                          <button
+                            className="conversation-item__quick-action"
+                            type="button"
+                            title={conversation.archived ? 'Desarchivar conversación' : 'Archivar conversación'}
+                            onClick={() => toggleConversationArchived(conversation.id)}
+                          >
+                            {conversation.archived ? 'Desarchivar' : 'Archivar'}
+                          </button>
+                        </div>
+                        <div className="conversation-item__menu">
+                          <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.name}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
+                          {isActionsOpen ? (
                           <div className="conversation-item__menu-panel">
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'done')}>Marcar como atendida</button>
