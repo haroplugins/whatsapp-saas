@@ -8,6 +8,7 @@ type Conversation = {
   name: string;
   updatedAt: number;
   status: ConversationStatus;
+  archived: boolean;
   pendingStatusAt: number | null;
   messages: Message[];
   hasAutoReplied: boolean;
@@ -20,7 +21,7 @@ type AutomationConfig = { enabled: boolean; message: string; schedule?: Automati
 type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
 type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number };
 type ActiveResizer = 'left' | 'right';
-type ConversationFilter = 'all' | 'pending' | 'done';
+type ConversationFilter = 'all' | 'pending' | 'done' | 'archived';
 
 const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
@@ -65,13 +66,15 @@ export default function InboxPage() {
   const isDraftEmpty = draftMessage.trim().length === 0;
   const selectedConversationNote = selectedConversation ? privateNotes[selectedConversation.id] ?? '' : '';
   const conversationCounts = useMemo(() => ({
-    all: sortedConversations.length,
-    pending: sortedConversations.filter((conversation) => conversation.status === 'pending').length,
-    done: sortedConversations.filter((conversation) => conversation.status === 'done').length,
+    all: sortedConversations.filter((conversation) => !conversation.archived).length,
+    pending: sortedConversations.filter((conversation) => !conversation.archived && conversation.status === 'pending').length,
+    done: sortedConversations.filter((conversation) => !conversation.archived && conversation.status === 'done').length,
+    archived: sortedConversations.filter((conversation) => conversation.archived).length,
   }), [sortedConversations]);
   const filteredConversations = useMemo(() => {
-    if (activeFilter === 'all') return sortedConversations;
-    return sortedConversations.filter((conversation) => conversation.status === activeFilter);
+    if (activeFilter === 'archived') return sortedConversations.filter((conversation) => conversation.archived);
+    if (activeFilter === 'all') return sortedConversations.filter((conversation) => !conversation.archived);
+    return sortedConversations.filter((conversation) => !conversation.archived && conversation.status === activeFilter);
   }, [activeFilter, sortedConversations]);
 
   useEffect(() => {
@@ -182,6 +185,7 @@ export default function InboxPage() {
       name: getRandomItem(mockCustomerNames),
       updatedAt: now,
       status: 'pending',
+      archived: false,
       pendingStatusAt: null,
       messages: [{ id: `mock-message-${now}`, sender: 'CLIENT', content: getRandomItem(mockIncomingMessages), createdAt: now }],
       hasAutoReplied: false,
@@ -199,6 +203,19 @@ export default function InboxPage() {
     const conversation = conversations.find((currentConversation) => currentConversation.id === conversationId);
     if (!conversation) return;
     const now = Date.now();
+    if (conversation.archived) {
+      clearPendingStatusTimeout(pendingStatusTimeoutsRef, conversationId);
+      setConversations((currentConversations) => currentConversations.map((currentConversation) => currentConversation.id === conversationId ? {
+        ...currentConversation,
+        archived: false,
+        status: 'pending',
+        pendingStatusAt: null,
+        updatedAt: now,
+        messages: [...currentConversation.messages, { id: `mock-message-client-${now}`, sender: 'CLIENT', content: getRandomItem(mockIncomingMessages), createdAt: now }],
+      } : currentConversation));
+      scheduleAutomationReply(conversationId);
+      return;
+    }
     const nextPendingStatusAt = conversation.status === 'done' ? now + PENDING_DELAY_MS : conversation.pendingStatusAt;
     setConversations((currentConversations) => currentConversations.map((currentConversation) => currentConversation.id === conversationId ? {
       ...currentConversation,
@@ -308,6 +325,23 @@ export default function InboxPage() {
     setOpenActionsConversationId(null);
   }
 
+  function toggleConversationArchived(conversationId: string) {
+    const conversation = conversations.find((currentConversation) => currentConversation.id === conversationId);
+    if (!conversation) return;
+    const nextArchived = !conversation.archived;
+    setConversations((currentConversations) => currentConversations.map((currentConversation) => currentConversation.id === conversationId ? {
+      ...currentConversation,
+      archived: nextArchived,
+    } : currentConversation));
+    setOpenActionsConversationId(null);
+    const nextFilterIncludesConversation = doesFilterIncludeConversation({ ...conversation, archived: nextArchived }, activeFilter);
+    if (selectedConversationId === conversationId && !nextFilterIncludesConversation) {
+      const nextSelectedConversation = sortedConversations.find((currentConversation) => currentConversation.id !== conversationId && doesFilterIncludeConversation(currentConversation, activeFilter));
+      setSelectedConversationId(nextSelectedConversation?.id ?? null);
+      setDraftMessage('');
+    }
+  }
+
   function startResizing(type: ActiveResizer, event: ReactMouseEvent<HTMLDivElement>) {
     if (!layout || !isResizableLayout) return;
     event.preventDefault();
@@ -348,13 +382,16 @@ export default function InboxPage() {
             <button className={`inbox-filter-chip${activeFilter === 'done' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('done')}>
               Atendidas ({conversationCounts.done})
             </button>
+            <button className={`inbox-filter-chip${activeFilter === 'archived' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('archived')}>
+              Archivadas ({conversationCounts.archived})
+            </button>
           </div>
           <div className="inbox-list__items">
             {filteredConversations.length === 0 ? (
               <div className="inbox-empty inbox-empty--action">
-                {conversationCounts.all === 0 ? 'Aun no tienes conversaciones' : 'No hay conversaciones en este filtro'}
-                <span>{conversationCounts.all === 0 ? 'Genera un primer mensaje entrante para ver el inbox en accion.' : 'Prueba con otro filtro para ver mas conversaciones.'}</span>
-                {conversationCounts.all === 0 ? <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button> : null}
+                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Aun no tienes conversaciones' : 'No hay conversaciones en este filtro'}
+                <span>{conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Genera un primer mensaje entrante para ver el inbox en accion.' : 'Prueba con otro filtro para ver mas conversaciones.'}</span>
+                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button> : null}
               </div>
             ) : null}
             {filteredConversations.map((conversation) => {
@@ -383,6 +420,7 @@ export default function InboxPage() {
                           <div className="conversation-item__menu-panel">
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'done')}>Marcar como atendida</button>
+                            <button className="conversation-item__menu-option" type="button" onClick={() => toggleConversationArchived(conversation.id)}>{conversation.archived ? 'Desarchivar conversacion' : 'Archivar conversacion'}</button>
                             <button className="conversation-item__menu-option" type="button" onClick={() => requestDeleteConversation(conversation.id)}>Eliminar conversacion</button>
                           </div>
                         ) : null}
@@ -514,6 +552,7 @@ function readStoredConversations(): Conversation[] {
         name: typeof conversation.name === 'string' ? conversation.name : 'Cliente',
         updatedAt: typeof conversation.updatedAt === 'number' ? conversation.updatedAt : Date.now(),
         status: isConversationStatus(conversation.status) && !isPendingDelayExpired ? conversation.status : 'pending',
+        archived: Boolean(conversation.archived),
         pendingStatusAt: isPendingDelayExpired ? null : pendingStatusAt,
         messages: Array.isArray(conversation.messages) ? conversation.messages : [],
         hasAutoReplied: Boolean(conversation.hasAutoReplied),
@@ -546,6 +585,11 @@ function readStoredAutomations(): AutomationsState {
 function getRandomDelay(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function canSendAutoReply(conversation: Conversation): boolean { return !conversation.hasAutoReplied && !conversation.hasUserReplied; }
 function isConversationStatus(value: unknown): value is ConversationStatus { return value === 'pending' || value === 'done'; }
+function doesFilterIncludeConversation(conversation: Conversation, filter: ConversationFilter): boolean {
+  if (filter === 'archived') return conversation.archived;
+  if (filter === 'all') return !conversation.archived;
+  return !conversation.archived && conversation.status === filter;
+}
 function normalizeSchedule(schedule: unknown): AutomationSchedule | undefined {
   if (!schedule || typeof schedule !== 'object') return undefined;
   const candidate = schedule as Partial<AutomationSchedule>;
