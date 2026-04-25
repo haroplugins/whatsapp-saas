@@ -40,9 +40,23 @@ export type InboxSource = {
   saveConversations(conversations: NormalizedConversation[]): void;
 };
 
+export type ExternalMessagePayload = {
+  externalConversationId: string;
+  contactName: string;
+  message: string;
+  timestamp: string;
+};
+
+export type ExternalMessageReceipt = {
+  conversations: NormalizedConversation[];
+  conversationId: string;
+};
+
 const mockConversationsStorageKey = 'mockInbox.conversations';
 const mockCustomerNames = ['Cliente Juan', 'Maria Garcia', 'Cliente Laura', 'Carlos Ruiz', 'Ana Lopez', 'Cliente Sofia'];
 const mockIncomingMessages = ['Hola, queria informacion', 'Buenas, tengo una duda', 'Hola, queria saber precios', 'Me interesa vuestro servicio', 'Hola, podeis ayudarme?'];
+const mockWhatsappContacts = ['WA Marta', 'WA Diego', 'WA Paula', 'WA Hector', 'WA Lucia'];
+const mockWhatsappMessages = ['Hola desde WhatsApp', 'Necesito ayuda con un pedido', 'Queria consultar disponibilidad', 'Me pasais mas informacion?', 'Tengo una pregunta rapida'];
 
 export const mockInboxSource: InboxSource = {
   loadConversations() {
@@ -81,6 +95,16 @@ export function createRandomMockIncomingMessage(conversationId: string, now = ne
   return createMockTextMessage(conversationId, 'client', getRandomItem(mockIncomingMessages), now);
 }
 
+export function createMockWhatsappWebhookPayload(now = new Date()): ExternalMessagePayload {
+  const contactName = getRandomItem(mockWhatsappContacts);
+  return {
+    externalConversationId: `wa-${slugifyId(contactName)}`,
+    contactName,
+    message: getRandomItem(mockWhatsappMessages),
+    timestamp: now.toISOString(),
+  };
+}
+
 export function createMockTextMessage(
   conversationId: string,
   sender: NormalizedMessageSender,
@@ -116,6 +140,30 @@ export function createMockFileMessage(
     fileMimeType,
     createdAt: now.toISOString(),
   };
+}
+
+export function receiveExternalMessage(payload: ExternalMessagePayload): ExternalMessageReceipt {
+  const conversations = mockInboxSource.loadConversations();
+  const timestamp = normalizePayloadTimestamp(payload.timestamp);
+  const existingConversation = conversations.find((conversation) => conversation.externalId === payload.externalConversationId);
+  const conversationId = existingConversation?.id ?? createWhatsappConversationId(payload.externalConversationId, timestamp);
+  const message = createWhatsappTextMessage(conversationId, payload, timestamp);
+  const nextConversation = withConversationPreview({
+    ...(existingConversation ?? createWhatsappConversation(payload, conversationId, timestamp)),
+    contactName: payload.contactName.trim() || existingConversation?.contactName || 'Cliente WhatsApp',
+    source: 'whatsapp',
+    externalId: payload.externalConversationId,
+    status: 'pending',
+    archived: false,
+    pendingStatusAt: null,
+    messages: [...(existingConversation?.messages ?? []), message],
+  });
+  const nextConversations = existingConversation
+    ? conversations.map((conversation) => conversation.id === existingConversation.id ? nextConversation : conversation)
+    : [nextConversation, ...conversations];
+
+  mockInboxSource.saveConversations(nextConversations);
+  return { conversations: nextConversations, conversationId };
 }
 
 export function withConversationPreview(conversation: NormalizedConversation): NormalizedConversation {
@@ -232,6 +280,47 @@ function normalizeStoredMessage(value: unknown, conversationId: string, index: n
   };
 }
 
+function createWhatsappConversation(payload: ExternalMessagePayload, conversationId: string, now: Date): NormalizedConversation {
+  return {
+    id: conversationId,
+    externalId: payload.externalConversationId,
+    source: 'whatsapp',
+    contactName: payload.contactName.trim() || 'Cliente WhatsApp',
+    lastMessagePreview: '',
+    lastMessageAt: now.toISOString(),
+    status: 'pending',
+    archived: false,
+    pendingStatusAt: null,
+    messages: [],
+    hasAutoReplied: false,
+    hasUserReplied: false,
+    lastAutoReplyAt: null,
+    isAutoReplyTyping: false,
+  };
+}
+
+function createWhatsappTextMessage(conversationId: string, payload: ExternalMessagePayload, now: Date): NormalizedMessage {
+  return {
+    id: `wa-message-${slugifyId(payload.externalConversationId)}-${now.getTime()}`,
+    externalId: `wa-message-${now.getTime()}`,
+    conversationId,
+    source: 'whatsapp',
+    sender: 'client',
+    type: 'text',
+    text: payload.message,
+    createdAt: now.toISOString(),
+  };
+}
+
+function createWhatsappConversationId(externalConversationId: string, now: Date): string {
+  return `wa-conversation-${slugifyId(externalConversationId)}-${now.getTime()}`;
+}
+
+function normalizePayloadTimestamp(value: string): Date {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? new Date() : new Date(timestamp);
+}
+
 function readMessageType(value: unknown, fileMimeType: unknown): NormalizedMessageType {
   if (value === 'image' || (value === 'file' && typeof fileMimeType === 'string' && fileMimeType.startsWith('image/'))) return 'image';
   if (value === 'file' || value === 'audio') return value;
@@ -278,4 +367,9 @@ function toRecord(value: unknown): Record<string, unknown> {
 
 function getRandomItem(items: string[]): string {
   return items[Math.floor(Math.random() * items.length)] ?? items[0] ?? 'Cliente';
+}
+
+function slugifyId(value: string): string {
+  const normalizedValue = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return normalizedValue || 'external';
 }

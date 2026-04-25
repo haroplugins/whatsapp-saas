@@ -3,10 +3,12 @@ import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as Rea
 import {
   createMockFileMessage,
   createMockTextMessage,
+  createMockWhatsappWebhookPayload,
   createRandomMockConversation,
   createRandomMockIncomingMessage,
   getMessagePreview,
   mockInboxSource,
+  receiveExternalMessage,
   type NormalizedConversation,
   type NormalizedConversationStatus,
   type NormalizedMessage,
@@ -34,6 +36,7 @@ const centerPanelMinWidth = 300;
 const rightPanelMinWidth = 220;
 const resizerWidth = 12;
 const resizableViewportMinWidth = 1180;
+const isDevelopment = process.env.NODE_ENV === 'development';
 const defaultAutomationsState: AutomationsState = {
   welcome: { enabled: false, message: 'Hola, gracias por escribir. Enseguida te respondemos.' },
   off_hours: { enabled: false, message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.' },
@@ -191,6 +194,20 @@ export default function InboxPage() {
     setSelectedConversationId(conversation.id);
     setDraftMessage('');
     scheduleAutomationReply(conversation.id);
+  }
+
+  function simulateWhatsappWebhook() {
+    mockInboxSource.saveConversations(conversations);
+    const receipt = receiveExternalMessage(createMockWhatsappWebhookPayload());
+    applyReceivedExternalMessage(receipt.conversations, receipt.conversationId);
+  }
+
+  function applyReceivedExternalMessage(nextConversations: Conversation[], conversationId: string) {
+    clearPendingStatusTimeout(pendingStatusTimeoutsRef, conversationId);
+    setConversations(nextConversations);
+    setSelectedConversationId(conversationId);
+    setDraftMessage('');
+    scheduleAutomationReply(conversationId);
   }
 
   function simulateIncomingMessageInConversation(conversationId: string) {
@@ -358,6 +375,7 @@ export default function InboxPage() {
   function scheduleAutomationReply(conversationId: string) {
     const automationMessage = getAutomationMessage();
     if (!automationMessage) return;
+    clearTimeoutById(automationTimeoutsRef, conversationId);
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === conversationId && canSendAutoReply(conversation) ? { ...conversation, isAutoReplyTyping: true } : conversation));
     const delayInMs = getRandomDelay(500, 1200);
     const timeoutId = window.setTimeout(() => {
@@ -427,7 +445,10 @@ export default function InboxPage() {
           <h2>Responde mensajes como si ya estuvieran entrando.</h2>
           <p>Simula conversaciones de clientes, abre el chat y practica respuestas sin conectar todavia ningun backend.</p>
         </div>
-        <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
+        <div className="inbox-hero__actions">
+          {isDevelopment ? <button className="button button--ghost" type="button" onClick={simulateWhatsappWebhook}>Simular webhook WA</button> : null}
+          <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
+        </div>
       </div>
       <div ref={inboxLayoutRef} className={`inbox-layout inbox-layout--with-notes${isResizableLayout ? ' inbox-layout--resizable' : ''}`} style={inboxLayoutStyle}>
         <aside className="inbox-list">
