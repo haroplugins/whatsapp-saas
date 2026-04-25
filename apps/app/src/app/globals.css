@@ -735,7 +735,7 @@ input:focus {
 .conversation-item__quick-actions {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.28rem;
   opacity: 0;
   transform: translateX(6px);
   pointer-events: none;
@@ -754,17 +754,20 @@ input:focus {
 }
 
 .conversation-item__quick-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
   border: 1px solid rgba(22, 65, 53, 0.1);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.72);
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
   line-height: 1;
-  padding: 0.52rem 0.7rem;
-  white-space: nowrap;
+  padding: 0;
   transition:
     border-color 160ms ease,
     background 160ms ease,

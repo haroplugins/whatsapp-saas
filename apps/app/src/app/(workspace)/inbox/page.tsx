@@ -419,17 +419,19 @@ export default function InboxPage() {
                             className="conversation-item__quick-action"
                             type="button"
                             title={conversation.status === 'pending' ? 'Marcar como atendida' : 'Marcar como pendiente'}
+                            aria-label={conversation.status === 'pending' ? 'Marcar como atendida' : 'Marcar como pendiente'}
                             onClick={() => markConversationStatus(conversation.id, conversation.status === 'pending' ? 'done' : 'pending')}
                           >
-                            {conversation.status === 'pending' ? 'Marcar como atendida' : 'Marcar como pendiente'}
+                            {conversation.status === 'pending' ? '✓' : '↩'}
                           </button>
                           <button
                             className="conversation-item__quick-action"
                             type="button"
                             title={conversation.archived ? 'Desarchivar conversación' : 'Archivar conversación'}
+                            aria-label={conversation.archived ? 'Desarchivar conversación' : 'Archivar conversación'}
                             onClick={() => toggleConversationArchived(conversation.id)}
                           >
-                            {conversation.archived ? 'Desarchivar' : 'Archivar'}
+                            {conversation.archived ? '↑' : '↓'}
                           </button>
                         </div>
                         <div className="conversation-item__menu">
