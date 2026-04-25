@@ -1,24 +1,22 @@
 'use client';
 import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createMockFileMessage,
+  createMockTextMessage,
+  createRandomMockConversation,
+  createRandomMockIncomingMessage,
+  getMessagePreview,
+  mockInboxSource,
+  type NormalizedConversation,
+  type NormalizedConversationStatus,
+  type NormalizedMessage,
+  type NormalizedMessageSender,
+  withConversationPreview,
+} from '../../../lib/inbox-source';
 
-type MessageSender = 'USER' | 'CLIENT' | 'AUTO' | 'user';
-type TextMessage = { id: string; type?: 'text'; sender: MessageSender; content: string; createdAt: number; editedAt?: number };
-type FileMessage = { id: string; type: 'file'; sender: 'user'; fileName: string; fileUrl?: string; fileMimeType?: string; createdAt: number };
-type Message = TextMessage | FileMessage;
-type ConversationStatus = 'pending' | 'done';
-type Conversation = {
-  id: string;
-  name: string;
-  updatedAt: number;
-  status: ConversationStatus;
-  archived: boolean;
-  pendingStatusAt: number | null;
-  messages: Message[];
-  hasAutoReplied: boolean;
-  hasUserReplied: boolean;
-  lastAutoReplyAt: number | null;
-  isAutoReplyTyping: boolean;
-};
+type Message = NormalizedMessage;
+type Conversation = NormalizedConversation;
+type ConversationStatus = NormalizedConversationStatus;
 type AutomationSchedule = { days: number[]; start: string; end: string };
 type AutomationConfig = { enabled: boolean; message: string; schedule?: AutomationSchedule };
 type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
@@ -26,7 +24,6 @@ type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number 
 type ActiveResizer = 'left' | 'right';
 type ConversationFilter = 'all' | 'pending' | 'done' | 'archived';
 
-const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
 const automationsStorageKey = 'automations';
 const layoutStorageKey = 'mockInbox.layout';
@@ -37,8 +34,6 @@ const centerPanelMinWidth = 300;
 const rightPanelMinWidth = 220;
 const resizerWidth = 12;
 const resizableViewportMinWidth = 1180;
-const mockCustomerNames = ['Cliente Juan', 'Maria Garcia', 'Cliente Laura', 'Carlos Ruiz', 'Ana Lopez', 'Cliente Sofia'];
-const mockIncomingMessages = ['Hola, queria informacion', 'Buenas, tengo una duda', 'Hola, queria saber precios', 'Me interesa vuestro servicio', 'Hola, podeis ayudarme?'];
 const defaultAutomationsState: AutomationsState = {
   welcome: { enabled: false, message: 'Hola, gracias por escribir. Enseguida te respondemos.' },
   off_hours: { enabled: false, message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.' },
@@ -67,7 +62,7 @@ export default function InboxPage() {
 
   const sortedConversations = useMemo(() => [...conversations].sort((first, second) => {
     if (first.status !== second.status) return getStatusWeight(first.status) - getStatusWeight(second.status);
-    return second.updatedAt - first.updatedAt;
+    return toTimestamp(second.lastMessageAt) - toTimestamp(first.lastMessageAt);
   }), [conversations]);
   const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
   const isDraftEmpty = draftMessage.trim().length === 0;
@@ -85,7 +80,7 @@ export default function InboxPage() {
   }, [activeFilter, sortedConversations]);
 
   useEffect(() => {
-    setConversations(readStoredConversations());
+    setConversations(mockInboxSource.loadConversations());
     setPrivateNotes(readStoredPrivateNotes());
     setIsHydrated(true);
     return () => {
@@ -97,7 +92,7 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    window.localStorage.setItem(mockConversationsStorageKey, JSON.stringify(sanitizeConversationsForStorage(conversations)));
+    mockInboxSource.saveConversations(conversations);
   }, [conversations, isHydrated]);
 
   useEffect(() => {
@@ -173,7 +168,7 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    const expiredConversationIds = conversations.filter((conversation) => conversation.pendingStatusAt !== null && conversation.pendingStatusAt <= Date.now()).map((conversation) => conversation.id);
+    const expiredConversationIds = conversations.filter((conversation) => conversation.pendingStatusAt !== null && toTimestamp(conversation.pendingStatusAt) <= Date.now()).map((conversation) => conversation.id);
     if (expiredConversationIds.length > 0) {
       setConversations((currentConversations) => currentConversations.map((conversation) => expiredConversationIds.includes(conversation.id) ? { ...conversation, status: 'pending', pendingStatusAt: null } : conversation));
       return;
@@ -184,57 +179,45 @@ export default function InboxPage() {
         return;
       }
       if (pendingStatusTimeoutsRef.current[conversation.id]) return;
-      schedulePendingStatusTimeout(setConversations, pendingStatusTimeoutsRef, conversation.id, Math.max(0, conversation.pendingStatusAt - Date.now()));
+      schedulePendingStatusTimeout(setConversations, pendingStatusTimeoutsRef, conversation.id, Math.max(0, toTimestamp(conversation.pendingStatusAt) - Date.now()));
     });
   }, [conversations, isHydrated]);
 
   const inboxLayoutStyle = isResizableLayout && layout ? { gridTemplateColumns: `${layout.leftWidth}px ${resizerWidth}px ${layout.centerWidth}px ${resizerWidth}px ${layout.rightWidth}px` } : undefined;
 
   function simulateIncomingMessage() {
-    const now = Date.now();
-    const conversationId = `mock-conversation-${now}`;
-    const conversation: Conversation = {
-      id: conversationId,
-      name: getRandomItem(mockCustomerNames),
-      updatedAt: now,
-      status: 'pending',
-      archived: false,
-      pendingStatusAt: null,
-      messages: [{ id: `mock-message-${now}`, sender: 'CLIENT', content: getRandomItem(mockIncomingMessages), createdAt: now }],
-      hasAutoReplied: false,
-      hasUserReplied: false,
-      lastAutoReplyAt: null,
-      isAutoReplyTyping: false,
-    };
+    const conversation = createRandomMockConversation();
     setConversations((currentConversations) => [conversation, ...currentConversations]);
-    setSelectedConversationId(conversationId);
+    setSelectedConversationId(conversation.id);
     setDraftMessage('');
-    scheduleAutomationReply(conversationId);
+    scheduleAutomationReply(conversation.id);
   }
 
   function simulateIncomingMessageInConversation(conversationId: string) {
     const conversation = conversations.find((currentConversation) => currentConversation.id === conversationId);
     if (!conversation) return;
-    const now = Date.now();
+    const now = new Date();
     if (conversation.archived) {
       clearPendingStatusTimeout(pendingStatusTimeoutsRef, conversationId);
       setConversations((currentConversations) => currentConversations.map((currentConversation) => currentConversation.id === conversationId ? {
-        ...currentConversation,
+        ...withConversationPreview({
+          ...currentConversation,
+          messages: [...currentConversation.messages, createRandomMockIncomingMessage(conversationId, now)],
+        }),
         archived: false,
         status: 'pending',
         pendingStatusAt: null,
-        updatedAt: now,
-        messages: [...currentConversation.messages, { id: `mock-message-client-${now}`, sender: 'CLIENT', content: getRandomItem(mockIncomingMessages), createdAt: now }],
       } : currentConversation));
       scheduleAutomationReply(conversationId);
       return;
     }
-    const nextPendingStatusAt = conversation.status === 'done' ? now + PENDING_DELAY_MS : conversation.pendingStatusAt;
+    const nextPendingStatusAt = conversation.status === 'done' ? new Date(now.getTime() + PENDING_DELAY_MS).toISOString() : conversation.pendingStatusAt;
     setConversations((currentConversations) => currentConversations.map((currentConversation) => currentConversation.id === conversationId ? {
-      ...currentConversation,
-      updatedAt: now,
+      ...withConversationPreview({
+        ...currentConversation,
+        messages: [...currentConversation.messages, createRandomMockIncomingMessage(conversationId, now)],
+      }),
       pendingStatusAt: nextPendingStatusAt,
-      messages: [...currentConversation.messages, { id: `mock-message-client-${now}`, sender: 'CLIENT', content: getRandomItem(mockIncomingMessages), createdAt: now }],
     } : currentConversation));
     if (conversation.status === 'done') {
       clearPendingStatusTimeout(pendingStatusTimeoutsRef, conversationId);
@@ -261,7 +244,7 @@ export default function InboxPage() {
     if (selectedConversationId === pendingDeleteConversationId) {
       const nextSelectedConversation = [...nextConversations].sort((first, second) => {
         if (first.status !== second.status) return getStatusWeight(first.status) - getStatusWeight(second.status);
-        return second.updatedAt - first.updatedAt;
+        return toTimestamp(second.lastMessageAt) - toTimestamp(first.lastMessageAt);
       })[0];
       setSelectedConversationId(nextSelectedConversation?.id ?? null);
       setDraftMessage('');
@@ -277,16 +260,17 @@ export default function InboxPage() {
     if (!selectedConversationId || isDraftEmpty) return;
     clearTimeoutById(automationTimeoutsRef, selectedConversationId);
     clearPendingStatusTimeout(pendingStatusTimeoutsRef, selectedConversationId);
-    const now = Date.now();
+    const now = new Date();
     const content = draftMessage.trim();
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
-      ...conversation,
+      ...withConversationPreview({
+        ...conversation,
+        messages: [...conversation.messages, createMockTextMessage(selectedConversationId, 'user', content, now)],
+      }),
       status: 'done',
       pendingStatusAt: null,
       hasUserReplied: true,
       isAutoReplyTyping: false,
-      updatedAt: now,
-      messages: [...conversation.messages, { id: `mock-message-${now}`, sender: 'USER', content, createdAt: now }],
     } : conversation));
     setDraftMessage('');
   }
@@ -297,33 +281,26 @@ export default function InboxPage() {
     if (!file || !selectedConversationId) return;
     clearTimeoutById(automationTimeoutsRef, selectedConversationId);
     clearPendingStatusTimeout(pendingStatusTimeoutsRef, selectedConversationId);
-    const now = Date.now();
+    const now = new Date();
     const fileUrl = window.URL.createObjectURL(file);
     objectUrlsRef.current.push(fileUrl);
-    const fileMessage: FileMessage = {
-      id: `mock-message-file-${now}`,
-      type: 'file',
-      fileName: file.name,
-      fileUrl,
-      fileMimeType: file.type,
-      sender: 'user',
-      createdAt: now,
-    };
+    const fileMessage = createMockFileMessage(selectedConversationId, file.name, fileUrl, file.type, now);
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
-      ...conversation,
+      ...withConversationPreview({
+        ...conversation,
+        messages: [...conversation.messages, fileMessage],
+      }),
       status: 'done',
       pendingStatusAt: null,
       hasUserReplied: true,
       isAutoReplyTyping: false,
-      updatedAt: now,
-      messages: [...conversation.messages, fileMessage],
     } : conversation));
   }
 
   function startEditingMessage(message: Message) {
-    if (message.type === 'file' || !isUserSender(message.sender)) return;
+    if (message.type !== 'text' || !isUserSender(message.sender)) return;
     setEditingMessageId(message.id);
-    setEditingDraft(message.content);
+    setEditingDraft(message.text ?? '');
   }
 
   function cancelEditingMessage() {
@@ -335,16 +312,16 @@ export default function InboxPage() {
     if (!selectedConversationId) return;
     const content = editingDraft.trim();
     if (!content) return;
-    const now = Date.now();
+    const now = new Date().toISOString();
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
-      ...conversation,
-      updatedAt: now,
-      messages: conversation.messages.map((message) => message.id === messageId && message.type !== 'file' && isUserSender(message.sender) ? {
-        ...message,
-        type: 'text',
-        content,
-        editedAt: now,
-      } : message),
+      ...withConversationPreview({
+        ...conversation,
+        messages: conversation.messages.map((message) => message.id === messageId && message.type === 'text' && isUserSender(message.sender) ? {
+          ...message,
+          text: content,
+          editedAt: now,
+        } : message),
+      }),
     } : conversation));
     cancelEditingMessage();
   }
@@ -353,11 +330,12 @@ export default function InboxPage() {
     if (!selectedConversationId || !isUserSender(message.sender)) return;
     const shouldDelete = window.confirm('Borrar este mensaje?');
     if (!shouldDelete) return;
-    if (message.type === 'file' && message.fileUrl) revokeTrackedObjectUrl(objectUrlsRef, message.fileUrl);
+    if (message.type !== 'text' && message.fileUrl) revokeTrackedObjectUrl(objectUrlsRef, message.fileUrl);
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
-      ...conversation,
-      updatedAt: Date.now(),
-      messages: conversation.messages.filter((currentMessage) => currentMessage.id !== message.id),
+      ...withConversationPreview({
+        ...conversation,
+        messages: conversation.messages.filter((currentMessage) => currentMessage.id !== message.id),
+      }),
     } : conversation));
     if (editingMessageId === message.id) cancelEditingMessage();
   }
@@ -383,19 +361,20 @@ export default function InboxPage() {
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === conversationId && canSendAutoReply(conversation) ? { ...conversation, isAutoReplyTyping: true } : conversation));
     const delayInMs = getRandomDelay(500, 1200);
     const timeoutId = window.setTimeout(() => {
-      const now = Date.now();
+      const now = new Date();
       setConversations((currentConversations) => {
         const conversationToUpdate = currentConversations.find((conversation) => conversation.id === conversationId);
         if (!conversationToUpdate || !canSendAutoReply(conversationToUpdate)) {
           return currentConversations.map((conversation) => conversation.id === conversationId ? { ...conversation, isAutoReplyTyping: false } : conversation);
         }
         return currentConversations.map((conversation) => conversation.id === conversationId ? {
-          ...conversation,
+          ...withConversationPreview({
+            ...conversation,
+            messages: [...conversation.messages, createMockTextMessage(conversationId, 'auto', automationMessage, now)],
+          }),
           hasAutoReplied: true,
           isAutoReplyTyping: false,
-          lastAutoReplyAt: now,
-          updatedAt: now,
-          messages: [...conversation.messages, { id: `mock-message-auto-${now}`, sender: 'AUTO', content: automationMessage, createdAt: now }],
+          lastAutoReplyAt: now.toISOString(),
         } : conversation);
       });
       clearTimeoutById(automationTimeoutsRef, conversationId);
@@ -485,12 +464,12 @@ export default function InboxPage() {
               return (
                 <article key={conversation.id} className={`conversation-item conversation-item--${conversation.status}${isActive ? ' conversation-item--active' : ''}`}>
                   <button className="conversation-item__content" type="button" onClick={() => { setSelectedConversationId(conversation.id); setOpenActionsConversationId(null); }}>
-                    <span className={`conversation-item__avatar conversation-item__avatar--${getAvatarTone(conversation.name)}`}>
-                      {getConversationInitial(conversation.name)}
+                    <span className={`conversation-item__avatar conversation-item__avatar--${getAvatarTone(conversation.contactName)}`}>
+                      {getConversationInitial(conversation.contactName)}
                     </span>
                     <div className="conversation-item__body">
                       <div className="conversation-item__identity">
-                        <strong>{conversation.name}</strong>
+                        <strong>{conversation.contactName}</strong>
                         <span className={`conversation-status-badge ${conversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(conversation.status)}>{conversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
                       </div>
                       <span className="conversation-item__preview">{getConversationMessagePreview(lastMessage)}</span>
@@ -519,7 +498,7 @@ export default function InboxPage() {
                           </button>
                         </div>
                         <div className="conversation-item__menu">
-                          <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.name}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
+                          <button className="conversation-item__action-button" type="button" aria-label={`Abrir acciones de ${conversation.contactName}`} onClick={() => setOpenActionsConversationId((currentConversationId) => currentConversationId === conversation.id ? null : conversation.id)}>...</button>
                           {isActionsOpen ? (
                           <div className="conversation-item__menu-panel">
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
@@ -529,9 +508,9 @@ export default function InboxPage() {
                           </div>
                         ) : null}
                       </div>
-                      <button className="conversation-item__action-button" type="button" aria-label={`Eliminar ${conversation.name}`} onClick={() => requestDeleteConversation(conversation.id)}>x</button>
+                      <button className="conversation-item__action-button" type="button" aria-label={`Eliminar ${conversation.contactName}`} onClick={() => requestDeleteConversation(conversation.id)}>x</button>
                     </div>
-                    <time className="conversation-item__time">{formatMessageTime(conversation.updatedAt)}</time>
+                    <time className="conversation-item__time">{formatMessageTime(conversation.lastMessageAt)}</time>
                   </div>
                 </article>
               );
@@ -543,7 +522,7 @@ export default function InboxPage() {
           {selectedConversation ? (
             <>
               <header className="chat-panel__header">
-                <div><strong>{selectedConversation.name}</strong><span>{selectedConversation.messages.length} mensajes</span></div>
+                <div><strong>{selectedConversation.contactName}</strong><span>{selectedConversation.messages.length} mensajes</span></div>
                 <div className="chat-panel__header-actions">
                   <button className="button button--ghost chat-panel__header-button" type="button" onClick={() => simulateIncomingMessageInConversation(selectedConversation.id)}>Simular cliente</button>
                   <span className={`conversation-status-badge ${selectedConversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(selectedConversation.status)}>{selectedConversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
@@ -554,10 +533,10 @@ export default function InboxPage() {
                 {selectedConversation.messages.map((message) => (
                   <article key={message.id} className={`chat-message ${getMessageBubbleClass(message)}`}>
                     <div className="chat-message__topline">
-                      <span className="chat-message__sender">{getMessageSenderLabel(message, selectedConversation.name)}</span>
+                      <span className="chat-message__sender">{getMessageSenderLabel(message, selectedConversation.contactName)}</span>
                       {isUserSender(message.sender) ? (
                         <div className="chat-message__actions" aria-label="Acciones del mensaje">
-                          {message.type !== 'file' ? (
+                          {message.type === 'text' ? (
                             <button className="chat-message__action" type="button" title="Editar mensaje" aria-label="Editar mensaje" onClick={() => startEditingMessage(message)}>
                               Editar
                             </button>
@@ -568,16 +547,16 @@ export default function InboxPage() {
                         </div>
                       ) : null}
                     </div>
-                    {message.type === 'file' ? (
+                    {message.type !== 'text' ? (
                       <div className="chat-file-message">
                         {message.fileUrl && isImageFileMessage(message) ? (
                           // eslint-disable-next-line @next/next/no-img-element -- Blob previews are browser-local object URLs, so Next Image cannot optimize them.
-                          <img className="chat-file-message__preview" src={message.fileUrl} alt={message.fileName} />
+                          <img className="chat-file-message__preview" src={message.fileUrl} alt={message.fileName ?? 'Archivo adjunto'} />
                         ) : (
                           <div className="chat-file-message__document" aria-hidden="true">{'\uD83D\uDCC4'}</div>
                         )}
                         <div className="chat-file-message__body">
-                          <span className="chat-file-message__name">{message.fileName}</span>
+                          <span className="chat-file-message__name">{message.fileName ?? 'Archivo adjunto'}</span>
                           {!message.fileUrl ? <span className="chat-file-message__status">Preview no disponible tras recargar</span> : null}
                         </div>
                       </div>
@@ -590,9 +569,9 @@ export default function InboxPage() {
                         </div>
                       </div>
                     ) : (
-                      <p>{message.content}</p>
+                      <p>{message.text}</p>
                     )}
-                    {message.type !== 'file' && message.editedAt ? <span className="chat-message__edited">Editado</span> : null}
+                    {message.type === 'text' && message.editedAt ? <span className="chat-message__edited">Editado</span> : null}
                     <time>{formatMessageTime(message.createdAt)}</time>
                   </article>
                 ))}
@@ -654,7 +633,6 @@ export default function InboxPage() {
   );
 }
 
-function getRandomItem(items: string[]): string { return items[Math.floor(Math.random() * items.length)] ?? items[0] ?? 'Cliente'; }
 function getConversationInitial(name: string): string {
   return name.trim().charAt(name.trim().startsWith('Cliente ') ? 8 : 0).toUpperCase() || 'C';
 }
@@ -669,26 +647,26 @@ function getConversationStatusTooltip(status: ConversationStatus): string {
     : 'Ya has respondido o revisado esta conversacion';
 }
 function getStatusWeight(status: ConversationStatus): number { return status === 'pending' ? 0 : 1; }
-function formatMessageTime(value: number): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
-function isUserSender(sender: MessageSender): boolean { return sender === 'USER' || sender === 'user'; }
+function formatMessageTime(value: string): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+function toTimestamp(value: string): number {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+function isUserSender(sender: NormalizedMessageSender): boolean { return sender === 'user'; }
 function getMessageBubbleClass(message: Message): string {
   if (isUserSender(message.sender)) return 'chat-message--user';
-  if (message.sender === 'AUTO') return 'chat-message--auto';
+  if (message.sender === 'auto') return 'chat-message--auto';
   return 'chat-message--client';
 }
 function getMessageSenderLabel(message: Message, clientName: string): string {
   if (isUserSender(message.sender)) return 'Tu';
-  if (message.sender === 'AUTO') return 'Auto';
+  if (message.sender === 'auto') return 'Auto';
   return clientName;
 }
-function getConversationMessagePreview(message: Message | undefined): string {
-  if (!message) return '';
-  const prefix = isUserSender(message.sender) ? 'Tu: ' : message.sender === 'AUTO' ? 'Auto: ' : '';
-  return `${prefix}${message.type === 'file' ? `Archivo: ${message.fileName}` : message.content}`;
-}
-function isImageFileMessage(message: FileMessage): boolean {
-  if (message.fileMimeType?.startsWith('image/')) return true;
-  return /\.(avif|gif|jpe?g|png|webp)$/i.test(message.fileName);
+function getConversationMessagePreview(message: Message | undefined): string { return getMessagePreview(message); }
+function isImageFileMessage(message: Message): boolean {
+  if (message.type === 'image' || message.fileMimeType?.startsWith('image/')) return true;
+  return /\.(avif|gif|jpe?g|png|webp)$/i.test(message.fileName ?? '');
 }
 function revokeTrackedObjectUrl(store: MutableRefObject<string[]>, fileUrl: string) {
   window.URL.revokeObjectURL(fileUrl);
@@ -707,70 +685,6 @@ function schedulePendingStatusTimeout(setConversations: Dispatch<SetStateAction<
     clearPendingStatusTimeout(store, conversationId);
   }, delayInMs);
   store.current[conversationId] = timeoutId;
-}
-function readStoredConversations(): Conversation[] {
-  const storedValue = window.localStorage.getItem(mockConversationsStorageKey);
-  if (!storedValue) return [];
-  try {
-    const parsedValue = JSON.parse(storedValue) as Partial<Conversation>[];
-    if (!Array.isArray(parsedValue)) return [];
-    return parsedValue.map((conversation, index) => {
-      const pendingStatusAt = typeof conversation.pendingStatusAt === 'number' ? conversation.pendingStatusAt : null;
-      const isPendingDelayExpired = pendingStatusAt !== null && pendingStatusAt <= Date.now();
-      return {
-        id: typeof conversation.id === 'string' ? conversation.id : `mock-conversation-recovered-${index}`,
-        name: typeof conversation.name === 'string' ? conversation.name : 'Cliente',
-        updatedAt: typeof conversation.updatedAt === 'number' ? conversation.updatedAt : Date.now(),
-        status: isConversationStatus(conversation.status) && !isPendingDelayExpired ? conversation.status : 'pending',
-        archived: Boolean(conversation.archived),
-        pendingStatusAt: isPendingDelayExpired ? null : pendingStatusAt,
-        messages: Array.isArray(conversation.messages) ? conversation.messages.map(normalizeStoredMessage) : [],
-        hasAutoReplied: Boolean(conversation.hasAutoReplied),
-        hasUserReplied: Boolean(conversation.hasUserReplied),
-        lastAutoReplyAt: typeof conversation.lastAutoReplyAt === 'number' ? conversation.lastAutoReplyAt : null,
-        isAutoReplyTyping: false,
-      };
-    });
-  } catch { return []; }
-}
-function normalizeStoredMessage(message: unknown, index: number): Message {
-  const candidate = message && typeof message === 'object' ? message as Record<string, unknown> : {};
-  const createdAt = typeof candidate.createdAt === 'number' ? candidate.createdAt : Date.now();
-  const sender = isMessageSender(candidate.sender) ? candidate.sender : 'CLIENT';
-  if (candidate.type === 'file') {
-    return {
-      id: typeof candidate.id === 'string' ? candidate.id : `mock-message-file-recovered-${index}`,
-      type: 'file',
-      sender: 'user',
-      fileName: typeof candidate.fileName === 'string' ? candidate.fileName : 'Archivo adjunto',
-      createdAt,
-    };
-  }
-  return {
-    id: typeof candidate.id === 'string' ? candidate.id : `mock-message-recovered-${index}`,
-    type: 'text',
-    sender,
-    content: typeof candidate.content === 'string' ? candidate.content : '',
-    createdAt,
-    editedAt: typeof candidate.editedAt === 'number' ? candidate.editedAt : undefined,
-  };
-}
-function sanitizeConversationsForStorage(conversations: Conversation[]): Conversation[] {
-  return conversations.map((conversation) => ({
-    ...conversation,
-    messages: conversation.messages.map(sanitizeMessageForStorage),
-    isAutoReplyTyping: false,
-  }));
-}
-function sanitizeMessageForStorage(message: Message): Message {
-  if (message.type !== 'file') return message;
-  return {
-    id: message.id,
-    type: 'file',
-    sender: message.sender,
-    fileName: message.fileName,
-    createdAt: message.createdAt,
-  };
 }
 function readStoredPrivateNotes(): Record<string, string> {
   const storedValue = window.localStorage.getItem(privateNotesStorageKey);
@@ -793,8 +707,6 @@ function readStoredAutomations(): AutomationsState {
 }
 function getRandomDelay(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function canSendAutoReply(conversation: Conversation): boolean { return !conversation.hasAutoReplied && !conversation.hasUserReplied; }
-function isConversationStatus(value: unknown): value is ConversationStatus { return value === 'pending' || value === 'done'; }
-function isMessageSender(value: unknown): value is MessageSender { return value === 'USER' || value === 'CLIENT' || value === 'AUTO' || value === 'user'; }
 function doesFilterIncludeConversation(conversation: Conversation, filter: ConversationFilter): boolean {
   if (filter === 'archived') return conversation.archived;
   if (filter === 'all') return !conversation.archived;
