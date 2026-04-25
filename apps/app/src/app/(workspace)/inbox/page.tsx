@@ -36,7 +36,6 @@ const centerPanelMinWidth = 300;
 const rightPanelMinWidth = 220;
 const resizerWidth = 12;
 const resizableViewportMinWidth = 1180;
-const isDevelopment = process.env.NODE_ENV === 'development';
 const defaultAutomationsState: AutomationsState = {
   welcome: { enabled: false, message: 'Hola, gracias por escribir. Enseguida te respondemos.' },
   off_hours: { enabled: false, message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.' },
@@ -446,7 +445,7 @@ export default function InboxPage() {
           <p>Simula conversaciones de clientes, abre el chat y practica respuestas sin conectar todavia ningun backend.</p>
         </div>
         <div className="inbox-hero__actions">
-          {isDevelopment ? <button className="button button--ghost" type="button" onClick={simulateWhatsappWebhook}>Simular webhook WA</button> : null}
+          <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular webhook WA</button>
           <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
         </div>
       </div>
