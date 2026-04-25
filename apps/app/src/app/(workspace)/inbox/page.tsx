@@ -2,7 +2,7 @@
 import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 
 type MessageSender = 'USER' | 'CLIENT' | 'AUTO' | 'user';
-type TextMessage = { id: string; type?: 'text'; sender: MessageSender; content: string; createdAt: number };
+type TextMessage = { id: string; type?: 'text'; sender: MessageSender; content: string; createdAt: number; editedAt?: number };
 type FileMessage = { id: string; type: 'file'; sender: 'user'; fileName: string; fileUrl?: string; fileMimeType?: string; createdAt: number };
 type Message = TextMessage | FileMessage;
 type ConversationStatus = 'pending' | 'done';
@@ -56,6 +56,8 @@ export default function InboxPage() {
   const [isResizableLayout, setIsResizableLayout] = useState(false);
   const [activeResizer, setActiveResizer] = useState<ActiveResizer | null>(null);
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState('');
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
@@ -107,6 +109,11 @@ export default function InboxPage() {
     if (!isHydrated || selectedConversationId) return;
     setSelectedConversationId(sortedConversations[0]?.id ?? null);
   }, [isHydrated, selectedConversationId, sortedConversations]);
+
+  useEffect(() => {
+    setEditingMessageId(null);
+    setEditingDraft('');
+  }, [selectedConversationId]);
 
   useEffect(() => {
     if (!chatBottomRef.current) return;
@@ -313,6 +320,48 @@ export default function InboxPage() {
     } : conversation));
   }
 
+  function startEditingMessage(message: Message) {
+    if (message.type === 'file' || !isUserSender(message.sender)) return;
+    setEditingMessageId(message.id);
+    setEditingDraft(message.content);
+  }
+
+  function cancelEditingMessage() {
+    setEditingMessageId(null);
+    setEditingDraft('');
+  }
+
+  function saveEditedMessage(messageId: string) {
+    if (!selectedConversationId) return;
+    const content = editingDraft.trim();
+    if (!content) return;
+    const now = Date.now();
+    setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
+      ...conversation,
+      updatedAt: now,
+      messages: conversation.messages.map((message) => message.id === messageId && message.type !== 'file' && isUserSender(message.sender) ? {
+        ...message,
+        type: 'text',
+        content,
+        editedAt: now,
+      } : message),
+    } : conversation));
+    cancelEditingMessage();
+  }
+
+  function deleteOwnMessage(message: Message) {
+    if (!selectedConversationId || !isUserSender(message.sender)) return;
+    const shouldDelete = window.confirm('Borrar este mensaje?');
+    if (!shouldDelete) return;
+    if (message.type === 'file' && message.fileUrl) revokeTrackedObjectUrl(objectUrlsRef, message.fileUrl);
+    setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
+      ...conversation,
+      updatedAt: Date.now(),
+      messages: conversation.messages.filter((currentMessage) => currentMessage.id !== message.id),
+    } : conversation));
+    if (editingMessageId === message.id) cancelEditingMessage();
+  }
+
   function handlePrivateNoteChange(note: string) {
     if (!selectedConversation) return;
     const nextPrivateNotes = { ...privateNotes, [selectedConversation.id]: note };
@@ -504,23 +553,46 @@ export default function InboxPage() {
               <div className="chat-messages">
                 {selectedConversation.messages.map((message) => (
                   <article key={message.id} className={`chat-message ${getMessageBubbleClass(message)}`}>
-                    <span className="chat-message__sender">{getMessageSenderLabel(message, selectedConversation.name)}</span>
+                    <div className="chat-message__topline">
+                      <span className="chat-message__sender">{getMessageSenderLabel(message, selectedConversation.name)}</span>
+                      {isUserSender(message.sender) ? (
+                        <div className="chat-message__actions" aria-label="Acciones del mensaje">
+                          {message.type !== 'file' ? (
+                            <button className="chat-message__action" type="button" title="Editar mensaje" aria-label="Editar mensaje" onClick={() => startEditingMessage(message)}>
+                              Editar
+                            </button>
+                          ) : null}
+                          <button className="chat-message__action chat-message__action--danger" type="button" title="Borrar mensaje" aria-label="Borrar mensaje" onClick={() => deleteOwnMessage(message)}>
+                            Borrar
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                     {message.type === 'file' ? (
                       <div className="chat-file-message">
                         {message.fileUrl && isImageFileMessage(message) ? (
                           // eslint-disable-next-line @next/next/no-img-element -- Blob previews are browser-local object URLs, so Next Image cannot optimize them.
                           <img className="chat-file-message__preview" src={message.fileUrl} alt={message.fileName} />
                         ) : (
-                          <div className="chat-file-message__document" aria-hidden="true">📄</div>
+                          <div className="chat-file-message__document" aria-hidden="true">{'\uD83D\uDCC4'}</div>
                         )}
                         <div className="chat-file-message__body">
                           <span className="chat-file-message__name">{message.fileName}</span>
                           {!message.fileUrl ? <span className="chat-file-message__status">Preview no disponible tras recargar</span> : null}
                         </div>
                       </div>
+                    ) : editingMessageId === message.id ? (
+                      <div className="chat-message-editor">
+                        <textarea className="chat-message-editor__textarea" value={editingDraft} onChange={(event) => setEditingDraft(event.target.value)} aria-label="Editar mensaje" />
+                        <div className="chat-message-editor__actions">
+                          <button className="chat-message-editor__button" type="button" onClick={cancelEditingMessage}>Cancelar</button>
+                          <button className="chat-message-editor__button chat-message-editor__button--primary" type="button" onClick={() => saveEditedMessage(message.id)} disabled={!editingDraft.trim()}>Guardar</button>
+                        </div>
+                      </div>
                     ) : (
                       <p>{message.content}</p>
                     )}
+                    {message.type !== 'file' && message.editedAt ? <span className="chat-message__edited">Editado</span> : null}
                     <time>{formatMessageTime(message.createdAt)}</time>
                   </article>
                 ))}
@@ -618,6 +690,10 @@ function isImageFileMessage(message: FileMessage): boolean {
   if (message.fileMimeType?.startsWith('image/')) return true;
   return /\.(avif|gif|jpe?g|png|webp)$/i.test(message.fileName);
 }
+function revokeTrackedObjectUrl(store: MutableRefObject<string[]>, fileUrl: string) {
+  window.URL.revokeObjectURL(fileUrl);
+  store.current = store.current.filter((currentFileUrl) => currentFileUrl !== fileUrl);
+}
 function clearTimeoutById(store: MutableRefObject<Record<string, number>>, key: string) {
   const timeoutId = store.current[key];
   if (!timeoutId) return;
@@ -676,6 +752,7 @@ function normalizeStoredMessage(message: unknown, index: number): Message {
     sender,
     content: typeof candidate.content === 'string' ? candidate.content : '',
     createdAt,
+    editedAt: typeof candidate.editedAt === 'number' ? candidate.editedAt : undefined,
   };
 }
 function sanitizeConversationsForStorage(conversations: Conversation[]): Conversation[] {
