@@ -1,7 +1,10 @@
 'use client';
-import { type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 
-type Message = { id: string; sender: 'USER' | 'CLIENT' | 'AUTO'; content: string; createdAt: number };
+type MessageSender = 'USER' | 'CLIENT' | 'AUTO' | 'user';
+type TextMessage = { id: string; type?: 'text'; sender: MessageSender; content: string; createdAt: number };
+type FileMessage = { id: string; type: 'file'; sender: 'user'; fileName: string; fileUrl?: string; fileMimeType?: string; createdAt: number };
+type Message = TextMessage | FileMessage;
 type ConversationStatus = 'pending' | 'done';
 type Conversation = {
   id: string;
@@ -27,6 +30,7 @@ const mockConversationsStorageKey = 'mockInbox.conversations';
 const privateNotesStorageKey = 'mockInbox.privateNotes';
 const automationsStorageKey = 'automations';
 const layoutStorageKey = 'mockInbox.layout';
+const fileInputId = 'mock-inbox-file-input';
 const PENDING_DELAY_MS = 2 * 60 * 1000;
 const leftPanelMinWidth = 220;
 const centerPanelMinWidth = 300;
@@ -54,6 +58,7 @@ export default function InboxPage() {
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
+  const objectUrlsRef = useRef<string[]>([]);
   const automationTimeoutsRef = useRef<Record<string, number>>({});
   const pendingStatusTimeoutsRef = useRef<Record<string, number>>({});
   const dragStateRef = useRef<{ startX: number; startLayout: InboxLayout; type: ActiveResizer } | null>(null);
@@ -82,6 +87,7 @@ export default function InboxPage() {
     setPrivateNotes(readStoredPrivateNotes());
     setIsHydrated(true);
     return () => {
+      objectUrlsRef.current.forEach((fileUrl) => window.URL.revokeObjectURL(fileUrl));
       Object.values(automationTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
       Object.values(pendingStatusTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
@@ -89,7 +95,7 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    window.localStorage.setItem(mockConversationsStorageKey, JSON.stringify(conversations));
+    window.localStorage.setItem(mockConversationsStorageKey, JSON.stringify(sanitizeConversationsForStorage(conversations)));
   }, [conversations, isHydrated]);
 
   useEffect(() => {
@@ -278,6 +284,35 @@ export default function InboxPage() {
     setDraftMessage('');
   }
 
+  function handleFileSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !selectedConversationId) return;
+    clearTimeoutById(automationTimeoutsRef, selectedConversationId);
+    clearPendingStatusTimeout(pendingStatusTimeoutsRef, selectedConversationId);
+    const now = Date.now();
+    const fileUrl = window.URL.createObjectURL(file);
+    objectUrlsRef.current.push(fileUrl);
+    const fileMessage: FileMessage = {
+      id: `mock-message-file-${now}`,
+      type: 'file',
+      fileName: file.name,
+      fileUrl,
+      fileMimeType: file.type,
+      sender: 'user',
+      createdAt: now,
+    };
+    setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
+      ...conversation,
+      status: 'done',
+      pendingStatusAt: null,
+      hasUserReplied: true,
+      isAutoReplyTyping: false,
+      updatedAt: now,
+      messages: [...conversation.messages, fileMessage],
+    } : conversation));
+  }
+
   function handlePrivateNoteChange(note: string) {
     if (!selectedConversation) return;
     const nextPrivateNotes = { ...privateNotes, [selectedConversation.id]: note };
@@ -409,7 +444,7 @@ export default function InboxPage() {
                         <strong>{conversation.name}</strong>
                         <span className={`conversation-status-badge ${conversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(conversation.status)}>{conversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
                       </div>
-                      <span className="conversation-item__preview">{lastMessage?.sender === 'USER' ? 'Tu: ' : lastMessage?.sender === 'AUTO' ? 'Auto: ' : ''}{lastMessage?.content}</span>
+                      <span className="conversation-item__preview">{getConversationMessagePreview(lastMessage)}</span>
                     </div>
                     </button>
                     <div className="conversation-item__side">
@@ -468,9 +503,24 @@ export default function InboxPage() {
               </header>
               <div className="chat-messages">
                 {selectedConversation.messages.map((message) => (
-                  <article key={message.id} className={`chat-message ${message.sender === 'USER' ? 'chat-message--user' : message.sender === 'AUTO' ? 'chat-message--auto' : 'chat-message--client'}`}>
-                    <span className="chat-message__sender">{message.sender === 'USER' ? 'Tu' : message.sender === 'AUTO' ? 'Auto' : selectedConversation.name}</span>
-                    <p>{message.content}</p>
+                  <article key={message.id} className={`chat-message ${getMessageBubbleClass(message)}`}>
+                    <span className="chat-message__sender">{getMessageSenderLabel(message, selectedConversation.name)}</span>
+                    {message.type === 'file' ? (
+                      <div className="chat-file-message">
+                        {message.fileUrl && isImageFileMessage(message) ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- Blob previews are browser-local object URLs, so Next Image cannot optimize them.
+                          <img className="chat-file-message__preview" src={message.fileUrl} alt={message.fileName} />
+                        ) : (
+                          <div className="chat-file-message__document" aria-hidden="true">📄</div>
+                        )}
+                        <div className="chat-file-message__body">
+                          <span className="chat-file-message__name">{message.fileName}</span>
+                          {!message.fileUrl ? <span className="chat-file-message__status">Preview no disponible tras recargar</span> : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
                     <time>{formatMessageTime(message.createdAt)}</time>
                   </article>
                 ))}
@@ -486,6 +536,10 @@ export default function InboxPage() {
                 <div ref={chatBottomRef} />
               </div>
               <form className="chat-composer" onSubmit={handleSendMessage}>
+                <input id={fileInputId} className="chat-composer__file-input" type="file" aria-label="Adjuntar archivo" onChange={handleFileSelected} />
+                <label className="chat-composer__attach" htmlFor={fileInputId} title="Adjuntar archivo" aria-label="Adjuntar archivo">
+                  {'\uD83D\uDCCE'}
+                </label>
                 <input name="content" type="text" placeholder="Escribe una respuesta..." value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
                 <button className="button button--primary" type="submit" disabled={isDraftEmpty}>Enviar</button>
                 <span className="chat-composer__hint">Pulsa Enter para enviar</span>
@@ -544,6 +598,26 @@ function getConversationStatusTooltip(status: ConversationStatus): string {
 }
 function getStatusWeight(status: ConversationStatus): number { return status === 'pending' ? 0 : 1; }
 function formatMessageTime(value: number): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+function isUserSender(sender: MessageSender): boolean { return sender === 'USER' || sender === 'user'; }
+function getMessageBubbleClass(message: Message): string {
+  if (isUserSender(message.sender)) return 'chat-message--user';
+  if (message.sender === 'AUTO') return 'chat-message--auto';
+  return 'chat-message--client';
+}
+function getMessageSenderLabel(message: Message, clientName: string): string {
+  if (isUserSender(message.sender)) return 'Tu';
+  if (message.sender === 'AUTO') return 'Auto';
+  return clientName;
+}
+function getConversationMessagePreview(message: Message | undefined): string {
+  if (!message) return '';
+  const prefix = isUserSender(message.sender) ? 'Tu: ' : message.sender === 'AUTO' ? 'Auto: ' : '';
+  return `${prefix}${message.type === 'file' ? `Archivo: ${message.fileName}` : message.content}`;
+}
+function isImageFileMessage(message: FileMessage): boolean {
+  if (message.fileMimeType?.startsWith('image/')) return true;
+  return /\.(avif|gif|jpe?g|png|webp)$/i.test(message.fileName);
+}
 function clearTimeoutById(store: MutableRefObject<Record<string, number>>, key: string) {
   const timeoutId = store.current[key];
   if (!timeoutId) return;
@@ -574,7 +648,7 @@ function readStoredConversations(): Conversation[] {
         status: isConversationStatus(conversation.status) && !isPendingDelayExpired ? conversation.status : 'pending',
         archived: Boolean(conversation.archived),
         pendingStatusAt: isPendingDelayExpired ? null : pendingStatusAt,
-        messages: Array.isArray(conversation.messages) ? conversation.messages : [],
+        messages: Array.isArray(conversation.messages) ? conversation.messages.map(normalizeStoredMessage) : [],
         hasAutoReplied: Boolean(conversation.hasAutoReplied),
         hasUserReplied: Boolean(conversation.hasUserReplied),
         lastAutoReplyAt: typeof conversation.lastAutoReplyAt === 'number' ? conversation.lastAutoReplyAt : null,
@@ -582,6 +656,44 @@ function readStoredConversations(): Conversation[] {
       };
     });
   } catch { return []; }
+}
+function normalizeStoredMessage(message: unknown, index: number): Message {
+  const candidate = message && typeof message === 'object' ? message as Record<string, unknown> : {};
+  const createdAt = typeof candidate.createdAt === 'number' ? candidate.createdAt : Date.now();
+  const sender = isMessageSender(candidate.sender) ? candidate.sender : 'CLIENT';
+  if (candidate.type === 'file') {
+    return {
+      id: typeof candidate.id === 'string' ? candidate.id : `mock-message-file-recovered-${index}`,
+      type: 'file',
+      sender: 'user',
+      fileName: typeof candidate.fileName === 'string' ? candidate.fileName : 'Archivo adjunto',
+      createdAt,
+    };
+  }
+  return {
+    id: typeof candidate.id === 'string' ? candidate.id : `mock-message-recovered-${index}`,
+    type: 'text',
+    sender,
+    content: typeof candidate.content === 'string' ? candidate.content : '',
+    createdAt,
+  };
+}
+function sanitizeConversationsForStorage(conversations: Conversation[]): Conversation[] {
+  return conversations.map((conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map(sanitizeMessageForStorage),
+    isAutoReplyTyping: false,
+  }));
+}
+function sanitizeMessageForStorage(message: Message): Message {
+  if (message.type !== 'file') return message;
+  return {
+    id: message.id,
+    type: 'file',
+    sender: message.sender,
+    fileName: message.fileName,
+    createdAt: message.createdAt,
+  };
 }
 function readStoredPrivateNotes(): Record<string, string> {
   const storedValue = window.localStorage.getItem(privateNotesStorageKey);
@@ -605,6 +717,7 @@ function readStoredAutomations(): AutomationsState {
 function getRandomDelay(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function canSendAutoReply(conversation: Conversation): boolean { return !conversation.hasAutoReplied && !conversation.hasUserReplied; }
 function isConversationStatus(value: unknown): value is ConversationStatus { return value === 'pending' || value === 'done'; }
+function isMessageSender(value: unknown): value is MessageSender { return value === 'USER' || value === 'CLIENT' || value === 'AUTO' || value === 'user'; }
 function doesFilterIncludeConversation(conversation: Conversation, filter: ConversationFilter): boolean {
   if (filter === 'archived') return conversation.archived;
   if (filter === 'all') return !conversation.archived;

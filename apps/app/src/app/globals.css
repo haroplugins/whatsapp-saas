@@ -1040,6 +1040,53 @@ input:focus {
   line-height: 1.6;
 }
 
+.chat-file-message {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-width: min(100%, 240px);
+}
+
+.chat-file-message__preview {
+  width: min(220px, 100%);
+  max-height: 180px;
+  border: 1px solid rgba(13, 138, 106, 0.16);
+  border-radius: 14px;
+  object-fit: cover;
+  grid-column: 1 / -1;
+}
+
+.chat-file-message__document {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid rgba(13, 138, 106, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 1.2rem;
+}
+
+.chat-file-message__body {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.chat-file-message__name {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.chat-file-message__status {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .chat-typing-indicator {
   display: grid;
   gap: 0.45rem;
@@ -1097,12 +1144,55 @@ input:focus {
 }
 
 .chat-composer {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.75rem;
   padding: 1rem;
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.84);
+}
+
+.chat-composer__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-composer__attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  user-select: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.chat-composer__attach:hover,
+.chat-composer__file-input:focus-visible + .chat-composer__attach {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.chat-composer__file-input:focus-visible + .chat-composer__attach {
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
 }
 
 .chat-composer__hint {
@@ -1730,7 +1820,11 @@ input:focus {
   }
 
   .chat-composer {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .chat-composer .button--primary {
+    grid-column: 1 / -1;
   }
 
   .automation-modal__days-grid,
