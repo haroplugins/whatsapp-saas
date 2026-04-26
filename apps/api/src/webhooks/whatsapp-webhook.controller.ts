@@ -1,12 +1,14 @@
 import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { parseWhatsappWebhookPayload } from './whatsapp-parser';
+import { parseWhatsappWebhookPayload, type ParsedWhatsappMessage } from './whatsapp-parser';
 
 type WhatsappWebhookVerificationQuery = {
   'hub.mode'?: string;
   'hub.verify_token'?: string;
   'hub.challenge'?: string;
 };
+
+const incomingMessages: ParsedWhatsappMessage[] = [];
 
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
@@ -25,9 +27,17 @@ export class WhatsappWebhookController {
     throw new ForbiddenException('Invalid WhatsApp webhook verification token');
   }
 
+  @Get('messages')
+  drainMessages(): ParsedWhatsappMessage[] {
+    const messages = [...incomingMessages];
+    incomingMessages.length = 0;
+    return messages;
+  }
+
   @Post()
   receive(@Body() body: unknown): { ok: true } {
     const parsedMessages = parseWhatsappWebhookPayload(body);
+    incomingMessages.push(...parsedMessages);
     this.logger.log(`Parsed WhatsApp webhook messages: ${JSON.stringify({
       count: parsedMessages.length,
       messages: parsedMessages.map((message) => ({

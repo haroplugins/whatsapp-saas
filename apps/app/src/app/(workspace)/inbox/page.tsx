@@ -1,5 +1,6 @@
 'use client';
 import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
+import { apiFetch } from '../../../lib/api';
 import { isOutsideBusinessHours, readStoredBusinessHours } from '../../../lib/business-hours';
 import { buildBusinessAutomationReply, readStoredBusinessProfile, type AutomationReplyKind } from '../../../lib/business-profile';
 import {
@@ -26,6 +27,15 @@ type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
 type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number };
 type ActiveResizer = 'left' | 'right';
 type ConversationFilter = 'all' | 'pending' | 'done' | 'archived';
+type PolledWhatsappMessage = {
+  externalConversationId: string;
+  externalMessageId?: string;
+  contactName?: string;
+  from: string;
+  type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'unknown';
+  text?: string;
+  timestamp?: string;
+};
 
 const privateNotesStorageKey = 'mockInbox.privateNotes';
 const automationsStorageKey = 'automations';
@@ -37,6 +47,7 @@ const centerPanelMinWidth = 300;
 const rightPanelMinWidth = 220;
 const resizerWidth = 12;
 const resizableViewportMinWidth = 1180;
+const whatsappPollingIntervalMs = 4000;
 const defaultAutomationsState: AutomationsState = {
   welcome: { enabled: false, message: 'Hola, gracias por escribir. Enseguida te respondemos.' },
   off_hours: { enabled: false, message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.' },
@@ -59,9 +70,11 @@ export default function InboxPage() {
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
+  const conversationsRef = useRef<Conversation[]>([]);
   const automationTimeoutsRef = useRef<Record<string, number>>({});
   const pendingStatusTimeoutsRef = useRef<Record<string, number>>({});
   const dragStateRef = useRef<{ startX: number; startLayout: InboxLayout; type: ActiveResizer } | null>(null);
+  const processedWhatsappMessageIdsRef = useRef<Set<string>>(new Set());
 
   const sortedConversations = useMemo(() => [...conversations].sort((first, second) => {
     if (first.status !== second.status) return getStatusWeight(first.status) - getStatusWeight(second.status);
@@ -99,9 +112,38 @@ export default function InboxPage() {
   }, [conversations, isHydrated]);
 
   useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
     if (!isHydrated || !layout) return;
     window.localStorage.setItem(layoutStorageKey, JSON.stringify(layout));
   }, [isHydrated, layout]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    let isPolling = false;
+
+    async function pollWhatsappMessages() {
+      if (isPolling) return;
+      isPolling = true;
+      try {
+        const messages = await apiFetch<PolledWhatsappMessage[]>('/webhooks/whatsapp/messages');
+        if (messages.length) processPolledWhatsappMessages(messages);
+      } catch {
+        // Polling is best-effort while the temporary backend bridge is available.
+      } finally {
+        isPolling = false;
+      }
+    }
+
+    void pollWhatsappMessages();
+    const intervalId = window.setInterval(() => {
+      void pollWhatsappMessages();
+    }, whatsappPollingIntervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [isHydrated]);
 
   useEffect(() => {
     if (!isHydrated || selectedConversationId) return;
@@ -200,6 +242,47 @@ export default function InboxPage() {
     mockInboxSource.saveConversations(conversations);
     const receipt = receiveExternalMessage(createMockWhatsappWebhookPayload());
     applyReceivedExternalMessage(receipt.conversations, receipt.conversationId);
+  }
+
+  function processPolledWhatsappMessages(messages: PolledWhatsappMessage[]) {
+    const messagesToProcess = messages.filter((message) => {
+      if (!message.externalMessageId) return true;
+      if (processedWhatsappMessageIdsRef.current.has(message.externalMessageId)) return false;
+      processedWhatsappMessageIdsRef.current.add(message.externalMessageId);
+      return true;
+    });
+    if (!messagesToProcess.length) return;
+
+    const currentConversations = conversationsRef.current;
+    mockInboxSource.saveConversations(currentConversations);
+
+    let nextConversations = currentConversations;
+    let lastConversationId: string | null = null;
+    const conversationIdsToSchedule = new Set<string>();
+
+    for (const message of messagesToProcess) {
+      const receipt = receiveExternalMessage({
+        externalConversationId: message.externalConversationId || message.from,
+        contactName: message.contactName ?? message.from,
+        message: message.text ?? '[mensaje]',
+        timestamp: message.timestamp ?? new Date().toISOString(),
+      });
+      nextConversations = receipt.conversations;
+      lastConversationId = receipt.conversationId;
+      conversationIdsToSchedule.add(receipt.conversationId);
+      mockInboxSource.saveConversations(receipt.conversations);
+    }
+
+    conversationsRef.current = nextConversations;
+    setConversations(nextConversations);
+    if (lastConversationId) {
+      setSelectedConversationId(lastConversationId);
+      setDraftMessage('');
+    }
+    conversationIdsToSchedule.forEach((conversationId) => {
+      clearPendingStatusTimeout(pendingStatusTimeoutsRef, conversationId);
+      scheduleAutomationReply(conversationId);
+    });
   }
 
   function applyReceivedExternalMessage(nextConversations: Conversation[], conversationId: string) {
