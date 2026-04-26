@@ -1,6 +1,7 @@
 'use client';
 import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
 import { isOutsideBusinessHours, readStoredBusinessHours } from '../../../lib/business-hours';
+import { buildBusinessAutomationReply, readStoredBusinessProfile, type AutomationReplyKind } from '../../../lib/business-profile';
 import {
   createMockFileMessage,
   createMockTextMessage,
@@ -431,8 +432,8 @@ export default function InboxPage() {
 
   function getAutomationMessage(): string | null {
     const automations = readStoredAutomations();
-    if (automations.off_hours.enabled && automations.off_hours.message.trim() && isOutsideBusinessHours(readStoredBusinessHours())) return automations.off_hours.message.trim();
-    if (automations.welcome.enabled && automations.welcome.message.trim()) return automations.welcome.message.trim();
+    if (automations.off_hours.enabled && automations.off_hours.message.trim() && isOutsideBusinessHours(readStoredBusinessHours())) return getPersonalizedAutomationMessage('off_hours', automations.off_hours.message);
+    if (automations.welcome.enabled && automations.welcome.message.trim()) return getPersonalizedAutomationMessage('welcome', automations.welcome.message);
     return null;
   }
 
@@ -724,6 +725,9 @@ function readStoredAutomations(): AutomationsState {
       off_hours: { ...defaultAutomationsState.off_hours, ...parsedValue.off_hours },
     };
   } catch { return defaultAutomationsState; }
+}
+function getPersonalizedAutomationMessage(kind: AutomationReplyKind, message: string): string {
+  return buildBusinessAutomationReply(kind, message, readStoredBusinessProfile());
 }
 function getRandomDelay(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function canSendAutoReply(conversation: Conversation): boolean { return !conversation.hasAutoReplied && !conversation.hasUserReplied; }
