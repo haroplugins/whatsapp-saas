@@ -417,6 +417,11 @@ input:focus {
   gap: 1.2rem;
 }
 
+.business-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
 .inbox-hero {
   display: flex;
   align-items: flex-end;
@@ -1458,6 +1463,10 @@ input:focus {
   padding: 1.25rem;
 }
 
+.business-profile-card--page {
+  max-width: 920px;
+}
+
 .business-profile-card__header {
   display: flex;
   align-items: flex-start;
@@ -1485,6 +1494,72 @@ input:focus {
 .business-profile-card textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+.business-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.business-form__field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.business-form__field--full {
+  grid-column: 1 / -1;
+}
+
+.business-form__field span {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.business-form__field small {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.business-form input,
+.business-form select,
+.business-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 0.85rem 1rem;
+}
+
+.business-form input,
+.business-form select {
+  min-height: 48px;
+}
+
+.business-form textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.business-form select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+  padding-right: 2.5rem;
+}
+
+.business-form input:focus,
+.business-form select:focus,
+.business-form textarea:focus {
+  outline: none;
+  border-color: rgba(13, 138, 106, 0.44);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
 }
 
 .automation-card {

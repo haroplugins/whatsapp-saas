@@ -6,12 +6,6 @@ import {
   readStoredBusinessHours,
   saveStoredBusinessHours,
 } from '../../../lib/business-hours';
-import {
-  type BusinessProfile,
-  defaultBusinessProfile,
-  readStoredBusinessProfile,
-  saveStoredBusinessProfile,
-} from '../../../lib/business-profile';
 
 type AutomationKey = 'welcome' | 'off_hours';
 
@@ -80,7 +74,6 @@ const defaultAutomationsState: AutomationsState = {
 
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<AutomationsState>(defaultAutomationsState);
-  const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(defaultBusinessProfile);
   const [businessHours, setBusinessHours] = useState<BusinessHours>({
     timezone: 'Europe/Madrid',
     days: [1, 2, 3, 4, 5],
@@ -92,7 +85,6 @@ export default function AutomationsPage() {
 
   useEffect(() => {
     setAutomations(readStoredAutomations());
-    setBusinessProfile(readStoredBusinessProfile());
     setBusinessHours(readStoredBusinessHours());
     setIsHydrated(true);
   }, []);
@@ -104,14 +96,6 @@ export default function AutomationsPage() {
 
     window.localStorage.setItem(automationsStorageKey, JSON.stringify(automations));
   }, [automations, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-
-    saveStoredBusinessProfile(businessProfile);
-  }, [businessProfile, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -134,13 +118,6 @@ export default function AutomationsPage() {
         ...currentAutomations[automationKey],
         ...updates,
       },
-    }));
-  }
-
-  function updateBusinessProfile(updates: Partial<BusinessProfile>) {
-    setBusinessProfile((currentBusinessProfile) => ({
-      ...currentBusinessProfile,
-      ...updates,
     }));
   }
 
@@ -171,52 +148,6 @@ export default function AutomationsPage() {
           </p>
         </div>
       </div>
-
-      <section className="business-profile-card">
-        <div className="business-profile-card__header">
-          <div>
-            <span className="workspace-header__eyebrow">Perfil del negocio</span>
-            <h3>Contexto para respuestas automaticas</h3>
-          </div>
-          <span className="automation-card__meta">Sin IA, solo plantillas</span>
-        </div>
-        <div className="business-profile-card__grid">
-          <label className="business-hours-card__field">
-            <span>Nombre negocio</span>
-            <input
-              type="text"
-              value={businessProfile.name}
-              onChange={(event) => updateBusinessProfile({ name: event.target.value })}
-            />
-          </label>
-          <label className="business-hours-card__field">
-            <span>Tipo de servicio</span>
-            <input
-              type="text"
-              value={businessProfile.service}
-              onChange={(event) => updateBusinessProfile({ service: event.target.value })}
-            />
-          </label>
-          <label className="business-hours-card__field">
-            <span>Tono</span>
-            <select
-              value={businessProfile.tone}
-              onChange={(event) => updateBusinessProfile({ tone: event.target.value === 'formal' ? 'formal' : 'friendly' })}
-            >
-              <option value="friendly">friendly</option>
-              <option value="formal">formal</option>
-            </select>
-          </label>
-          <label className="business-hours-card__field business-profile-card__base-message">
-            <span>Mensaje base</span>
-            <textarea
-              value={businessProfile.baseMessage}
-              onChange={(event) => updateBusinessProfile({ baseMessage: event.target.value })}
-              placeholder="Ej: Te responderemos lo antes posible por este mismo chat."
-            />
-          </label>
-        </div>
-      </section>
 
       <div className="automation-grid">
         {automationDefinitions.map((automation) => {

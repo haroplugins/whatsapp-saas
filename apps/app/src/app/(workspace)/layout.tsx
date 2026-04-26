@@ -9,6 +9,7 @@ const navigation = [
   { href: '/dashboard', label: 'Dashboard', description: 'Resumen general' },
   { href: '/inbox', label: 'Inbox', description: 'Conversaciones' },
   { href: '/automations', label: 'Automations', description: 'Reglas activas' },
+  { href: '/business', label: 'Negocio', description: 'Perfil y contexto' },
 ];
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
