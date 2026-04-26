@@ -9,6 +9,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { MessagesModule } from './messages/messages.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 const rootEnvPath = resolve(process.cwd(), '.env');
 
@@ -25,6 +26,7 @@ const rootEnvPath = resolve(process.cwd(), '.env');
     ConversationsModule,
     MessagesModule,
     DashboardModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}
