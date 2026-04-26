@@ -1,5 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { parseWhatsappWebhookPayload } from './whatsapp-parser';
 
 type WhatsappWebhookVerificationQuery = {
   'hub.mode'?: string;
@@ -26,13 +27,14 @@ export class WhatsappWebhookController {
 
   @Post()
   receive(@Body() body: unknown): { ok: true } {
-    this.logger.log(`Received WhatsApp webhook event: ${stringifyForLog(body)}`);
+    const parsedMessages = parseWhatsappWebhookPayload(body);
+    this.logger.log(`Parsed WhatsApp webhook messages: ${JSON.stringify({
+      count: parsedMessages.length,
+      messages: parsedMessages.map((message) => ({
+        from: message.from,
+        type: message.type,
+      })),
+    })}`);
     return { ok: true };
   }
-}
-
-function stringifyForLog(value: unknown): string {
-  const serializedValue = JSON.stringify(value);
-  if (!serializedValue) return '{}';
-  return serializedValue.length > 2000 ? `${serializedValue.slice(0, 2000)}...` : serializedValue;
 }
