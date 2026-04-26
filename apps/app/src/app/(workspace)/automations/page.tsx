@@ -47,6 +47,20 @@ const weekdayOptions = [
   { label: 'Domingo', value: 0 },
 ];
 
+const timezoneOptions = [
+  'Europe/Madrid',
+  'Atlantic/Canary',
+  'Europe/Lisbon',
+  'Europe/Paris',
+  'Europe/London',
+  'America/Mexico_City',
+  'America/Bogota',
+  'America/Argentina/Buenos_Aires',
+  'America/Santiago',
+  'America/Lima',
+  'America/New_York',
+];
+
 const defaultAutomationsState: AutomationsState = {
   welcome: {
     enabled: false,
@@ -172,11 +186,14 @@ export default function AutomationsPage() {
                 <div className="business-hours-card">
                   <label className="business-hours-card__field">
                     <span>Zona horaria</span>
-                    <input
-                      type="text"
+                    <select
                       value={businessHours.timezone}
                       onChange={(event) => updateBusinessHours({ timezone: event.target.value })}
-                    />
+                    >
+                      {timezoneOptions.map((timezone) => (
+                        <option key={timezone} value={timezone}>{timezone}</option>
+                      ))}
+                    </select>
                   </label>
                   <div className="business-hours-card__time-grid">
                     <label className="business-hours-card__field">
