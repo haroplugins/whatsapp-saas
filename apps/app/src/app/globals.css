@@ -1536,6 +1536,42 @@ input:focus {
   gap: 1rem;
 }
 
+.business-hours-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.business-hours-card__field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.business-hours-card__field span,
+.business-hours-card__days legend {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.business-hours-card__time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.business-hours-card__days {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.business-hours-card__days-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
 .automation-card__message {
   min-height: 4.8rem;
   border: 1px dashed var(--line);
@@ -1949,7 +1985,9 @@ input:focus {
   }
 
   .automation-modal__days-grid,
-  .automation-modal__time-grid {
+  .automation-modal__time-grid,
+  .business-hours-card__time-grid,
+  .business-hours-card__days-grid {
     grid-template-columns: 1fr;
   }
 }

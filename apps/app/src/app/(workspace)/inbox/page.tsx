@@ -1,5 +1,6 @@
 'use client';
 import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from 'react';
+import { isOutsideBusinessHours, readStoredBusinessHours } from '../../../lib/business-hours';
 import {
   createMockFileMessage,
   createMockTextMessage,
@@ -19,8 +20,7 @@ import {
 type Message = NormalizedMessage;
 type Conversation = NormalizedConversation;
 type ConversationStatus = NormalizedConversationStatus;
-type AutomationSchedule = { days: number[]; start: string; end: string };
-type AutomationConfig = { enabled: boolean; message: string; schedule?: AutomationSchedule };
+type AutomationConfig = { enabled: boolean; message: string };
 type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
 type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number };
 type ActiveResizer = 'left' | 'right';
@@ -431,7 +431,7 @@ export default function InboxPage() {
 
   function getAutomationMessage(): string | null {
     const automations = readStoredAutomations();
-    if (automations.off_hours.enabled && automations.off_hours.message.trim() && isOutsideConfiguredSchedule(automations.off_hours.schedule)) return automations.off_hours.message.trim();
+    if (automations.off_hours.enabled && automations.off_hours.message.trim() && isOutsideBusinessHours(readStoredBusinessHours())) return automations.off_hours.message.trim();
     if (automations.welcome.enabled && automations.welcome.message.trim()) return automations.welcome.message.trim();
     return null;
   }
@@ -721,7 +721,7 @@ function readStoredAutomations(): AutomationsState {
     const parsedValue = JSON.parse(storedValue) as Partial<AutomationsState>;
     return {
       welcome: { ...defaultAutomationsState.welcome, ...parsedValue.welcome },
-      off_hours: { ...defaultAutomationsState.off_hours, ...parsedValue.off_hours, schedule: normalizeSchedule(parsedValue.off_hours?.schedule) },
+      off_hours: { ...defaultAutomationsState.off_hours, ...parsedValue.off_hours },
     };
   } catch { return defaultAutomationsState; }
 }
@@ -732,35 +732,6 @@ function doesFilterIncludeConversation(conversation: Conversation, filter: Conve
   if (filter === 'all') return !conversation.archived;
   return !conversation.archived && conversation.status === filter;
 }
-function normalizeSchedule(schedule: unknown): AutomationSchedule | undefined {
-  if (!schedule || typeof schedule !== 'object') return undefined;
-  const candidate = schedule as Partial<AutomationSchedule>;
-  const days = Array.isArray(candidate.days) ? candidate.days.filter(isValidDay).sort((firstDay, secondDay) => firstDay - secondDay) : [];
-  const start = typeof candidate.start === 'string' ? candidate.start : '';
-  const end = typeof candidate.end === 'string' ? candidate.end : '';
-  if (!days.length || !isValidTimeString(start) || !isValidTimeString(end)) return undefined;
-  return { days, start, end };
-}
-function isOutsideConfiguredSchedule(schedule?: AutomationSchedule): boolean {
-  if (!schedule) return true;
-  const now = new Date();
-  const currentDay = now.getDay();
-  if (!schedule.days.includes(currentDay)) return true;
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMinutes = convertTimeToMinutes(schedule.start);
-  const endMinutes = convertTimeToMinutes(schedule.end);
-  if (startMinutes === null || endMinutes === null) return true;
-  if (startMinutes === endMinutes) return false;
-  if (startMinutes < endMinutes) return currentMinutes < startMinutes || currentMinutes > endMinutes;
-  return currentMinutes > endMinutes && currentMinutes < startMinutes;
-}
-function convertTimeToMinutes(value: string): number | null {
-  if (!isValidTimeString(value)) return null;
-  const [hoursText, minutesText] = value.split(':');
-  return Number(hoursText) * 60 + Number(minutesText);
-}
-function isValidTimeString(value: string): boolean { return /^\d{2}:\d{2}$/.test(value); }
-function isValidDay(day: unknown): day is number { return typeof day === 'number' && Number.isInteger(day) && day >= 0 && day <= 6; }
 function readStoredLayout(): InboxLayout | null {
   const storedValue = window.localStorage.getItem(layoutStorageKey);
   if (!storedValue) return null;

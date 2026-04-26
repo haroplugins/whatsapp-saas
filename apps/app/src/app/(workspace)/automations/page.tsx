@@ -1,19 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import {
+  type BusinessHours,
+  readStoredBusinessHours,
+  saveStoredBusinessHours,
+} from '../../../lib/business-hours';
 
 type AutomationKey = 'welcome' | 'off_hours';
-
-type AutomationSchedule = {
-  days: number[];
-  start: string;
-  end: string;
-};
 
 type AutomationConfig = {
   enabled: boolean;
   message: string;
-  schedule?: AutomationSchedule;
 };
 
 type AutomationsState = Record<AutomationKey, AutomationConfig>;
@@ -49,12 +47,6 @@ const weekdayOptions = [
   { label: 'Domingo', value: 0 },
 ];
 
-const emptySchedule: AutomationSchedule = {
-  days: [],
-  start: '',
-  end: '',
-};
-
 const defaultAutomationsState: AutomationsState = {
   welcome: {
     enabled: false,
@@ -68,11 +60,18 @@ const defaultAutomationsState: AutomationsState = {
 
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<AutomationsState>(defaultAutomationsState);
+  const [businessHours, setBusinessHours] = useState<BusinessHours>({
+    timezone: 'Europe/Madrid',
+    days: [1, 2, 3, 4, 5],
+    start: '09:00',
+    end: '18:00',
+  });
   const [activeAutomationKey, setActiveAutomationKey] = useState<AutomationKey | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setAutomations(readStoredAutomations());
+    setBusinessHours(readStoredBusinessHours());
     setIsHydrated(true);
   }, []);
 
@@ -84,13 +83,19 @@ export default function AutomationsPage() {
     window.localStorage.setItem(automationsStorageKey, JSON.stringify(automations));
   }, [automations, isHydrated]);
 
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    saveStoredBusinessHours(businessHours);
+  }, [businessHours, isHydrated]);
+
   const activeAutomationDefinition = useMemo(
     () =>
       automationDefinitions.find((automation) => automation.key === activeAutomationKey) ?? null,
     [activeAutomationKey],
   );
-
-  const offHoursSchedule = automations.off_hours.schedule ?? emptySchedule;
 
   function updateAutomation(automationKey: AutomationKey, updates: Partial<AutomationConfig>) {
     setAutomations((currentAutomations) => ({
@@ -102,23 +107,19 @@ export default function AutomationsPage() {
     }));
   }
 
-  function updateOffHoursSchedule(updates: Partial<AutomationSchedule>) {
-    const nextSchedule = {
-      ...(automations.off_hours.schedule ?? emptySchedule),
+  function updateBusinessHours(updates: Partial<BusinessHours>) {
+    setBusinessHours((currentBusinessHours) => ({
+      ...currentBusinessHours,
       ...updates,
-    };
-
-    updateAutomation('off_hours', {
-      schedule: hasConfiguredSchedule(nextSchedule) ? nextSchedule : undefined,
-    });
+    }));
   }
 
-  function toggleOffHoursDay(day: number) {
-    const nextDays = offHoursSchedule.days.includes(day)
-      ? offHoursSchedule.days.filter((currentDay) => currentDay !== day)
-      : [...offHoursSchedule.days, day].sort((firstDay, secondDay) => firstDay - secondDay);
+  function toggleBusinessHoursDay(day: number) {
+    const nextDays = businessHours.days.includes(day)
+      ? businessHours.days.filter((currentDay) => currentDay !== day)
+      : [...businessHours.days, day].sort((firstDay, secondDay) => firstDay - secondDay);
 
-    updateOffHoursSchedule({ days: nextDays });
+    updateBusinessHours({ days: nextDays });
   }
 
   return (
@@ -167,11 +168,57 @@ export default function AutomationsPage() {
 
               <p>{automation.description}</p>
 
+              {automation.key === 'off_hours' ? (
+                <div className="business-hours-card">
+                  <label className="business-hours-card__field">
+                    <span>Zona horaria</span>
+                    <input
+                      type="text"
+                      value={businessHours.timezone}
+                      onChange={(event) => updateBusinessHours({ timezone: event.target.value })}
+                    />
+                  </label>
+                  <div className="business-hours-card__time-grid">
+                    <label className="business-hours-card__field">
+                      <span>Inicio</span>
+                      <input
+                        type="time"
+                        value={businessHours.start}
+                        onChange={(event) => updateBusinessHours({ start: event.target.value })}
+                      />
+                    </label>
+                    <label className="business-hours-card__field">
+                      <span>Fin</span>
+                      <input
+                        type="time"
+                        value={businessHours.end}
+                        onChange={(event) => updateBusinessHours({ end: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <fieldset className="business-hours-card__days">
+                    <legend>Dias laborales</legend>
+                    <div className="business-hours-card__days-grid">
+                      {weekdayOptions.map((day) => (
+                        <label key={day.value} className="automation-day-pill">
+                          <input
+                            type="checkbox"
+                            checked={businessHours.days.includes(day.value)}
+                            onChange={() => toggleBusinessHoursDay(day.value)}
+                          />
+                          <span>{day.label.slice(0, 3)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
+              ) : null}
+
               <div className="automation-card__footer">
                 <span className="automation-card__message">{config.message}</span>
-                {automation.key === 'off_hours' && config.schedule ? (
+                {automation.key === 'off_hours' ? (
                   <span className="automation-card__meta">
-                    {formatScheduleSummary(config.schedule)}
+                    {formatBusinessHoursSummary(businessHours)}
                   </span>
                 ) : null}
                 <button
@@ -252,57 +299,6 @@ export default function AutomationsPage() {
                 />
               </label>
 
-              {activeAutomationDefinition.key === 'off_hours' ? (
-                <div className="automation-modal__schedule">
-                  <div className="automation-modal__schedule-copy">
-                    <strong>Disponibilidad</strong>
-                    <p>
-                      Si no configuras dias y horas, esta automation seguira
-                      respondiendo siempre que este activa.
-                    </p>
-                  </div>
-
-                  <fieldset className="automation-modal__days">
-                    <legend>Dias activos</legend>
-                    <div className="automation-modal__days-grid">
-                      {weekdayOptions.map((day) => (
-                        <label key={day.value} className="automation-day-pill">
-                          <input
-                            type="checkbox"
-                            checked={offHoursSchedule.days.includes(day.value)}
-                            onChange={() => toggleOffHoursDay(day.value)}
-                          />
-                          <span>{day.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  <div className="automation-modal__time-grid">
-                    <label className="automation-modal__field">
-                      <span>Inicio</span>
-                      <input
-                        type="time"
-                        value={offHoursSchedule.start}
-                        onChange={(event) =>
-                          updateOffHoursSchedule({ start: event.target.value })
-                        }
-                      />
-                    </label>
-
-                    <label className="automation-modal__field">
-                      <span>Fin</span>
-                      <input
-                        type="time"
-                        value={offHoursSchedule.end}
-                        onChange={(event) =>
-                          updateOffHoursSchedule({ end: event.target.value })
-                        }
-                      />
-                    </label>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </section>
         </div>
@@ -329,7 +325,6 @@ function readStoredAutomations(): AutomationsState {
       off_hours: {
         ...defaultAutomationsState.off_hours,
         ...parsedValue.off_hours,
-        schedule: normalizeSchedule(parsedValue.off_hours?.schedule),
       },
     };
   } catch {
@@ -337,48 +332,13 @@ function readStoredAutomations(): AutomationsState {
   }
 }
 
-function normalizeSchedule(schedule: unknown): AutomationSchedule | undefined {
-  if (!schedule || typeof schedule !== 'object') {
-    return undefined;
-  }
-
-  const candidate = schedule as Partial<AutomationSchedule>;
-  const days = Array.isArray(candidate.days)
-    ? candidate.days.filter(isValidDay).sort((firstDay, secondDay) => firstDay - secondDay)
-    : [];
-  const start = typeof candidate.start === 'string' ? candidate.start : '';
-  const end = typeof candidate.end === 'string' ? candidate.end : '';
-
-  if (!hasConfiguredSchedule({ days, start, end })) {
-    return undefined;
-  }
-
-  return {
-    days,
-    start,
-    end,
-  };
-}
-
-function hasConfiguredSchedule(schedule: AutomationSchedule): boolean {
-  return schedule.days.length > 0 || schedule.start.length > 0 || schedule.end.length > 0;
-}
-
-function formatScheduleSummary(schedule: AutomationSchedule): string {
-  if (!schedule.days.length || !schedule.start || !schedule.end) {
-    return 'Horario sin completar';
-  }
-
+function formatBusinessHoursSummary(businessHours: BusinessHours): string {
   const formattedDays = weekdayOptions
-    .filter((day) => schedule.days.includes(day.value))
+    .filter((day) => businessHours.days.includes(day.value))
     .map((day) => day.label.slice(0, 3))
     .join(', ');
 
-  return `${formattedDays} · ${schedule.start} - ${schedule.end}`;
-}
-
-function isValidDay(day: unknown): day is number {
-  return typeof day === 'number' && Number.isInteger(day) && day >= 0 && day <= 6;
+  return `${formattedDays} | ${businessHours.start} - ${businessHours.end} | ${businessHours.timezone}`;
 }
 
 function getAutomationTooltip(automationKey: AutomationKey): string {
