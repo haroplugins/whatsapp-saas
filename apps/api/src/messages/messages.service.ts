@@ -9,6 +9,12 @@ type CreateMessageInput = {
   content: string;
 };
 
+export type RunIncomingMessageAutomationsInput = {
+  tenantId: string;
+  conversationId: string;
+  content: string;
+};
+
 @Injectable()
 export class MessagesService {
   constructor(
@@ -32,7 +38,11 @@ export class MessagesService {
     });
 
     if (data.sender !== MessageSender.USER) {
-      await this.executeAutomations(conversation.tenantId, conversation.id, data.content);
+      await this.runIncomingMessageAutomations({
+        tenantId: conversation.tenantId,
+        conversationId: conversation.id,
+        content: data.content,
+      });
     }
 
     return message;
@@ -49,13 +59,12 @@ export class MessagesService {
     });
   }
 
-  private async executeAutomations(
-    tenantId: string,
-    conversationId: string,
-    messageContent: string,
+  async runIncomingMessageAutomations(
+    input: RunIncomingMessageAutomationsInput,
   ): Promise<void> {
+    const { tenantId, conversationId, content } = input;
     const automations = await this.automationsService.listActiveByTenant(tenantId);
-    const normalizedMessage = this.normalizeText(messageContent);
+    const normalizedMessage = this.normalizeText(content);
 
     for (const automation of automations) {
       if (automation.actionType !== ActionType.SEND_MESSAGE) {
