@@ -16,6 +16,12 @@ enum ConversationStatus {
   LOST
 }
 
+enum ConversationControlMode {
+  NONE
+  AI
+  HUMAN
+}
+
 enum MessageSender {
   USER
   CLIENT
@@ -58,16 +64,17 @@ model User {
 }
 
 model Conversation {
-  id         String   @id @default(cuid())
-  tenantId   String
-  phone      String
-  name       String?
-  status     ConversationStatus
-  isBusiness Boolean
-  messages   Message[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String                  @id @default(cuid())
+  tenantId    String
+  phone       String
+  name        String?
+  status      ConversationStatus
+  controlMode ConversationControlMode @default(NONE)
+  isBusiness  Boolean
+  messages    Message[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
 }

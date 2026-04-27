@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { ActionType, Automation, Message, MessageSender, TriggerType } from '@prisma/client';
+import {
+  ActionType,
+  Automation,
+  ConversationControlMode,
+  Message,
+  MessageSender,
+  TriggerType,
+} from '@prisma/client';
 import { AutomationsService } from '../automations/automations.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -37,7 +44,9 @@ export class MessagesService {
       data,
     });
 
-    if (data.sender !== MessageSender.USER) {
+    if (data.sender === MessageSender.USER) {
+      await this.markConversationHumanControlled(conversation.id);
+    } else {
       await this.runIncomingMessageAutomations({
         tenantId: conversation.tenantId,
         conversationId: conversation.id,
@@ -46,6 +55,17 @@ export class MessagesService {
     }
 
     return message;
+  }
+
+  async markConversationHumanControlled(conversationId: string): Promise<void> {
+    await this.prismaService.conversation.update({
+      where: {
+        id: conversationId,
+      },
+      data: {
+        controlMode: ConversationControlMode.HUMAN,
+      },
+    });
   }
 
   listByConversation(conversationId: string): Promise<Message[]> {
