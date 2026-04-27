@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ActionType, Conversation, ConversationStatus, MessageSender, TriggerType } from '@prisma/client';
+import {
+  ActionType,
+  Conversation,
+  ConversationStatus,
+  MessageSender,
+  TriggerType,
+} from '@prisma/client';
 import { AutomationsService } from '../automations/automations.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -9,6 +15,12 @@ type CreateConversationInput = {
   name?: string | null;
   status: ConversationStatus;
   isBusiness: boolean;
+};
+
+type FindOrCreateWhatsappConversationInput = {
+  tenantId: string;
+  whatsappFrom: string;
+  displayName?: string;
 };
 
 type ConversationFilterType = 'business' | 'personal';
@@ -23,6 +35,46 @@ export class ConversationsService {
   create(data: CreateConversationInput): Promise<Conversation> {
     return this.prismaService.conversation.create({
       data,
+    });
+  }
+
+  async findOrCreateFromWhatsapp(
+    input: FindOrCreateWhatsappConversationInput,
+  ): Promise<Conversation> {
+    const existingConversation = await this.prismaService.conversation.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        phone: input.whatsappFrom,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (existingConversation) {
+      if (!existingConversation.name && input.displayName) {
+        return this.prismaService.conversation.update({
+          where: {
+            id: existingConversation.id,
+          },
+          data: {
+            name: input.displayName,
+          },
+        });
+      }
+
+      return existingConversation;
+    }
+
+    // TODO: add first-class WhatsApp external ids/source when the tenant WhatsApp account model exists.
+    return this.prismaService.conversation.create({
+      data: {
+        tenantId: input.tenantId,
+        phone: input.whatsappFrom,
+        name: input.displayName ?? null,
+        status: ConversationStatus.NEW,
+        isBusiness: true,
+      },
     });
   }
 

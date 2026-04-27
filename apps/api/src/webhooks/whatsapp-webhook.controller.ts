@@ -1,5 +1,9 @@
 import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { MessageSender } from '@prisma/client';
+import { ConversationsService } from '../conversations/conversations.service';
+import { MessagesService } from '../messages/messages.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { parseWhatsappWebhookPayload, type ParsedWhatsappMessage } from './whatsapp-parser';
 
 type WhatsappWebhookVerificationQuery = {
@@ -9,12 +13,19 @@ type WhatsappWebhookVerificationQuery = {
 };
 
 const incomingMessages: ParsedWhatsappMessage[] = [];
+// TODO: persist external WhatsApp message ids when Message has an externalMessageId field.
+const persistedExternalMessageIds = new Set<string>();
 
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
   private readonly logger = new Logger(WhatsappWebhookController.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly conversationsService: ConversationsService,
+    private readonly messagesService: MessagesService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
   @Get()
   verify(@Query() query: WhatsappWebhookVerificationQuery): string {
@@ -35,7 +46,7 @@ export class WhatsappWebhookController {
   }
 
   @Post()
-  receive(@Body() body: unknown): { ok: true } {
+  async receive(@Body() body: unknown): Promise<{ ok: true }> {
     const parsedMessages = parseWhatsappWebhookPayload(body);
     incomingMessages.push(...parsedMessages);
     this.logger.log(`Parsed WhatsApp webhook messages: ${JSON.stringify({
@@ -45,6 +56,105 @@ export class WhatsappWebhookController {
         type: message.type,
       })),
     })}`);
+
+    await this.persistParsedMessages(parsedMessages).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Unknown persistence error';
+      this.logger.error(`Could not persist WhatsApp webhook messages: ${message}`);
+    });
+
     return { ok: true };
   }
+
+  private async persistParsedMessages(parsedMessages: ParsedWhatsappMessage[]): Promise<void> {
+    if (!parsedMessages.length) {
+      return;
+    }
+
+    const tenantId = await this.resolveWebhookTenantId();
+    if (!tenantId) {
+      this.logger.warn('WhatsApp webhook messages were not persisted because no tenant is available.');
+      return;
+    }
+
+    for (const parsedMessage of parsedMessages) {
+      if (
+        parsedMessage.externalMessageId &&
+        persistedExternalMessageIds.has(parsedMessage.externalMessageId)
+      ) {
+        continue;
+      }
+
+      const conversation = await this.conversationsService.findOrCreateFromWhatsapp({
+        tenantId,
+        whatsappFrom: parsedMessage.externalConversationId || parsedMessage.from,
+        displayName: parsedMessage.contactName,
+      });
+
+      await this.messagesService.create({
+        conversationId: conversation.id,
+        sender: MessageSender.CLIENT,
+        content: formatParsedMessageContent(parsedMessage),
+      });
+
+      if (parsedMessage.externalMessageId) {
+        persistedExternalMessageIds.add(parsedMessage.externalMessageId);
+      }
+    }
+  }
+
+  private async resolveWebhookTenantId(): Promise<string | null> {
+    const configuredTenantId = this.configService.get<string>('DEFAULT_TENANT_ID')?.trim();
+
+    if (configuredTenantId) {
+      const tenant = await this.prismaService.tenant.findUnique({
+        where: {
+          id: configuredTenantId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (tenant) {
+        return tenant.id;
+      }
+
+      this.logger.warn('DEFAULT_TENANT_ID is configured but does not match an existing tenant.');
+    }
+
+    const firstTenant = await this.prismaService.tenant.findFirst({
+      orderBy: {
+        createdAt: 'asc',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return firstTenant?.id ?? null;
+  }
+}
+
+function formatParsedMessageContent(parsedMessage: ParsedWhatsappMessage): string {
+  if (parsedMessage.type === 'text') {
+    return parsedMessage.text ?? '[text message]';
+  }
+
+  if (parsedMessage.type === 'image') {
+    return '[image message]';
+  }
+
+  if (parsedMessage.type === 'document') {
+    return '[document message]';
+  }
+
+  if (parsedMessage.type === 'audio') {
+    return '[audio message]';
+  }
+
+  if (parsedMessage.type === 'video') {
+    return '[video message]';
+  }
+
+  return '[unknown message]';
 }
