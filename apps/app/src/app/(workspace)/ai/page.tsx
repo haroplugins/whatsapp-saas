@@ -11,6 +11,18 @@ import {
   saveStoredAIConfig,
 } from '../../../lib/ai-config';
 
+const automationsStorageKey = 'automations';
+
+type StoredAutomationConfig = {
+  enabled?: boolean;
+  message?: string;
+};
+
+type StoredAutomationsState = {
+  welcome?: StoredAutomationConfig;
+  off_hours?: StoredAutomationConfig;
+};
+
 const modeOptions: Array<{ label: string; value: AIConfigMode; description: string }> = [
   { label: 'Solo sugerencias', value: 'suggestions', description: 'La IA prepara respuestas para revisar antes de enviar.' },
   { label: 'Respuesta automatica', value: 'auto_reply', description: 'La IA puede responder casos permitidos sin salir del flujo actual.' },
@@ -52,6 +64,11 @@ export default function AIPage() {
     saveStoredAIConfig(aiConfig);
   }, [aiConfig, isHydrated]);
 
+  useEffect(() => {
+    if (!isHydrated || !aiConfig.useOutsideHours) return;
+    disableClassicOffHoursAutomation();
+  }, [aiConfig.useOutsideHours, isHydrated]);
+
   function updateAIConfig(updates: Partial<AIConfig>) {
     setAIConfig((currentConfig) => ({
       ...currentConfig,
@@ -67,6 +84,14 @@ export default function AIPage() {
         [permission]: value,
       },
     }));
+  }
+
+  function updateOutsideHoursUsage(value: boolean) {
+    if (value) {
+      disableClassicOffHoursAutomation();
+    }
+
+    updateAIConfig({ useOutsideHours: value });
   }
 
   return (
@@ -167,13 +192,45 @@ export default function AIPage() {
               <input
                 type="checkbox"
                 checked={aiConfig.useOutsideHours}
-                onChange={(event) => updateAIConfig({ useOutsideHours: event.target.checked })}
+                onChange={(event) => updateOutsideHoursUsage(event.target.checked)}
               />
               <span>Usar IA fuera de horario</span>
             </label>
+            {aiConfig.useOutsideHours ? (
+              <p className="config-conflict-note">
+                La IA gestionará las respuestas fuera de horario. La automatización clásica se desactivará para evitar duplicados.
+              </p>
+            ) : null}
           </div>
         </div>
       </section>
     </section>
   );
+}
+
+function disableClassicOffHoursAutomation() {
+  const storedValue = window.localStorage.getItem(automationsStorageKey);
+
+  if (!storedValue) {
+    return;
+  }
+
+  try {
+    const automations = JSON.parse(storedValue) as StoredAutomationsState;
+    const offHours = automations.off_hours;
+
+    if (!offHours?.enabled) {
+      return;
+    }
+
+    window.localStorage.setItem(automationsStorageKey, JSON.stringify({
+      ...automations,
+      off_hours: {
+        ...offHours,
+        enabled: false,
+      },
+    }));
+  } catch {
+    // Si localStorage contiene datos antiguos o invalidos, no bloqueamos la configuracion de IA.
+  }
 }

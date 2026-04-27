@@ -6,6 +6,10 @@ import {
   readStoredBusinessHours,
   saveStoredBusinessHours,
 } from '../../../lib/business-hours';
+import {
+  readStoredAIConfig,
+  saveStoredAIConfig,
+} from '../../../lib/ai-config';
 
 type AutomationKey = 'welcome' | 'off_hours';
 
@@ -112,6 +116,17 @@ export default function AutomationsPage() {
   );
 
   function updateAutomation(automationKey: AutomationKey, updates: Partial<AutomationConfig>) {
+    if (automationKey === 'off_hours' && updates.enabled === true) {
+      const aiConfig = readStoredAIConfig();
+
+      if (aiConfig.useOutsideHours) {
+        saveStoredAIConfig({
+          ...aiConfig,
+          useOutsideHours: false,
+        });
+      }
+    }
+
     setAutomations((currentAutomations) => ({
       ...currentAutomations,
       [automationKey]: {
@@ -236,6 +251,11 @@ export default function AutomationsPage() {
                 {automation.key === 'off_hours' ? (
                   <span className="automation-card__meta">
                     {formatBusinessHoursSummary(businessHours)}
+                  </span>
+                ) : null}
+                {automation.key === 'off_hours' && config.enabled ? (
+                  <span className="config-conflict-note">
+                    La automatización clásica gestionará fuera de horario. La IA fuera de horario se desactivará para evitar duplicados.
                   </span>
                 ) : null}
                 <button

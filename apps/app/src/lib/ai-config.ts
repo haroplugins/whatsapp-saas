@@ -31,7 +31,7 @@ export const defaultAIConfig: AIConfig = {
   tone: 'friendly',
   customStyle: '',
   fallback: 'mark_pending',
-  useOutsideHours: true,
+  useOutsideHours: false,
 };
 
 export function readStoredAIConfig(): AIConfig {
