@@ -422,6 +422,11 @@ input:focus {
   gap: 1.2rem;
 }
 
+.ai-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
 .inbox-hero {
   display: flex;
   align-items: flex-end;
@@ -1562,6 +1567,91 @@ input:focus {
   box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
 }
 
+.ai-settings {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.ai-settings__section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ai-settings__section-header {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ai-settings__section-header strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.ai-settings__section-header span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.ai-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.ai-choice-card {
+  display: grid;
+  gap: 0.5rem;
+  min-height: 132px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 1rem;
+  cursor: pointer;
+}
+
+.ai-choice-card--active {
+  border-color: rgba(13, 138, 106, 0.5);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.1);
+}
+
+.ai-choice-card input {
+  width: auto;
+  margin: 0;
+}
+
+.ai-choice-card span {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.ai-choice-card small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.ai-permission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.ai-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 0.9rem 1rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.ai-toggle-row input {
+  width: auto;
+  margin: 0;
+}
+
 .automation-card {
   display: grid;
   gap: 1rem;
@@ -2100,6 +2190,8 @@ input:focus {
   .automation-modal__days-grid,
   .automation-modal__time-grid,
   .business-profile-card__grid,
+  .ai-option-grid,
+  .ai-permission-grid,
   .business-hours-card__time-grid,
   .business-hours-card__days-grid {
     grid-template-columns: 1fr;
