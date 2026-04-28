@@ -10,6 +10,11 @@ import {
   readStoredAIConfig,
   saveStoredAIConfig,
 } from '../../../lib/ai-config';
+import {
+  defaultTenantEntitlements,
+  fetchTenantEntitlements,
+  type TenantEntitlements,
+} from '../../../lib/entitlements';
 
 const automationsStorageKey = 'automations';
 
@@ -52,7 +57,9 @@ const fallbackOptions: Array<{ label: string; value: AIConfigFallback }> = [
 
 export default function AIPage() {
   const [aiConfig, setAIConfig] = useState<AIConfig>(defaultAIConfig);
+  const [entitlements, setEntitlements] = useState<TenantEntitlements>(defaultTenantEntitlements);
   const [isHydrated, setIsHydrated] = useState(false);
+  const canUseAi = entitlements.features.canUseAi;
 
   useEffect(() => {
     setAIConfig(readStoredAIConfig());
@@ -60,16 +67,32 @@ export default function AIPage() {
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
-    saveStoredAIConfig(aiConfig);
-  }, [aiConfig, isHydrated]);
+    let isMounted = true;
+    fetchTenantEntitlements()
+      .then((nextEntitlements) => {
+        if (isMounted) setEntitlements(nextEntitlements);
+      })
+      .catch(() => {
+        if (isMounted) setEntitlements(defaultTenantEntitlements);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
-    if (!isHydrated || !aiConfig.useOutsideHours) return;
+    if (!isHydrated || !canUseAi) return;
+    saveStoredAIConfig(aiConfig);
+  }, [aiConfig, canUseAi, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || !canUseAi || !aiConfig.useOutsideHours) return;
     disableClassicOffHoursAutomation();
-  }, [aiConfig.useOutsideHours, isHydrated]);
+  }, [aiConfig.useOutsideHours, canUseAi, isHydrated]);
 
   function updateAIConfig(updates: Partial<AIConfig>) {
+    if (!canUseAi) return;
     setAIConfig((currentConfig) => ({
       ...currentConfig,
       ...updates,
@@ -77,6 +100,7 @@ export default function AIPage() {
   }
 
   function updatePermission(permission: keyof AIConfig['permissions'], value: boolean) {
+    if (!canUseAi || !canUsePermission(permission, entitlements)) return;
     setAIConfig((currentConfig) => ({
       ...currentConfig,
       permissions: {
@@ -87,6 +111,7 @@ export default function AIPage() {
   }
 
   function updateOutsideHoursUsage(value: boolean) {
+    if (!canUseAi) return;
     if (value) {
       disableClassicOffHoursAutomation();
     }
@@ -105,6 +130,15 @@ export default function AIPage() {
       </div>
 
       <section className="business-profile-card business-profile-card--page">
+        {!canUseAi ? (
+          <div className="feature-lock-banner" role="note">
+            <span className="feature-lock-banner__badge">PRO</span>
+            <div>
+              <strong>Disponible en plan Pro</strong>
+              <p>La IA se puede ver desde Basic para preparar la configuracion, pero solo se activa en planes Pro o Premium.</p>
+            </div>
+          </div>
+        ) : null}
         <div className="ai-settings">
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
@@ -119,6 +153,7 @@ export default function AIPage() {
                     name="ai-mode"
                     value={option.value}
                     checked={aiConfig.mode === option.value}
+                    disabled={!canUseAi}
                     onChange={() => updateAIConfig({ mode: option.value })}
                   />
                   <span>{option.label}</span>
@@ -139,6 +174,7 @@ export default function AIPage() {
                   <input
                     type="checkbox"
                     checked={aiConfig.permissions[permission.value]}
+                    disabled={!canUseAi || !canUsePermission(permission.value, entitlements)}
                     onChange={(event) => updatePermission(permission.value, event.target.checked)}
                   />
                   <span>{permission.label}</span>
@@ -152,6 +188,7 @@ export default function AIPage() {
               <span>Tono</span>
               <select
                 value={aiConfig.tone}
+                disabled={!canUseAi || !entitlements.features.canUseAiTone}
                 onChange={(event) => updateAIConfig({ tone: event.target.value as AIConfigTone })}
               >
                 {toneOptions.map((tone) => (
@@ -164,6 +201,7 @@ export default function AIPage() {
               <span>Comportamiento en duda</span>
               <select
                 value={aiConfig.fallback}
+                disabled={!canUseAi}
                 onChange={(event) => updateAIConfig({ fallback: event.target.value as AIConfigFallback })}
               >
                 {fallbackOptions.map((fallback) => (
@@ -177,6 +215,7 @@ export default function AIPage() {
               <textarea
                 aria-label="Estilo personalizado"
                 value={aiConfig.customStyle}
+                disabled={!canUseAi}
                 onChange={(event) => updateAIConfig({ customStyle: event.target.value })}
                 placeholder="Ej: Respuestas breves, claras y con una pregunta final cuando haga falta."
               />
@@ -192,6 +231,7 @@ export default function AIPage() {
               <input
                 type="checkbox"
                 checked={aiConfig.useOutsideHours}
+                disabled={!canUseAi}
                 onChange={(event) => updateOutsideHoursUsage(event.target.checked)}
               />
               <span>Usar IA fuera de horario</span>
@@ -202,10 +242,23 @@ export default function AIPage() {
               </p>
             ) : null}
           </div>
+
+          <div className="feature-lock-actions">
+            <button className="button button--primary" type="button" disabled={!canUseAi} onClick={() => saveStoredAIConfig(aiConfig)}>
+              Guardar
+            </button>
+            {!canUseAi ? <span>Disponible en plan Pro</span> : <span>Configuracion local preparada</span>}
+          </div>
         </div>
       </section>
     </section>
   );
+}
+
+function canUsePermission(permission: keyof AIConfig['permissions'], entitlements: TenantEntitlements): boolean {
+  if (permission === 'pricing') return entitlements.features.canUseAiPricing;
+  if (permission === 'booking') return entitlements.features.canUseAiBooking;
+  return entitlements.features.canUseAi;
 }
 
 function disableClassicOffHoursAutomation() {

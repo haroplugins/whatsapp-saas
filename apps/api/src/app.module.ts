@@ -6,6 +6,7 @@ import { AutomationsModule } from './automations/automations.module';
 import { AuthModule } from './auth/auth.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { EntitlementsModule } from './entitlements/entitlements.module';
 import { IncomingMessagesModule } from './incoming-messages/incoming-messages.module';
 import { MessagesModule } from './messages/messages.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -24,6 +25,7 @@ const rootEnvPath = resolve(process.cwd(), '.env');
     AutomationsModule,
     UsersModule,
     AuthModule,
+    EntitlementsModule,
     ConversationsModule,
     MessagesModule,
     IncomingMessagesModule,

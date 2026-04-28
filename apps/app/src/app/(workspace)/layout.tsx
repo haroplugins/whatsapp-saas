@@ -1,4 +1,12 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import {
+  defaultTenantEntitlements,
+  fetchTenantEntitlements,
+  type TenantEntitlements,
+} from '../../lib/entitlements';
 
 type WorkspaceLayoutProps = Readonly<{
   children: React.ReactNode;
@@ -14,6 +22,23 @@ const navigation = [
 ];
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
+  const [entitlements, setEntitlements] = useState<TenantEntitlements>(defaultTenantEntitlements);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchTenantEntitlements()
+      .then((nextEntitlements) => {
+        if (isMounted) setEntitlements(nextEntitlements);
+      })
+      .catch(() => {
+        if (isMounted) setEntitlements(defaultTenantEntitlements);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="workspace-shell">
       <aside className="workspace-sidebar">
@@ -28,7 +53,12 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         <nav className="workspace-nav" aria-label="Primary">
           {navigation.map((item) => (
             <Link key={item.href} className="workspace-nav__link" href={item.href}>
-              <strong>{item.label}</strong>
+              <strong>
+                {item.label}
+                {item.href === '/ai' && !entitlements.features.canUseAi ? (
+                  <span className="workspace-nav__badge">PRO</span>
+                ) : null}
+              </strong>
               <span>{item.description}</span>
             </Link>
           ))}

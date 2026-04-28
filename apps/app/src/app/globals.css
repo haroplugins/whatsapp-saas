@@ -365,6 +365,24 @@ input:focus {
   color: rgba(238, 252, 246, 0.72);
 }
 
+.workspace-nav__link strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.workspace-nav__badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(224, 142, 77, 0.22);
+  color: #ffd7b2;
+  padding: 0.16rem 0.42rem;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
 .workspace-sidebar__card {
   margin-top: auto;
   padding: 1rem;
@@ -1587,6 +1605,49 @@ input:focus {
   gap: 1.25rem;
 }
 
+.feature-lock-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  border: 1px solid rgba(224, 142, 77, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 248, 240, 0.92);
+  padding: 0.95rem 1rem;
+  color: var(--text);
+}
+
+.feature-lock-banner__badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(224, 142, 77, 0.18);
+  color: #a55510;
+  padding: 0.28rem 0.58rem;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.feature-lock-banner strong {
+  display: block;
+  margin-bottom: 0.18rem;
+}
+
+.feature-lock-banner p,
+.feature-lock-actions span {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.feature-lock-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
 .ai-settings__section {
   display: grid;
   gap: 0.8rem;
@@ -1632,6 +1693,13 @@ input:focus {
 .ai-choice-card input {
   width: auto;
   margin: 0;
+}
+
+.ai-choice-card:has(input:disabled),
+.automation-day-pill:has(input:disabled),
+.ai-toggle-row:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .ai-choice-card span {

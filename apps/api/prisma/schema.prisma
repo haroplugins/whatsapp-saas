@@ -22,6 +22,12 @@ enum ConversationControlMode {
   HUMAN
 }
 
+enum TenantPlan {
+  BASIC
+  PRO
+  PREMIUM
+}
+
 enum MessageSender {
   USER
   CLIENT
@@ -42,6 +48,7 @@ enum ActionType {
 model Tenant {
   id            String         @id @default(cuid())
   name          String
+  plan          TenantPlan     @default(BASIC)
   users         User[]
   conversations Conversation[]
   automations   Automation[]
