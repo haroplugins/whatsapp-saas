@@ -52,6 +52,7 @@ export type ExternalMessagePayload = {
 export type ExternalMessageReceipt = {
   conversations: NormalizedConversation[];
   conversationId: string;
+  previousConversationId?: string;
 };
 
 const mockConversationsStorageKey = 'mockInbox.conversations';
@@ -152,7 +153,15 @@ export function receiveExternalMessage(payload: ExternalMessagePayload): Externa
     (payload.persistedConversationId ? conversation.id === payload.persistedConversationId : false)
   ));
   const conversationId = payload.persistedConversationId ?? existingConversation?.id ?? createWhatsappConversationId(payload.externalConversationId, timestamp);
+  const previousConversationId = existingConversation && existingConversation.id !== conversationId ? existingConversation.id : undefined;
   const message = createWhatsappTextMessage(conversationId, payload, timestamp);
+  const existingMessages = (existingConversation?.messages ?? []).map((currentMessage) => ({
+    ...currentMessage,
+    conversationId,
+  }));
+  const hasMessageAlready = payload.externalMessageId
+    ? existingMessages.some((currentMessage) => currentMessage.externalId === payload.externalMessageId)
+    : false;
   const nextConversation = withConversationPreview({
     ...(existingConversation ?? createWhatsappConversation(payload, conversationId, timestamp)),
     id: conversationId,
@@ -162,17 +171,14 @@ export function receiveExternalMessage(payload: ExternalMessagePayload): Externa
     status: 'pending',
     archived: false,
     pendingStatusAt: null,
-    messages: [...(existingConversation?.messages ?? []).map((currentMessage) => ({
-      ...currentMessage,
-      conversationId,
-    })), message],
+    messages: hasMessageAlready ? existingMessages : [...existingMessages, message],
   });
   const nextConversations = existingConversation
     ? conversations.map((conversation) => conversation.id === existingConversation.id ? nextConversation : conversation)
     : [nextConversation, ...conversations];
 
   mockInboxSource.saveConversations(nextConversations);
-  return { conversations: nextConversations, conversationId };
+  return { conversations: nextConversations, conversationId, previousConversationId };
 }
 
 export function withConversationPreview(conversation: NormalizedConversation): NormalizedConversation {

@@ -269,6 +269,7 @@ export default function InboxPage() {
     let nextConversations = currentConversations;
     let lastConversationId: string | null = null;
     const conversationIdsToSchedule = new Set<string>();
+    const conversationIdMigrations = new Map<string, string>();
 
     for (const message of messagesToProcess) {
       const receipt = receiveExternalMessage({
@@ -281,12 +282,23 @@ export default function InboxPage() {
       });
       nextConversations = receipt.conversations;
       lastConversationId = receipt.conversationId;
+      if (receipt.previousConversationId) {
+        conversationIdMigrations.set(receipt.previousConversationId, receipt.conversationId);
+      }
       conversationIdsToSchedule.add(receipt.conversationId);
       mockInboxSource.saveConversations(receipt.conversations);
     }
 
     conversationsRef.current = nextConversations;
     setConversations(nextConversations);
+    conversationIdMigrations.forEach((nextConversationId, previousConversationId) => {
+      clearPendingStatusTimeout(pendingStatusTimeoutsRef, previousConversationId);
+      clearTimeoutById(automationTimeoutsRef, previousConversationId);
+      migratePrivateNote(previousConversationId, nextConversationId);
+      if (selectedConversationId === previousConversationId) {
+        setSelectedConversationId(nextConversationId);
+      }
+    });
     if (lastConversationId) {
       setSelectedConversationId(lastConversationId);
       setDraftMessage('');
@@ -494,6 +506,20 @@ export default function InboxPage() {
     if (!selectedConversation) return;
     const nextPrivateNotes = { ...privateNotes };
     delete nextPrivateNotes[selectedConversation.id];
+    setPrivateNotes(nextPrivateNotes);
+    window.localStorage.setItem(privateNotesStorageKey, JSON.stringify(nextPrivateNotes));
+  }
+
+  function migratePrivateNote(previousConversationId: string, nextConversationId: string) {
+    if (previousConversationId === nextConversationId) return;
+    const previousNote = privateNotes[previousConversationId];
+    if (previousNote === undefined) return;
+    const existingNote = privateNotes[nextConversationId];
+    const nextPrivateNotes = { ...privateNotes };
+    nextPrivateNotes[nextConversationId] = existingNote && existingNote !== previousNote
+      ? `${existingNote}\n${previousNote}`
+      : previousNote;
+    delete nextPrivateNotes[previousConversationId];
     setPrivateNotes(nextPrivateNotes);
     window.localStorage.setItem(privateNotesStorageKey, JSON.stringify(nextPrivateNotes));
   }
