@@ -14,12 +14,19 @@ type CreateMessageInput = {
   conversationId: string;
   sender: MessageSender;
   content: string;
+  skipAutomations?: boolean;
 };
 
 export type RunIncomingMessageAutomationsInput = {
   tenantId: string;
   conversationId: string;
   content: string;
+};
+
+export type RunIncomingMessageAutomationsResult = {
+  handled: boolean;
+  immediateReplies: number;
+  scheduledReplies: number;
 };
 
 @Injectable()
@@ -30,6 +37,7 @@ export class MessagesService {
   ) {}
 
   async create(data: CreateMessageInput): Promise<Message> {
+    const { skipAutomations = false, ...messageData } = data;
     const conversation = await this.prismaService.conversation.findUniqueOrThrow({
       where: {
         id: data.conversationId,
@@ -41,12 +49,12 @@ export class MessagesService {
     });
 
     const message = await this.prismaService.message.create({
-      data,
+      data: messageData,
     });
 
     if (data.sender === MessageSender.USER) {
       await this.markConversationHumanControlled(conversation.id);
-    } else {
+    } else if (!skipAutomations) {
       await this.runIncomingMessageAutomations({
         tenantId: conversation.tenantId,
         conversationId: conversation.id,
@@ -81,10 +89,12 @@ export class MessagesService {
 
   async runIncomingMessageAutomations(
     input: RunIncomingMessageAutomationsInput,
-  ): Promise<void> {
+  ): Promise<RunIncomingMessageAutomationsResult> {
     const { tenantId, conversationId, content } = input;
     const automations = await this.automationsService.listActiveByTenant(tenantId);
     const normalizedMessage = this.normalizeText(content);
+    let immediateReplies = 0;
+    let scheduledReplies = 0;
 
     for (const automation of automations) {
       if (automation.actionType !== ActionType.SEND_MESSAGE) {
@@ -99,13 +109,22 @@ export class MessagesService {
           normalizedMessage.includes(normalizedKeyword)
         ) {
           await this.createAutomatedMessage(conversationId, automation.actionValue);
+          immediateReplies += 1;
         }
       }
 
       if (automation.triggerType === TriggerType.TIME_DELAY) {
-        this.scheduleDelayedAutomation(tenantId, conversationId, automation);
+        if (this.scheduleDelayedAutomation(tenantId, conversationId, automation)) {
+          scheduledReplies += 1;
+        }
       }
     }
+
+    return {
+      handled: immediateReplies + scheduledReplies > 0,
+      immediateReplies,
+      scheduledReplies,
+    };
   }
 
   private normalizeText(text: string): string {
@@ -133,11 +152,11 @@ export class MessagesService {
     tenantId: string,
     conversationId: string,
     automation: Automation,
-  ): void {
+  ): boolean {
     const delayInMs = this.parseDelayToMs(automation.triggerValue);
 
     if (delayInMs === null) {
-      return;
+      return false;
     }
 
     setTimeout(() => {
@@ -147,6 +166,8 @@ export class MessagesService {
         automation.actionValue,
       ).catch(() => undefined);
     }, delayInMs);
+
+    return true;
   }
 
   private async createDelayedAutomatedMessage(

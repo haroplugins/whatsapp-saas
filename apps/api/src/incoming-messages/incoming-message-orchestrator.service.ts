@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { ConversationControlMode } from '@prisma/client';
 import { MessagesService } from '../messages/messages.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   type HandleIncomingMessageInput,
   type HandleIncomingMessageResult,
@@ -7,7 +9,10 @@ import {
 
 @Injectable()
 export class IncomingMessageOrchestratorService {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
   /**
    * Future decision order:
@@ -16,8 +21,8 @@ export class IncomingMessageOrchestratorService {
    * 3. AI
    * 4. Human escalation
    *
-   * Task 052A keeps this service registered but not connected to controllers or
-   * webhooks, so existing production behavior stays unchanged.
+   * Task 052C connects this service only to the persisted WhatsApp webhook path.
+   * Other message endpoints keep their previous MessagesService behavior.
    */
   async handleIncomingMessage(
     input: HandleIncomingMessageInput,
@@ -30,16 +35,58 @@ export class IncomingMessageOrchestratorService {
       };
     }
 
-    await this.messagesService.runIncomingMessageAutomations({
+    if (input.sender !== 'client') {
+      return {
+        handled: false,
+        replyType: 'NO_REPLY',
+        reason: 'Only client messages are eligible for incoming-message automation.',
+      };
+    }
+
+    const conversation = await this.prismaService.conversation.findFirst({
+      where: {
+        id: input.conversationId,
+        tenantId: input.tenantId,
+      },
+      select: {
+        controlMode: true,
+      },
+    });
+
+    if (!conversation) {
+      return {
+        handled: false,
+        replyType: 'NO_REPLY',
+        reason: 'Conversation not found for incoming-message orchestration.',
+      };
+    }
+
+    if (conversation.controlMode === ConversationControlMode.HUMAN) {
+      return {
+        handled: false,
+        replyType: 'HUMAN_REQUIRED',
+        reason: 'Conversation controlled by human.',
+      };
+    }
+
+    const automationResult = await this.messagesService.runIncomingMessageAutomations({
       tenantId: input.tenantId,
       conversationId: input.conversationId,
       content: input.content,
     });
 
+    if (!automationResult.handled) {
+      return {
+        handled: false,
+        replyType: 'NO_REPLY',
+        reason: 'No incoming-message automation matched.',
+      };
+    }
+
     return {
       handled: true,
       replyType: 'AUTOMATION_REPLY',
-      reason: 'Delegated to the existing automation flow. Off-hours, AI, and human escalation are reserved for future tasks.',
+      reason: `Executed existing automation flow (${automationResult.immediateReplies} immediate, ${automationResult.scheduledReplies} scheduled).`,
     };
   }
 }

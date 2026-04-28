@@ -2,6 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '
 import { ConfigService } from '@nestjs/config';
 import { MessageSender } from '@prisma/client';
 import { ConversationsService } from '../conversations/conversations.service';
+import { IncomingMessageOrchestratorService } from '../incoming-messages/incoming-message-orchestrator.service';
 import { MessagesService } from '../messages/messages.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseWhatsappWebhookPayload, type ParsedWhatsappMessage } from './whatsapp-parser';
@@ -28,6 +29,7 @@ export class WhatsappWebhookController {
   constructor(
     private readonly configService: ConfigService,
     private readonly conversationsService: ConversationsService,
+    private readonly incomingMessageOrchestratorService: IncomingMessageOrchestratorService,
     private readonly messagesService: MessagesService,
     private readonly prismaService: PrismaService,
   ) {}
@@ -100,7 +102,21 @@ export class WhatsappWebhookController {
         conversationId: conversation.id,
         sender: MessageSender.CLIENT,
         content: formatParsedMessageContent(parsedMessage),
+        skipAutomations: true,
       });
+      const orchestrationResult = await this.incomingMessageOrchestratorService.handleIncomingMessage({
+        tenantId,
+        conversationId: conversation.id,
+        content: persistedMessage.content,
+        sender: 'client',
+        source: 'whatsapp',
+      });
+      this.logger.log(`Incoming WhatsApp message orchestration: ${JSON.stringify({
+        conversationId: conversation.id,
+        messageId: persistedMessage.id,
+        replyType: orchestrationResult.replyType,
+        handled: orchestrationResult.handled,
+      })}`);
 
       parsedMessage.conversationId = conversation.id;
       parsedMessage.persistedMessageId = persistedMessage.id;
