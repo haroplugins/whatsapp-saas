@@ -28,6 +28,8 @@ type InboxLayout = { leftWidth: number; centerWidth: number; rightWidth: number 
 type ActiveResizer = 'left' | 'right';
 type ConversationFilter = 'all' | 'pending' | 'done' | 'archived';
 type PolledWhatsappMessage = {
+  conversationId?: string;
+  persistedMessageId?: string;
   externalConversationId: string;
   externalMessageId?: string;
   contactName?: string;
@@ -35,6 +37,13 @@ type PolledWhatsappMessage = {
   type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'unknown';
   text?: string;
   timestamp?: string;
+};
+type PersistedMessage = {
+  id: string;
+  conversationId: string;
+  sender: 'USER' | 'CLIENT';
+  content: string;
+  createdAt: string;
 };
 
 const privateNotesStorageKey = 'mockInbox.privateNotes';
@@ -57,6 +66,7 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [privateNotes, setPrivateNotes] = useState<Record<string, string>>({});
   const [isHydrated, setIsHydrated] = useState(false);
   const [openActionsConversationId, setOpenActionsConversationId] = useState<string | null>(null);
@@ -263,6 +273,8 @@ export default function InboxPage() {
     for (const message of messagesToProcess) {
       const receipt = receiveExternalMessage({
         externalConversationId: message.externalConversationId || message.from,
+        externalMessageId: message.externalMessageId ?? message.persistedMessageId,
+        persistedConversationId: message.conversationId,
         contactName: message.contactName ?? message.from,
         message: message.text ?? '[mensaje]',
         timestamp: message.timestamp ?? new Date().toISOString(),
@@ -355,13 +367,44 @@ export default function InboxPage() {
     window.localStorage.setItem(privateNotesStorageKey, JSON.stringify(nextPrivateNotes));
   }
 
-  function handleSendMessage(event: FormEvent<HTMLFormElement>) {
+  async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedConversationId || isDraftEmpty) return;
+    if (!selectedConversation || !selectedConversationId || isDraftEmpty || isSendingMessage) return;
+    const content = draftMessage.trim();
+
+    if (isPersistedConversation(selectedConversation)) {
+      setIsSendingMessage(true);
+      try {
+        const persistedMessage = await apiFetch<PersistedMessage>(`/conversations/${selectedConversation.id}/messages`, {
+          method: 'POST',
+          body: { content },
+        });
+        const persistedMessages = await apiFetch<PersistedMessage[]>(`/conversations/${selectedConversation.id}/messages`).catch(() => [persistedMessage]);
+
+        clearTimeoutById(automationTimeoutsRef, selectedConversation.id);
+        clearPendingStatusTimeout(pendingStatusTimeoutsRef, selectedConversation.id);
+        setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversation.id ? {
+          ...withConversationPreview({
+            ...conversation,
+            messages: persistedMessages.map((message) => normalizePersistedMessage(message)),
+          }),
+          status: 'done',
+          pendingStatusAt: null,
+          hasUserReplied: true,
+          isAutoReplyTyping: false,
+        } : conversation));
+        setDraftMessage('');
+      } catch (error) {
+        console.error('Could not persist manual inbox reply.', error);
+      } finally {
+        setIsSendingMessage(false);
+      }
+      return;
+    }
+
     clearTimeoutById(automationTimeoutsRef, selectedConversationId);
     clearPendingStatusTimeout(pendingStatusTimeoutsRef, selectedConversationId);
     const now = new Date();
-    const content = draftMessage.trim();
     setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedConversationId ? {
       ...withConversationPreview({
         ...conversation,
@@ -696,7 +739,7 @@ export default function InboxPage() {
                   {'\uD83D\uDCCE'}
                 </label>
                 <input name="content" type="text" placeholder="Escribe una respuesta..." value={draftMessage} onChange={(event) => setDraftMessage(event.target.value)} />
-                <button className="button button--primary" type="submit" disabled={isDraftEmpty}>Enviar</button>
+                <button className="button button--primary" type="submit" disabled={isDraftEmpty || isSendingMessage}>Enviar</button>
                 <span className="chat-composer__hint">Pulsa Enter para enviar</span>
               </form>
             </>
@@ -757,6 +800,22 @@ function toTimestamp(value: string): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 function isUserSender(sender: NormalizedMessageSender): boolean { return sender === 'user'; }
+function isPersistedConversation(conversation: Conversation): boolean {
+  return conversation.source === 'whatsapp' &&
+    !conversation.id.startsWith('wa-conversation-') &&
+    !conversation.id.startsWith('mock-conversation-');
+}
+function normalizePersistedMessage(message: PersistedMessage): Message {
+  return {
+    id: message.id,
+    conversationId: message.conversationId,
+    source: 'whatsapp',
+    sender: message.sender === 'USER' ? 'user' : 'client',
+    type: 'text',
+    text: message.content,
+    createdAt: message.createdAt,
+  };
+}
 function getMessageBubbleClass(message: Message): string {
   if (isUserSender(message.sender)) return 'chat-message--user';
   if (message.sender === 'auto') return 'chat-message--auto';

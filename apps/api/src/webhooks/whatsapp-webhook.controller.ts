@@ -12,7 +12,12 @@ type WhatsappWebhookVerificationQuery = {
   'hub.challenge'?: string;
 };
 
-const incomingMessages: ParsedWhatsappMessage[] = [];
+type BufferedWhatsappMessage = ParsedWhatsappMessage & {
+  conversationId?: string;
+  persistedMessageId?: string;
+};
+
+const incomingMessages: BufferedWhatsappMessage[] = [];
 // TODO: persist external WhatsApp message ids when Message has an externalMessageId field.
 const persistedExternalMessageIds = new Set<string>();
 
@@ -39,7 +44,7 @@ export class WhatsappWebhookController {
   }
 
   @Get('messages')
-  drainMessages(): ParsedWhatsappMessage[] {
+  drainMessages(): BufferedWhatsappMessage[] {
     const messages = [...incomingMessages];
     incomingMessages.length = 0;
     return messages;
@@ -48,7 +53,8 @@ export class WhatsappWebhookController {
   @Post()
   async receive(@Body() body: unknown): Promise<{ ok: true }> {
     const parsedMessages = parseWhatsappWebhookPayload(body);
-    incomingMessages.push(...parsedMessages);
+    const bufferedMessages = parsedMessages.map((message) => ({ ...message }));
+    incomingMessages.push(...bufferedMessages);
     this.logger.log(`Parsed WhatsApp webhook messages: ${JSON.stringify({
       count: parsedMessages.length,
       messages: parsedMessages.map((message) => ({
@@ -57,7 +63,7 @@ export class WhatsappWebhookController {
       })),
     })}`);
 
-    await this.persistParsedMessages(parsedMessages).catch((error: unknown) => {
+    await this.persistParsedMessages(bufferedMessages).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unknown persistence error';
       this.logger.error(`Could not persist WhatsApp webhook messages: ${message}`);
     });
@@ -65,7 +71,7 @@ export class WhatsappWebhookController {
     return { ok: true };
   }
 
-  private async persistParsedMessages(parsedMessages: ParsedWhatsappMessage[]): Promise<void> {
+  private async persistParsedMessages(parsedMessages: BufferedWhatsappMessage[]): Promise<void> {
     if (!parsedMessages.length) {
       return;
     }
@@ -90,11 +96,14 @@ export class WhatsappWebhookController {
         displayName: parsedMessage.contactName,
       });
 
-      await this.messagesService.create({
+      const persistedMessage = await this.messagesService.create({
         conversationId: conversation.id,
         sender: MessageSender.CLIENT,
         content: formatParsedMessageContent(parsedMessage),
       });
+
+      parsedMessage.conversationId = conversation.id;
+      parsedMessage.persistedMessageId = persistedMessage.id;
 
       if (parsedMessage.externalMessageId) {
         persistedExternalMessageIds.add(parsedMessage.externalMessageId);

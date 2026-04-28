@@ -42,6 +42,8 @@ export type InboxSource = {
 
 export type ExternalMessagePayload = {
   externalConversationId: string;
+  externalMessageId?: string;
+  persistedConversationId?: string;
   contactName: string;
   message: string;
   timestamp: string;
@@ -145,18 +147,25 @@ export function createMockFileMessage(
 export function receiveExternalMessage(payload: ExternalMessagePayload): ExternalMessageReceipt {
   const conversations = mockInboxSource.loadConversations();
   const timestamp = normalizePayloadTimestamp(payload.timestamp);
-  const existingConversation = conversations.find((conversation) => conversation.externalId === payload.externalConversationId);
-  const conversationId = existingConversation?.id ?? createWhatsappConversationId(payload.externalConversationId, timestamp);
+  const existingConversation = conversations.find((conversation) => (
+    conversation.externalId === payload.externalConversationId ||
+    (payload.persistedConversationId ? conversation.id === payload.persistedConversationId : false)
+  ));
+  const conversationId = payload.persistedConversationId ?? existingConversation?.id ?? createWhatsappConversationId(payload.externalConversationId, timestamp);
   const message = createWhatsappTextMessage(conversationId, payload, timestamp);
   const nextConversation = withConversationPreview({
     ...(existingConversation ?? createWhatsappConversation(payload, conversationId, timestamp)),
+    id: conversationId,
     contactName: payload.contactName.trim() || existingConversation?.contactName || 'Cliente WhatsApp',
     source: 'whatsapp',
     externalId: payload.externalConversationId,
     status: 'pending',
     archived: false,
     pendingStatusAt: null,
-    messages: [...(existingConversation?.messages ?? []), message],
+    messages: [...(existingConversation?.messages ?? []).map((currentMessage) => ({
+      ...currentMessage,
+      conversationId,
+    })), message],
   });
   const nextConversations = existingConversation
     ? conversations.map((conversation) => conversation.id === existingConversation.id ? nextConversation : conversation)
@@ -302,7 +311,7 @@ function createWhatsappConversation(payload: ExternalMessagePayload, conversatio
 function createWhatsappTextMessage(conversationId: string, payload: ExternalMessagePayload, now: Date): NormalizedMessage {
   return {
     id: `wa-message-${slugifyId(payload.externalConversationId)}-${now.getTime()}`,
-    externalId: `wa-message-${now.getTime()}`,
+    externalId: payload.externalMessageId ?? `wa-message-${now.getTime()}`,
     conversationId,
     source: 'whatsapp',
     sender: 'client',
