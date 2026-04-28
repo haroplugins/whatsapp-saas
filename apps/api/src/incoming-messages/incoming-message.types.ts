@@ -9,6 +9,24 @@ export type IncomingMessageReplyType =
   | 'AI_REPLY'
   | 'HUMAN_REQUIRED';
 
+export type IncomingMessageIntent =
+  | 'GREETING'
+  | 'BUSINESS_HOURS'
+  | 'PRICING'
+  | 'BOOKING'
+  | 'BOOKING_CHANGE'
+  | 'LOCATION'
+  | 'ISSUE'
+  | 'UNKNOWN';
+
+export type IncomingMessageIntentConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type IncomingMessageIntentClassification = {
+  intent: IncomingMessageIntent;
+  confidence: IncomingMessageIntentConfidence;
+  matchedKeywords: string[];
+};
+
 export type HandleIncomingMessageInput = {
   tenantId: string;
   conversationId: string;
@@ -22,4 +40,5 @@ export type HandleIncomingMessageResult = {
   replyType: IncomingMessageReplyType;
   messageId?: string;
   reason?: string;
+  intent?: IncomingMessageIntentClassification;
 };
