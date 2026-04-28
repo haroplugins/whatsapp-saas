@@ -13,6 +13,7 @@ import {
   mockInboxSource,
   receiveExternalMessage,
   type NormalizedConversation,
+  type NormalizedConversationControlMode,
   type NormalizedConversationStatus,
   type NormalizedMessage,
   type NormalizedMessageSender,
@@ -21,6 +22,7 @@ import {
 
 type Message = NormalizedMessage;
 type Conversation = NormalizedConversation;
+type ConversationControlMode = NormalizedConversationControlMode;
 type ConversationStatus = NormalizedConversationStatus;
 type AutomationConfig = { enabled: boolean; message: string };
 type AutomationsState = Record<'welcome' | 'off_hours', AutomationConfig>;
@@ -37,6 +39,7 @@ type PolledWhatsappMessage = {
   type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'unknown';
   text?: string;
   timestamp?: string;
+  controlMode?: 'NONE' | 'AI' | 'HUMAN' | ConversationControlMode;
 };
 type PersistedMessage = {
   id: string;
@@ -276,6 +279,7 @@ export default function InboxPage() {
         externalConversationId: message.externalConversationId || message.from,
         externalMessageId: message.externalMessageId ?? message.persistedMessageId,
         persistedConversationId: message.conversationId,
+        controlMode: normalizeControlMode(message.controlMode),
         contactName: message.contactName ?? message.from,
         message: message.text ?? '[mensaje]',
         timestamp: message.timestamp ?? new Date().toISOString(),
@@ -401,6 +405,7 @@ export default function InboxPage() {
             messages: persistedMessages.map((message) => normalizePersistedMessage(message)),
           }),
           status: 'done',
+          controlMode: 'human',
           pendingStatusAt: null,
           hasUserReplied: true,
           isAutoReplyTyping: false,
@@ -699,7 +704,7 @@ export default function InboxPage() {
                 <div className="chat-panel__header-actions">
                   <button className="button button--ghost chat-panel__header-button" type="button" onClick={() => simulateIncomingMessageInConversation(selectedConversation.id)}>Simular cliente</button>
                   <span className={`conversation-status-badge ${selectedConversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(selectedConversation.status)}>{selectedConversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
-                  <span className="conversation-badge conversation-badge--business">Mock</span>
+                  <span className={`conversation-badge ${getControlModeBadgeClass(selectedConversation)}`}>{getControlModeLabel(selectedConversation)}</span>
                 </div>
               </header>
               <div className="chat-messages">
@@ -826,6 +831,24 @@ function toTimestamp(value: string): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 function isUserSender(sender: NormalizedMessageSender): boolean { return sender === 'user'; }
+function normalizeControlMode(value: PolledWhatsappMessage['controlMode']): ConversationControlMode | undefined {
+  if (value === 'NONE' || value === 'none') return 'none';
+  if (value === 'AI' || value === 'ai') return 'ai';
+  if (value === 'HUMAN' || value === 'human') return 'human';
+  return undefined;
+}
+function getControlModeLabel(conversation: Conversation): string {
+  if (conversation.source === 'mock') return 'Mock';
+  if (conversation.controlMode === 'human') return 'Humano';
+  if (conversation.controlMode === 'ai') return 'IA';
+  return 'Sin control';
+}
+function getControlModeBadgeClass(conversation: Conversation): string {
+  if (conversation.source === 'mock') return 'conversation-badge--business';
+  if (conversation.controlMode === 'human') return 'conversation-badge--control-human';
+  if (conversation.controlMode === 'ai') return 'conversation-badge--control-ai';
+  return 'conversation-badge--control-none';
+}
 function isPersistedConversation(conversation: Conversation): boolean {
   return conversation.source === 'whatsapp' &&
     !conversation.id.startsWith('wa-conversation-') &&

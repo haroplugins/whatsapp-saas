@@ -967,6 +967,21 @@ input:focus {
   color: #a55510;
 }
 
+.conversation-badge--control-none {
+  background: rgba(22, 65, 53, 0.1);
+  color: var(--text-muted);
+}
+
+.conversation-badge--control-human {
+  background: rgba(13, 138, 106, 0.12);
+  color: var(--accent-strong);
+}
+
+.conversation-badge--control-ai {
+  background: rgba(85, 80, 210, 0.12);
+  color: #4640b8;
+}
+
 .chat-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;

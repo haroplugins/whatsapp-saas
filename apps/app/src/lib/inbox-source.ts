@@ -1,5 +1,6 @@
 export type ConversationSource = 'mock' | 'whatsapp';
 export type NormalizedConversationStatus = 'pending' | 'done';
+export type NormalizedConversationControlMode = 'none' | 'ai' | 'human';
 export type NormalizedMessageSender = 'client' | 'user' | 'auto';
 export type NormalizedMessageType = 'text' | 'file' | 'image' | 'audio';
 
@@ -26,6 +27,7 @@ export type NormalizedConversation = {
   lastMessagePreview: string;
   lastMessageAt: string;
   status: NormalizedConversationStatus;
+  controlMode?: NormalizedConversationControlMode;
   archived: boolean;
   pendingStatusAt: string | null;
   messages: NormalizedMessage[];
@@ -44,6 +46,7 @@ export type ExternalMessagePayload = {
   externalConversationId: string;
   externalMessageId?: string;
   persistedConversationId?: string;
+  controlMode?: NormalizedConversationControlMode;
   contactName: string;
   message: string;
   timestamp: string;
@@ -168,6 +171,7 @@ export function receiveExternalMessage(payload: ExternalMessagePayload): Externa
     contactName: payload.contactName.trim() || existingConversation?.contactName || 'Cliente WhatsApp',
     source: 'whatsapp',
     externalId: payload.externalConversationId,
+    controlMode: payload.controlMode ?? existingConversation?.controlMode ?? (payload.persistedConversationId ? 'none' : undefined),
     status: 'pending',
     archived: false,
     pendingStatusAt: null,
@@ -253,6 +257,7 @@ function normalizeStoredConversation(value: unknown, index: number): NormalizedC
     lastMessagePreview: readString(candidate.lastMessagePreview, ''),
     lastMessageAt: readIsoDate(candidate.lastMessageAt) ?? legacyUpdatedAt ?? new Date().toISOString(),
     status: readConversationStatus(candidate.status) && !isPendingDelayExpired ? candidate.status : 'pending',
+    controlMode: readConversationControlMode(candidate.controlMode),
     archived: Boolean(candidate.archived),
     pendingStatusAt: isPendingDelayExpired ? null : pendingStatusAt,
     messages,
@@ -304,6 +309,7 @@ function createWhatsappConversation(payload: ExternalMessagePayload, conversatio
     lastMessagePreview: '',
     lastMessageAt: now.toISOString(),
     status: 'pending',
+    controlMode: payload.controlMode ?? (payload.persistedConversationId ? 'none' : undefined),
     archived: false,
     pendingStatusAt: null,
     messages: [],
@@ -350,6 +356,13 @@ function readMessageSender(value: unknown): NormalizedMessageSender {
 
 function readConversationStatus(value: unknown): value is NormalizedConversationStatus {
   return value === 'pending' || value === 'done';
+}
+
+function readConversationControlMode(value: unknown): NormalizedConversationControlMode | undefined {
+  if (value === 'NONE' || value === 'none') return 'none';
+  if (value === 'AI' || value === 'ai') return 'ai';
+  if (value === 'HUMAN' || value === 'human') return 'human';
+  return undefined;
 }
 
 function readConversationSource(value: unknown): ConversationSource {
