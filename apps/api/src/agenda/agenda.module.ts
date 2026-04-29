@@ -4,6 +4,8 @@ import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { AgendaEntitlementGuard } from './agenda-entitlement.guard';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
+import { AvailabilityRulesController } from './availability-rules.controller';
+import { AvailabilityRulesService } from './availability-rules.service';
 import { BlockedSlotsController } from './blocked-slots.controller';
 import { BlockedSlotsService } from './blocked-slots.service';
 import { BookingSettingsController } from './booking-settings.controller';
@@ -18,6 +20,7 @@ import { ServicesService } from './services.service';
     AppointmentsController,
     BlockedSlotsController,
     BookingSettingsController,
+    AvailabilityRulesController,
   ],
   providers: [
     AgendaEntitlementGuard,
@@ -25,6 +28,7 @@ import { ServicesService } from './services.service';
     AppointmentsService,
     BlockedSlotsService,
     BookingSettingsService,
+    AvailabilityRulesService,
   ],
 })
 export class AgendaModule {}

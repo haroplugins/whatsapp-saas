@@ -70,6 +70,7 @@ model Tenant {
   appointments    Appointment[]
   blockedSlots    BlockedSlot[]
   bookingSettings BookingSettings?
+  availabilityRules AvailabilityRule[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -195,4 +196,19 @@ model BookingSettings {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AvailabilityRule {
+  id        String   @id @default(cuid())
+  tenantId  String
+  weekday   Int
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, weekday])
 }

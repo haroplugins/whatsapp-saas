@@ -58,6 +58,24 @@ export type BookingSettings = {
   updatedAt: string;
 };
 
+export type AvailabilityRule = {
+  id: string;
+  tenantId: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AvailabilityRuleInput = {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+};
+
 export type CreateAgendaServiceInput = {
   name: string;
   durationMinutes: number;
@@ -124,4 +142,17 @@ export function createBlockedSlot(
 
 export function fetchBookingSettings(): Promise<BookingSettings> {
   return apiFetch<BookingSettings>('/agenda/settings');
+}
+
+export function fetchAvailabilityRules(): Promise<AvailabilityRule[]> {
+  return apiFetch<AvailabilityRule[]>('/agenda/availability-rules');
+}
+
+export function updateAvailabilityRules(
+  rules: AvailabilityRuleInput[],
+): Promise<AvailabilityRule[]> {
+  return apiFetch<AvailabilityRule[]>('/agenda/availability-rules', {
+    method: 'PUT',
+    body: { rules },
+  });
 }

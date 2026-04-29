@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   type AgendaService,
   type Appointment,
+  type AvailabilityRule,
+  type AvailabilityRuleInput,
   type BlockedSlot,
   type BookingSettings,
   createAgendaService,
@@ -11,8 +13,10 @@ import {
   createBlockedSlot,
   fetchAgendaServices,
   fetchAppointments,
+  fetchAvailabilityRules,
   fetchBlockedSlots,
   fetchBookingSettings,
+  updateAvailabilityRules,
 } from '../../../lib/agenda';
 import {
   defaultTenantEntitlements,
@@ -42,7 +46,29 @@ type CalendarCell = {
   day: number | null;
 };
 
+type AvailabilityIntervalForm = {
+  startTime: string;
+  endTime: string;
+};
+
+type AvailabilityDayForm = {
+  weekday: number;
+  label: string;
+  isActive: boolean;
+  intervals: [AvailabilityIntervalForm, AvailabilityIntervalForm];
+};
+
 const now = new Date();
+
+const availabilityWeekdays = [
+  { label: 'Lunes', weekday: 1 },
+  { label: 'Martes', weekday: 2 },
+  { label: 'Miercoles', weekday: 3 },
+  { label: 'Jueves', weekday: 4 },
+  { label: 'Viernes', weekday: 5 },
+  { label: 'Sabado', weekday: 6 },
+  { label: 'Domingo', weekday: 0 },
+];
 
 export default function AgendaPage() {
   const [entitlements, setEntitlements] = useState<TenantEntitlements>(
@@ -54,10 +80,17 @@ export default function AgendaPage() {
   const [services, setServices] = useState<AgendaService[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
+  const [availabilityRules, setAvailabilityRules] = useState<
+    AvailabilityRule[]
+  >([]);
   const [bookingSettings, setBookingSettings] =
     useState<BookingSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
+  const [availabilityForm, setAvailabilityForm] = useState<
+    AvailabilityDayForm[]
+  >(() => buildDefaultAvailabilityForm());
 
   const [serviceName, setServiceName] = useState('');
   const [serviceDuration, setServiceDuration] = useState('45');
@@ -158,6 +191,51 @@ export default function AgendaPage() {
     setBlockedEndAt(toDateTimeLocalValue(withTime(nextDate, 13, 0)));
   }
 
+  function openAvailabilityModal() {
+    setAvailabilityForm(buildAvailabilityForm(availabilityRules));
+    setIsAvailabilityModalOpen(true);
+  }
+
+  function updateAvailabilityDay(weekday: number, isActive: boolean) {
+    setAvailabilityForm((currentForm) =>
+      currentForm.map((day) =>
+        day.weekday === weekday
+          ? {
+              ...day,
+              isActive,
+            }
+          : day,
+      ),
+    );
+  }
+
+  function updateAvailabilityInterval(
+    weekday: number,
+    intervalIndex: 0 | 1,
+    field: keyof AvailabilityIntervalForm,
+    value: string,
+  ) {
+    setAvailabilityForm((currentForm) =>
+      currentForm.map((day) => {
+        if (day.weekday !== weekday) {
+          return day;
+        }
+
+        const intervals: [AvailabilityIntervalForm, AvailabilityIntervalForm] =
+          [{ ...day.intervals[0] }, { ...day.intervals[1] }];
+        intervals[intervalIndex] = {
+          ...intervals[intervalIndex],
+          [field]: value,
+        };
+
+        return {
+          ...day,
+          intervals,
+        };
+      }),
+    );
+  }
+
   async function loadAgendaData() {
     setIsLoading(true);
     setFeedback(null);
@@ -165,18 +243,25 @@ export default function AgendaPage() {
     try {
       const from = new Date(year, month, 1).toISOString();
       const to = new Date(year, month + 1, 1).toISOString();
-      const [nextServices, nextAppointments, nextBlockedSlots, nextSettings] =
-        await Promise.all([
-          fetchAgendaServices(),
-          fetchAppointments(from, to),
-          fetchBlockedSlots(),
-          fetchBookingSettings(),
-        ]);
+      const [
+        nextServices,
+        nextAppointments,
+        nextBlockedSlots,
+        nextSettings,
+        nextAvailabilityRules,
+      ] = await Promise.all([
+        fetchAgendaServices(),
+        fetchAppointments(from, to),
+        fetchBlockedSlots(),
+        fetchBookingSettings(),
+        fetchAvailabilityRules(),
+      ]);
 
       setServices(nextServices);
       setAppointments(nextAppointments);
       setBlockedSlots(nextBlockedSlots);
       setBookingSettings(nextSettings);
+      setAvailabilityRules(nextAvailabilityRules);
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No se pudo cargar la agenda.',
@@ -256,6 +341,24 @@ export default function AgendaPage() {
     }
   }
 
+  async function handleSaveAvailabilityRules() {
+    if (!canUseAgenda) return;
+
+    try {
+      const rules = availabilityFormToRules(availabilityForm);
+      const nextAvailabilityRules = await updateAvailabilityRules(rules);
+      setAvailabilityRules(nextAvailabilityRules);
+      setIsAvailabilityModalOpen(false);
+      setFeedback('Horarios guardados.');
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : 'No se pudieron guardar los horarios.',
+      );
+    }
+  }
+
   return (
     <section className="agenda-page">
       <div className="dashboard-hero">
@@ -316,6 +419,13 @@ export default function AgendaPage() {
                 ))}
               </select>
             </label>
+            <button
+              className="button button--ghost agenda-toolbar__settings"
+              type="button"
+              onClick={openAvailabilityModal}
+            >
+              Configurar horarios
+            </button>
             <div className="agenda-toolbar__meta">
               <strong>{bookingSettings?.timezone ?? 'Europe/Madrid'}</strong>
               <span>
@@ -628,6 +738,163 @@ export default function AgendaPage() {
           </section>
         </>
       )}
+
+      {isAvailabilityModalOpen ? (
+        <div
+          className="availability-modal-backdrop"
+          role="presentation"
+          onClick={() => setIsAvailabilityModalOpen(false)}
+        >
+          <section
+            className="availability-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="availability-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="availability-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Agenda</span>
+                <h3 id="availability-modal-title">Configurar horarios</h3>
+                <p>
+                  Define el horario semanal base. Estos tramos se usaran mas
+                  adelante para calcular horas libres.
+                </p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={() => setIsAvailabilityModalOpen(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="availability-modal__body">
+              <div className="availability-week-grid">
+                {availabilityForm.map((day) => (
+                  <article
+                    key={day.weekday}
+                    className={`availability-day-card${
+                      day.isActive ? ' availability-day-card--active' : ''
+                    }`}
+                  >
+                    <label className="availability-day-card__toggle">
+                      <input
+                        type="checkbox"
+                        checked={day.isActive}
+                        onChange={(event) =>
+                          updateAvailabilityDay(
+                            day.weekday,
+                            event.target.checked,
+                          )
+                        }
+                      />
+                      <strong>{day.label}</strong>
+                      <span>{day.isActive ? 'Activo' : 'Cerrado'}</span>
+                    </label>
+
+                    <div className="availability-day-card__slots">
+                      <label>
+                        <span>Tramo 1 inicio</span>
+                        <input
+                          type="time"
+                          value={day.intervals[0].startTime}
+                          disabled={!day.isActive}
+                          onChange={(event) =>
+                            updateAvailabilityInterval(
+                              day.weekday,
+                              0,
+                              'startTime',
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Tramo 1 fin</span>
+                        <input
+                          type="time"
+                          value={day.intervals[0].endTime}
+                          disabled={!day.isActive}
+                          onChange={(event) =>
+                            updateAvailabilityInterval(
+                              day.weekday,
+                              0,
+                              'endTime',
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Tramo 2 inicio</span>
+                        <input
+                          type="time"
+                          value={day.intervals[1].startTime}
+                          disabled={!day.isActive}
+                          onChange={(event) =>
+                            updateAvailabilityInterval(
+                              day.weekday,
+                              1,
+                              'startTime',
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Tramo 2 fin</span>
+                        <input
+                          type="time"
+                          value={day.intervals[1].endTime}
+                          disabled={!day.isActive}
+                          onChange={(event) =>
+                            updateAvailabilityInterval(
+                              day.weekday,
+                              1,
+                              'endTime',
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <aside className="availability-preview">
+                <strong>Vista previa</strong>
+                <div>
+                  {availabilityForm.map((day) => (
+                    <span key={day.weekday}>
+                      {formatAvailabilityPreview(day)}
+                    </span>
+                  ))}
+                </div>
+              </aside>
+            </div>
+
+            <div className="availability-modal__footer">
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={() => setIsAvailabilityModalOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={handleSaveAvailabilityRules}
+              >
+                Guardar horarios
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -655,6 +922,169 @@ function buildCalendarCells(year: number, month: number): CalendarCell[] {
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
+}
+
+function buildDefaultAvailabilityForm(): AvailabilityDayForm[] {
+  return availabilityWeekdays.map(({ label, weekday }) => {
+    if (weekday === 0) {
+      return {
+        weekday,
+        label,
+        isActive: false,
+        intervals: [
+          { startTime: '', endTime: '' },
+          { startTime: '', endTime: '' },
+        ],
+      };
+    }
+
+    if (weekday === 6) {
+      return {
+        weekday,
+        label,
+        isActive: true,
+        intervals: [
+          { startTime: '09:00', endTime: '13:00' },
+          { startTime: '', endTime: '' },
+        ],
+      };
+    }
+
+    return {
+      weekday,
+      label,
+      isActive: true,
+      intervals: [
+        { startTime: '09:00', endTime: '13:00' },
+        { startTime: '16:00', endTime: '20:00' },
+      ],
+    };
+  });
+}
+
+function buildAvailabilityForm(
+  availabilityRules: AvailabilityRule[],
+): AvailabilityDayForm[] {
+  if (availabilityRules.length === 0) {
+    return buildDefaultAvailabilityForm();
+  }
+
+  return availabilityWeekdays.map(({ label, weekday }) => {
+    const dayRules = availabilityRules
+      .filter((rule) => rule.weekday === weekday && rule.isActive)
+      .sort(
+        (firstRule, secondRule) =>
+          timeToMinutes(firstRule.startTime) -
+          timeToMinutes(secondRule.startTime),
+      )
+      .slice(0, 2);
+
+    return {
+      weekday,
+      label,
+      isActive: dayRules.length > 0,
+      intervals: [
+        {
+          startTime: dayRules[0]?.startTime ?? '',
+          endTime: dayRules[0]?.endTime ?? '',
+        },
+        {
+          startTime: dayRules[1]?.startTime ?? '',
+          endTime: dayRules[1]?.endTime ?? '',
+        },
+      ],
+    };
+  });
+}
+
+function availabilityFormToRules(
+  availabilityForm: AvailabilityDayForm[],
+): AvailabilityRuleInput[] {
+  return availabilityForm.flatMap((day) => {
+    if (!day.isActive) {
+      return [];
+    }
+
+    const rules = day.intervals.flatMap((interval) => {
+      const hasStartTime = interval.startTime.length > 0;
+      const hasEndTime = interval.endTime.length > 0;
+
+      if (hasStartTime !== hasEndTime) {
+        throw new Error(`${day.label}: completa inicio y fin del tramo.`);
+      }
+
+      if (!hasStartTime || !hasEndTime) {
+        return [];
+      }
+
+      if (
+        timeToMinutes(interval.startTime) >= timeToMinutes(interval.endTime)
+      ) {
+        throw new Error(`${day.label}: el inicio debe ser anterior al fin.`);
+      }
+
+      return [
+        {
+          weekday: day.weekday,
+          startTime: interval.startTime,
+          endTime: interval.endTime,
+          isActive: true,
+        },
+      ];
+    });
+
+    if (rules.length === 0) {
+      throw new Error(`${day.label}: anade al menos un tramo o marca cerrado.`);
+    }
+
+    validateDayIntervalsDoNotOverlap(day.label, rules);
+
+    return rules;
+  });
+}
+
+function validateDayIntervalsDoNotOverlap(
+  dayLabel: string,
+  rules: AvailabilityRuleInput[],
+): void {
+  const sortedRules = [...rules].sort(
+    (firstRule, secondRule) =>
+      timeToMinutes(firstRule.startTime) - timeToMinutes(secondRule.startTime),
+  );
+
+  for (let index = 1; index < sortedRules.length; index += 1) {
+    const previousRule = sortedRules[index - 1];
+    const currentRule = sortedRules[index];
+
+    if (
+      previousRule &&
+      currentRule &&
+      timeToMinutes(currentRule.startTime) < timeToMinutes(previousRule.endTime)
+    ) {
+      throw new Error(`${dayLabel}: los tramos no pueden solaparse.`);
+    }
+  }
+}
+
+function formatAvailabilityPreview(day: AvailabilityDayForm): string {
+  if (!day.isActive) {
+    return `${day.label}: cerrado`;
+  }
+
+  const intervals = day.intervals
+    .filter((interval) => interval.startTime && interval.endTime)
+    .map((interval) => `${interval.startTime}-${interval.endTime}`);
+
+  if (intervals.length === 0) {
+    return `${day.label}: sin tramos`;
+  }
+
+  return `${day.label}: ${intervals.join(' / ')}`;
+}
+
+function timeToMinutes(value: string): number {
+  const [hours = '0', minutes = '0'] = value.split(':');
+  return Number(hours) * 60 + Number(minutes);
 }
 
 function groupByMonthDay<T extends Appointment | BlockedSlot>(
