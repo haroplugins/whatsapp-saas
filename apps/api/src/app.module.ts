@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AgendaModule } from './agenda/agenda.module';
 import { AutomationsModule } from './automations/automations.module';
 import { AuthModule } from './auth/auth.module';
 import { ConversationsModule } from './conversations/conversations.module';
@@ -22,6 +23,7 @@ const rootEnvPath = resolve(process.cwd(), '.env');
       envFilePath: existsSync(rootEnvPath) ? rootEnvPath : undefined,
     }),
     PrismaModule,
+    AgendaModule,
     AutomationsModule,
     UsersModule,
     AuthModule,

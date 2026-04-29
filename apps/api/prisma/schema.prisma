@@ -45,15 +45,33 @@ enum ActionType {
   CHANGE_STATUS
 }
 
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum AppointmentSource {
+  MANUAL
+  WHATSAPP
+  AI
+  IMPORT
+}
+
 model Tenant {
-  id            String         @id @default(cuid())
-  name          String
-  plan          TenantPlan     @default(BASIC)
-  users         User[]
-  conversations Conversation[]
-  automations   Automation[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              String           @id @default(cuid())
+  name            String
+  plan            TenantPlan       @default(BASIC)
+  users           User[]
+  conversations   Conversation[]
+  automations     Automation[]
+  services        Service[]
+  appointments    Appointment[]
+  blockedSlots    BlockedSlot[]
+  bookingSettings BookingSettings?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model User {
@@ -111,4 +129,70 @@ model Automation {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  durationMinutes Int
+  priceCents      Int?
+  currency        String        @default("EUR")
+  bufferMinutes   Int           @default(0)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+
+  @@index([tenantId])
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  tenantId      String
+  serviceId     String?
+  customerName  String
+  customerPhone String?
+  startAt       DateTime
+  endAt         DateTime
+  status        AppointmentStatus @default(PENDING)
+  source        AppointmentSource @default(MANUAL)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  service       Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([serviceId])
+  @@index([tenantId, startAt])
+}
+
+model BlockedSlot {
+  id        String   @id @default(cuid())
+  tenantId  String
+  startAt   DateTime
+  endAt     DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, startAt])
+}
+
+model BookingSettings {
+  id                       String   @id @default(cuid())
+  tenantId                 String   @unique
+  timezone                 String   @default("Europe/Madrid")
+  minNoticeHours           Int      @default(2)
+  maxDaysAhead             Int      @default(30)
+  requireHumanConfirmation Boolean  @default(true)
+  allowAutoConfirm         Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
