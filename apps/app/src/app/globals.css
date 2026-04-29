@@ -16,10 +16,18 @@
   --radius-xl: 32px;
   --radius-lg: 24px;
   --radius-md: 18px;
-  font-family: Aptos, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  font-family: Aptos, 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(13, 138, 106, 0.18), transparent 32%),
-    radial-gradient(circle at right 20%, rgba(224, 142, 77, 0.18), transparent 28%),
+    radial-gradient(
+      circle at top left,
+      rgba(13, 138, 106, 0.18),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at right 20%,
+      rgba(224, 142, 77, 0.18),
+      transparent 28%
+    ),
     linear-gradient(180deg, #fbf7f1 0%, #eef6f2 100%);
   color: var(--text);
 }
@@ -95,7 +103,11 @@ input:focus {
 }
 
 .button--primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    var(--accent-strong) 100%
+  );
   color: #ffffff;
   box-shadow: 0 18px 30px rgba(7, 97, 75, 0.22);
 }
@@ -129,7 +141,11 @@ input:focus {
   justify-content: flex-end;
   min-height: 640px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.24),
+      rgba(255, 255, 255, 0.02)
+    ),
     linear-gradient(140deg, #0d8a6a 0%, #125c4a 45%, #f0bb72 100%);
   color: #effcf6;
   padding: 2.4rem;
@@ -157,7 +173,7 @@ input:focus {
 .auth-panel--hero h1 {
   max-width: 10ch;
   margin: 0 0 1rem;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2.8rem, 6vw, 5rem);
   line-height: 0.95;
   letter-spacing: -0.04em;
@@ -229,7 +245,7 @@ input:focus {
 .dashboard-hero h2,
 .placeholder-page h2 {
   margin: 0.7rem 0 0.65rem;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1;
   letter-spacing: -0.03em;
@@ -331,7 +347,7 @@ input:focus {
   border-radius: 18px;
   background: linear-gradient(135deg, #f7cb8c 0%, #ffffff 100%);
   color: #114c3d;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-weight: 800;
 }
 
@@ -409,7 +425,7 @@ input:focus {
 
 .workspace-header h1 {
   margin: 0.7rem 0 0;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2rem, 4vw, 2.8rem);
   line-height: 1;
   letter-spacing: -0.03em;
@@ -441,6 +457,11 @@ input:focus {
 }
 
 .ai-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.agenda-page {
   display: grid;
   gap: 1.2rem;
 }
@@ -495,7 +516,7 @@ input:focus {
 }
 
 .metric-card__value {
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2rem, 5vw, 3.4rem);
   line-height: 0.95;
   color: var(--accent-strong);
@@ -537,7 +558,12 @@ input:focus {
 .metric-card__skeleton {
   min-width: 3rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(22, 65, 53, 0.08), rgba(22, 65, 53, 0.16), rgba(22, 65, 53, 0.08));
+  background: linear-gradient(
+    90deg,
+    rgba(22, 65, 53, 0.08),
+    rgba(22, 65, 53, 0.16),
+    rgba(22, 65, 53, 0.08)
+  );
   color: transparent;
   animation: shimmer 1.2s linear infinite;
 }
@@ -550,7 +576,10 @@ input:focus {
 }
 
 .inbox-layout--with-notes {
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(
+      260px,
+      320px
+    );
 }
 
 .inbox-layout--resizable {
@@ -675,7 +704,12 @@ input:focus {
 .conversation-skeleton {
   height: 106px;
   border-radius: 20px;
-  background: linear-gradient(90deg, rgba(22, 65, 53, 0.06), rgba(22, 65, 53, 0.14), rgba(22, 65, 53, 0.06));
+  background: linear-gradient(
+    90deg,
+    rgba(22, 65, 53, 0.06),
+    rgba(22, 65, 53, 0.14),
+    rgba(22, 65, 53, 0.06)
+  );
   animation: shimmer 1.2s linear infinite;
 }
 
@@ -918,7 +952,7 @@ input:focus {
   width: 4.1rem;
   height: 4.1rem;
   border-radius: 999px;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: 1.7rem;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -1046,8 +1080,11 @@ input:focus {
   gap: 0.9rem;
   padding: 1rem;
   overflow-y: auto;
-  background:
-    linear-gradient(180deg, rgba(244, 239, 231, 0.42), rgba(232, 244, 239, 0.58));
+  background: linear-gradient(
+    180deg,
+    rgba(244, 239, 231, 0.42),
+    rgba(232, 244, 239, 0.58)
+  );
 }
 
 .chat-message {
@@ -1291,7 +1328,12 @@ input:focus {
   height: 88px;
   max-width: min(76%, 520px);
   border-radius: 22px;
-  background: linear-gradient(90deg, rgba(22, 65, 53, 0.06), rgba(22, 65, 53, 0.14), rgba(22, 65, 53, 0.06));
+  background: linear-gradient(
+    90deg,
+    rgba(22, 65, 53, 0.06),
+    rgba(22, 65, 53, 0.14),
+    rgba(22, 65, 53, 0.06)
+  );
   animation: shimmer 1.2s linear infinite;
 }
 
@@ -1439,8 +1481,11 @@ input:focus {
   min-height: 100%;
   resize: none;
   border: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 252, 250, 0.94));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.86),
+    rgba(248, 252, 250, 0.94)
+  );
   color: var(--text);
   font: inherit;
   line-height: 1.65;
@@ -1474,7 +1519,7 @@ input:focus {
 
 .entry-card h1 {
   margin: 0.75rem 0 0.6rem;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2rem, 5vw, 3.4rem);
   line-height: 0.98;
   letter-spacing: -0.04em;
@@ -1514,7 +1559,7 @@ input:focus {
 
 .business-profile-card__header h3 {
   margin: 0.35rem 0 0;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: 1.45rem;
   line-height: 1;
 }
@@ -1585,10 +1630,16 @@ input:focus {
 
 .business-form select {
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
   background-repeat: no-repeat;
-  background-size: 5px 5px, 5px 5px;
+  background-size:
+    5px 5px,
+    5px 5px;
   padding-right: 2.5rem;
 }
 
@@ -1742,6 +1793,240 @@ input:focus {
   line-height: 1.5;
 }
 
+.agenda-toolbar,
+.agenda-layout,
+.agenda-forms {
+  display: grid;
+  gap: 1rem;
+}
+
+.agenda-toolbar {
+  grid-template-columns: minmax(160px, 220px) minmax(120px, 160px) minmax(
+      0,
+      1fr
+    );
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  box-shadow: 0 14px 30px rgba(22, 53, 45, 0.06);
+  padding: 1rem;
+}
+
+.agenda-toolbar select,
+.agenda-toolbar input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 0.85rem 1rem;
+}
+
+.agenda-toolbar select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-repeat: no-repeat;
+  background-size:
+    5px 5px,
+    5px 5px;
+  padding-right: 2.5rem;
+}
+
+.agenda-toolbar select:focus,
+.agenda-toolbar input:focus {
+  outline: none;
+  border-color: rgba(13, 138, 106, 0.44);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
+}
+
+.agenda-toolbar__meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.25rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  text-align: right;
+}
+
+.agenda-toolbar__meta strong {
+  color: var(--text);
+}
+
+.agenda-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  align-items: start;
+}
+
+.agenda-calendar,
+.agenda-detail,
+.agenda-locked-preview {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
+  box-shadow: 0 14px 30px rgba(22, 53, 45, 0.06);
+}
+
+.agenda-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.agenda-calendar__weekday {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.35rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.agenda-day {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 112px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.75rem;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.agenda-day:hover {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.agenda-day strong {
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: 1.15rem;
+}
+
+.agenda-day span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(22, 65, 53, 0.06);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.32rem 0.52rem;
+}
+
+.agenda-day--selected {
+  border-color: rgba(13, 138, 106, 0.42);
+  background: rgba(231, 247, 240, 0.92);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.08);
+}
+
+.agenda-day--empty,
+.agenda-day--empty:hover {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+.agenda-detail {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.agenda-detail__header {
+  display: grid;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.9rem;
+}
+
+.agenda-detail__header h3 {
+  margin: 0;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.agenda-list-block {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.agenda-list-block > strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.agenda-list-block p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.agenda-list-item {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(248, 252, 250, 0.76);
+  padding: 0.75rem 0.85rem;
+}
+
+.agenda-list-item span,
+.agenda-list-item small {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.agenda-forms {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.agenda-forms .business-profile-card {
+  height: 100%;
+}
+
+.agenda-forms .button {
+  width: fit-content;
+}
+
+.agenda-locked-preview {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+  opacity: 0.5;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.agenda-locked-preview span {
+  min-height: 84px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: rgba(22, 65, 53, 0.04);
+}
+
 .automation-card {
   display: grid;
   gap: 1rem;
@@ -1762,7 +2047,7 @@ input:focus {
 .automation-card h3,
 .automation-modal h3 {
   margin: 0.7rem 0 0;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: 1.9rem;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -1817,7 +2102,11 @@ input:focus {
 }
 
 .toggle-switch--enabled {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    var(--accent-strong) 100%
+  );
 }
 
 .toggle-switch--enabled span {
@@ -2038,14 +2327,18 @@ input:focus {
   overflow: hidden;
   padding: 1.6rem;
   background:
-    radial-gradient(circle at 90% 10%, rgba(240, 187, 114, 0.28), transparent 30%),
+    radial-gradient(
+      circle at 90% 10%,
+      rgba(240, 187, 114, 0.28),
+      transparent 30%
+    ),
     linear-gradient(135deg, #ffffff 0%, #eef9f4 100%);
 }
 
 .onboarding-hero h2 {
   max-width: 12ch;
   margin: 0.75rem 0 0.8rem;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: clamp(2.4rem, 6vw, 4.6rem);
   line-height: 0.94;
   letter-spacing: -0.05em;
@@ -2088,7 +2381,11 @@ input:focus {
 .integration-card--primary {
   border-color: rgba(13, 138, 106, 0.24);
   background:
-    radial-gradient(circle at top right, rgba(13, 138, 106, 0.12), transparent 34%),
+    radial-gradient(
+      circle at top right,
+      rgba(13, 138, 106, 0.12),
+      transparent 34%
+    ),
     #ffffff;
   box-shadow: 0 20px 44px rgba(13, 138, 106, 0.12);
 }
@@ -2101,7 +2398,7 @@ input:focus {
   border-radius: 24px;
   background: linear-gradient(135deg, var(--accent-soft) 0%, #fff6e8 100%);
   color: var(--accent-strong);
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-weight: 800;
 }
 
@@ -2119,7 +2416,7 @@ input:focus {
 
 .integration-card h3 {
   margin: 0.7rem 0 0.35rem;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: 1.8rem;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -2213,6 +2510,9 @@ input:focus {
   .workspace-shell,
   .dashboard-grid,
   .automation-grid,
+  .agenda-toolbar,
+  .agenda-layout,
+  .agenda-forms,
   .inbox-layout,
   .inbox-layout--with-notes,
   .onboarding-hero,
@@ -2282,8 +2582,20 @@ input:focus {
   .business-profile-card__grid,
   .ai-option-grid,
   .ai-permission-grid,
+  .agenda-calendar,
+  .agenda-locked-preview,
   .business-hours-card__time-grid,
   .business-hours-card__days-grid {
     grid-template-columns: 1fr;
+  }
+
+  .agenda-toolbar__meta {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .agenda-day,
+  .agenda-locked-preview span {
+    min-height: 76px;
   }
 }

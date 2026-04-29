@@ -11,12 +11,13 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../auth/dto/current-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AgendaEntitlementGuard } from './agenda-entitlement.guard';
 import { BlockedSlotsService } from './blocked-slots.service';
 import { CreateBlockedSlotDto } from './dto/create-blocked-slot.dto';
 import { UpdateBlockedSlotDto } from './dto/update-blocked-slot.dto';
 
 @Controller('agenda/blocked-slots')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AgendaEntitlementGuard)
 export class BlockedSlotsController {
   constructor(private readonly blockedSlotsService: BlockedSlotsService) {}
 

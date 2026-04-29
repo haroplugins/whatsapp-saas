@@ -12,13 +12,14 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../auth/dto/current-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AgendaEntitlementGuard } from './agenda-entitlement.guard';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsFilterDto } from './dto/appointments-filter.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 
 @Controller('agenda/appointments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AgendaEntitlementGuard)
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 

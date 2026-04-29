@@ -9,6 +9,11 @@ export type TenantEntitlementFeatures = {
   canUsePremiumAutomations: boolean;
   canUseBusinessHours: boolean;
   canUseOffHoursAutomation: boolean;
+  canUseAgenda: boolean;
+  canUseManualAgenda: boolean;
+  canUseSmartBooking: boolean;
+  canUseAutoBookingConfirm: boolean;
+  canUseCalendarIntegration: boolean;
 };
 
 export type TenantEntitlementsResponse = {

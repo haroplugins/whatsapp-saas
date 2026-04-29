@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { EntitlementsModule } from '../entitlements/entitlements.module';
+import { AgendaEntitlementGuard } from './agenda-entitlement.guard';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 import { BlockedSlotsController } from './blocked-slots.controller';
@@ -10,7 +12,7 @@ import { ServicesController } from './services.controller';
 import { ServicesService } from './services.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, EntitlementsModule],
   controllers: [
     ServicesController,
     AppointmentsController,
@@ -18,6 +20,7 @@ import { ServicesService } from './services.service';
     BookingSettingsController,
   ],
   providers: [
+    AgendaEntitlementGuard,
     ServicesService,
     AppointmentsService,
     BlockedSlotsService,

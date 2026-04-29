@@ -11,6 +11,11 @@ export type TenantEntitlementFeatures = {
   canUsePremiumAutomations: boolean;
   canUseBusinessHours: boolean;
   canUseOffHoursAutomation: boolean;
+  canUseAgenda: boolean;
+  canUseManualAgenda: boolean;
+  canUseSmartBooking: boolean;
+  canUseAutoBookingConfirm: boolean;
+  canUseCalendarIntegration: boolean;
 };
 
 export type TenantEntitlements = {
@@ -29,6 +34,11 @@ export const defaultTenantEntitlements: TenantEntitlements = {
     canUsePremiumAutomations: false,
     canUseBusinessHours: true,
     canUseOffHoursAutomation: true,
+    canUseAgenda: false,
+    canUseManualAgenda: false,
+    canUseSmartBooking: false,
+    canUseAutoBookingConfirm: false,
+    canUseCalendarIntegration: false,
   },
 };
 

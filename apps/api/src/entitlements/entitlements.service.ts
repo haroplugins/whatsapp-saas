@@ -16,6 +16,11 @@ const entitlementsByPlan: Record<TenantPlan, TenantEntitlementFeatures> = {
     canUsePremiumAutomations: false,
     canUseBusinessHours: true,
     canUseOffHoursAutomation: true,
+    canUseAgenda: false,
+    canUseManualAgenda: false,
+    canUseSmartBooking: false,
+    canUseAutoBookingConfirm: false,
+    canUseCalendarIntegration: false,
   },
   PRO: {
     canUseAi: true,
@@ -26,6 +31,11 @@ const entitlementsByPlan: Record<TenantPlan, TenantEntitlementFeatures> = {
     canUsePremiumAutomations: false,
     canUseBusinessHours: true,
     canUseOffHoursAutomation: true,
+    canUseAgenda: true,
+    canUseManualAgenda: true,
+    canUseSmartBooking: false,
+    canUseAutoBookingConfirm: false,
+    canUseCalendarIntegration: false,
   },
   PREMIUM: {
     canUseAi: true,
@@ -36,6 +46,11 @@ const entitlementsByPlan: Record<TenantPlan, TenantEntitlementFeatures> = {
     canUsePremiumAutomations: true,
     canUseBusinessHours: true,
     canUseOffHoursAutomation: true,
+    canUseAgenda: true,
+    canUseManualAgenda: true,
+    canUseSmartBooking: true,
+    canUseAutoBookingConfirm: true,
+    canUseCalendarIntegration: true,
   },
 };
 
@@ -43,7 +58,9 @@ const entitlementsByPlan: Record<TenantPlan, TenantEntitlementFeatures> = {
 export class EntitlementsService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async getTenantEntitlements(tenantId: string): Promise<TenantEntitlementsResponse> {
+  async getTenantEntitlements(
+    tenantId: string,
+  ): Promise<TenantEntitlementsResponse> {
     const tenant = await this.prismaService.tenant.findUnique({
       where: {
         id: tenantId,

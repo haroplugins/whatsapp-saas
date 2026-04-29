@@ -11,12 +11,13 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../auth/dto/current-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AgendaEntitlementGuard } from './agenda-entitlement.guard';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
 @Controller('agenda/services')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AgendaEntitlementGuard)
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 

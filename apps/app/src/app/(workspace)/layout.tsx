@@ -18,11 +18,18 @@ const navigation = [
   { href: '/inbox', label: 'Inbox', description: 'Conversaciones' },
   { href: '/automations', label: 'Automations', description: 'Reglas activas' },
   { href: '/business', label: 'Negocio', description: 'Perfil y contexto' },
+  {
+    href: '/agenda',
+    label: 'Agenda',
+    description: 'Servicios, citas y bloqueos',
+  },
   { href: '/ai', label: 'IA', description: 'Autopilot' },
 ];
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  const [entitlements, setEntitlements] = useState<TenantEntitlements>(defaultTenantEntitlements);
+  const [entitlements, setEntitlements] = useState<TenantEntitlements>(
+    defaultTenantEntitlements,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -52,10 +59,18 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
 
         <nav className="workspace-nav" aria-label="Primary">
           {navigation.map((item) => (
-            <Link key={item.href} className="workspace-nav__link" href={item.href}>
+            <Link
+              key={item.href}
+              className="workspace-nav__link"
+              href={item.href}
+            >
               <strong>
                 {item.label}
                 {item.href === '/ai' && !entitlements.features.canUseAi ? (
+                  <span className="workspace-nav__badge">PRO</span>
+                ) : null}
+                {item.href === '/agenda' &&
+                !entitlements.features.canUseAgenda ? (
                   <span className="workspace-nav__badge">PRO</span>
                 ) : null}
               </strong>
@@ -66,7 +81,10 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
 
         <div className="workspace-sidebar__card">
           <span className="workspace-sidebar__eyebrow">MVP</span>
-          <p>La shell ya está lista para conectar auth y datos reales en el siguiente bloque.</p>
+          <p>
+            La shell ya está lista para conectar auth y datos reales en el
+            siguiente bloque.
+          </p>
         </div>
       </aside>
 
