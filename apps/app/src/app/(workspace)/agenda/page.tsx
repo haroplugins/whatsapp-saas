@@ -347,21 +347,40 @@ export default function AgendaPage() {
                 }
 
                 const day = cell.day;
+                const dayAppointments = appointmentsByDay.get(day) ?? [];
+                const dayBlockedSlots = blockedSlotsByDay.get(day) ?? [];
+                const appointmentCount = dayAppointments.length;
+                const blockedSlotCount = dayBlockedSlots.length;
+                const appointmentSummary =
+                  getAppointmentSummary(dayAppointments);
 
                 return (
                   <button
                     key={cell.key}
                     className={`agenda-day${
                       day === selectedDay ? ' agenda-day--selected' : ''
-                    }`}
+                    }${
+                      appointmentCount > 0
+                        ? ' agenda-day--has-appointments'
+                        : ''
+                    }${blockedSlotCount > 0 ? ' agenda-day--has-blocks' : ''}`}
                     type="button"
                     onClick={() => selectDay(day)}
                   >
                     <strong>{day}</strong>
-                    <span>{appointmentsByDay.get(day)?.length ?? 0} citas</span>
-                    <span>
-                      {blockedSlotsByDay.get(day)?.length ?? 0} bloqueos
+                    <span className="agenda-day__badge agenda-day__badge--appointments">
+                      {formatAppointmentCount(appointmentCount)}
                     </span>
+                    {blockedSlotCount > 0 ? (
+                      <span className="agenda-day__badge agenda-day__badge--blocks">
+                        {formatBlockedSlotCount(blockedSlotCount)}
+                      </span>
+                    ) : null}
+                    {appointmentSummary ? (
+                      <span className="agenda-day__summary">
+                        {appointmentSummary}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -704,6 +723,59 @@ function formatTimeRange(startAt: string, endAt: string): string {
   });
 
   return `${formatter.format(new Date(startAt))} - ${formatter.format(new Date(endAt))}`;
+}
+
+function formatAppointmentCount(appointmentCount: number): string {
+  if (appointmentCount === 0) {
+    return 'Sin citas';
+  }
+
+  if (appointmentCount === 1) {
+    return '1 cita';
+  }
+
+  return `${appointmentCount} citas`;
+}
+
+function formatBlockedSlotCount(blockedSlotCount: number): string {
+  if (blockedSlotCount === 1) {
+    return '1 bloqueo';
+  }
+
+  return `${blockedSlotCount} bloqueos`;
+}
+
+function getAppointmentSummary(dayAppointments: Appointment[]): string | null {
+  if (dayAppointments.length === 0) {
+    return null;
+  }
+
+  const sortedAppointments = [...dayAppointments].sort(
+    (firstAppointment, secondAppointment) =>
+      new Date(firstAppointment.startAt).getTime() -
+      new Date(secondAppointment.startAt).getTime(),
+  );
+  const firstAppointment = sortedAppointments[0];
+  const lastAppointment = sortedAppointments[sortedAppointments.length - 1];
+
+  if (!firstAppointment || !lastAppointment) {
+    return null;
+  }
+
+  if (sortedAppointments.length === 1) {
+    return `Primera: ${formatShortTime(firstAppointment.startAt)}`;
+  }
+
+  return `${formatShortTime(firstAppointment.startAt)} - ${formatShortTime(
+    lastAppointment.startAt,
+  )}`;
+}
+
+function formatShortTime(value: string): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
 }
 
 function getServiceName(

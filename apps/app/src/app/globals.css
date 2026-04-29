@@ -1916,12 +1916,27 @@ input:focus {
   transform: translateY(-1px);
 }
 
+.agenda-day--has-appointments {
+  border-color: rgba(13, 138, 106, 0.28);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(231, 247, 240, 0.68),
+      rgba(255, 255, 255, 0.94)
+    ),
+    #ffffff;
+}
+
+.agenda-day--has-blocks {
+  box-shadow: inset 0 -4px 0 rgba(224, 142, 77, 0.22);
+}
+
 .agenda-day strong {
   font-family: Bahnschrift, 'Arial Narrow', sans-serif;
   font-size: 1.15rem;
 }
 
-.agenda-day span {
+.agenda-day__badge {
   width: fit-content;
   border-radius: 999px;
   background: rgba(22, 65, 53, 0.06);
@@ -1930,6 +1945,23 @@ input:focus {
   font-weight: 700;
   line-height: 1;
   padding: 0.32rem 0.52rem;
+}
+
+.agenda-day__badge--appointments {
+  background: rgba(13, 138, 106, 0.1);
+  color: var(--accent-strong);
+}
+
+.agenda-day__badge--blocks {
+  background: rgba(224, 142, 77, 0.14);
+  color: #a55510;
+}
+
+.agenda-day__summary {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .agenda-day--selected {
