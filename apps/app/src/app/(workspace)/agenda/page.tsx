@@ -6,6 +6,7 @@ import {
   type Appointment,
   type AvailabilityRule,
   type AvailabilityRuleInput,
+  type AvailabilitySlot,
   type BlockedSlot,
   type BookingSettings,
   type AppointmentStatus,
@@ -20,6 +21,7 @@ import {
   fetchAvailabilityRules,
   fetchBlockedSlots,
   fetchBookingSettings,
+  searchAgendaAvailability,
   updateAppointment,
   updateAgendaService,
   updateAvailabilityRules,
@@ -124,6 +126,17 @@ export default function AgendaPage() {
     useState<BookingSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [availabilitySlots, setAvailabilitySlots] = useState<
+    AvailabilitySlot[]
+  >([]);
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(
+    null,
+  );
+  const [availabilityReason, setAvailabilityReason] = useState<
+    'NO_RULES' | 'OUT_OF_RANGE' | null
+  >(null);
+  const [availabilityRefreshKey, setAvailabilityRefreshKey] = useState(0);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [availabilityForm, setAvailabilityForm] = useState<
     AvailabilityDayForm[]
@@ -267,37 +280,6 @@ export default function AgendaPage() {
       ),
     [selectedAppointments, selectedBlockedSlots, services],
   );
-  const availableSlots = useMemo(() => {
-    if (!selectedAvailabilityService) {
-      return [];
-    }
-
-    return calculateAvailableSlots({
-      selectedDate,
-      service: selectedAvailabilityService,
-      services,
-      availabilityRules,
-      appointments: selectedAppointments,
-      blockedSlots: selectedBlockedSlots,
-      bookingSettings,
-    });
-  }, [
-    availabilityRules,
-    bookingSettings,
-    services,
-    selectedAppointments,
-    selectedAvailabilityService,
-    selectedBlockedSlots,
-    selectedDate,
-  ]);
-  const hasAvailabilityRulesForSelectedDay = useMemo(
-    () =>
-      availabilityRules.some(
-        (rule) =>
-          rule.isActive && rule.weekday === getWeekdayForDate(selectedDate),
-      ),
-    [availabilityRules, selectedDate],
-  );
   const yearOptions = useMemo(() => {
     const currentYear = now.getFullYear();
     return Array.from({ length: 5 }, (_, index) => currentYear - 2 + index);
@@ -331,6 +313,56 @@ export default function AgendaPage() {
   }, [canUseAgenda, month, year]);
 
   useEffect(() => {
+    if (!canUseAgenda || !selectedAvailabilityServiceId) {
+      setAvailabilitySlots([]);
+      setAvailabilityError(null);
+      setAvailabilityReason(null);
+      setIsAvailabilityLoading(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setIsAvailabilityLoading(true);
+    setAvailabilityError(null);
+    setAvailabilityReason(null);
+
+    searchAgendaAvailability({
+      serviceId: selectedAvailabilityServiceId,
+      date: toDateOnlyValue(selectedDate),
+      stepMinutes: 15,
+    })
+      .then((response) => {
+        if (!isCurrent) return;
+        setAvailabilitySlots(response.slots);
+        setAvailabilityReason(response.meta.reason ?? null);
+      })
+      .catch((error) => {
+        if (!isCurrent) return;
+        setAvailabilitySlots([]);
+        setAvailabilityReason(null);
+        setAvailabilityError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo calcular la disponibilidad.',
+        );
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsAvailabilityLoading(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    availabilityRefreshKey,
+    canUseAgenda,
+    selectedAvailabilityServiceId,
+    selectedDate,
+  ]);
+
+  useEffect(() => {
     const firstService = activeServices[0];
     const selectedServiceStillExists = activeServices.some(
       (service) => service.id === appointmentServiceId,
@@ -358,6 +390,10 @@ export default function AgendaPage() {
     setAppointmentStartAt(toDateTimeLocalValue(withTime(nextDate, 10, 0)));
     setBlockedStartAt(toDateTimeLocalValue(withTime(nextDate, 12, 0)));
     setBlockedEndAt(toDateTimeLocalValue(withTime(nextDate, 13, 0)));
+  }
+
+  function refreshAvailability() {
+    setAvailabilityRefreshKey((currentKey) => currentKey + 1);
   }
 
   function openAvailabilityModal() {
@@ -523,6 +559,7 @@ export default function AgendaPage() {
       });
       loadManagedServiceForm(nextService);
       await loadAgendaData();
+      refreshAvailability();
       setFeedback('Servicio actualizado.');
     } catch (error) {
       setManageServiceError(
@@ -540,6 +577,7 @@ export default function AgendaPage() {
       const nextService = await deleteAgendaService(managingServiceId);
       loadManagedServiceForm(nextService);
       await loadAgendaData();
+      refreshAvailability();
       setFeedback('Servicio desactivado.');
     } catch (error) {
       setManageServiceError(
@@ -559,6 +597,7 @@ export default function AgendaPage() {
       });
       loadManagedServiceForm(nextService);
       await loadAgendaData();
+      refreshAvailability();
       setFeedback('Servicio reactivado.');
     } catch (error) {
       setManageServiceError(
@@ -586,6 +625,7 @@ export default function AgendaPage() {
       setAppointmentNotes('');
       setFeedback('Cita creada.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No se pudo crear la cita.',
@@ -606,6 +646,7 @@ export default function AgendaPage() {
       setBlockedReason('');
       setFeedback('Bloqueo creado.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No se pudo crear el bloqueo.',
@@ -621,6 +662,7 @@ export default function AgendaPage() {
       const nextAvailabilityRules = await updateAvailabilityRules(rules);
       setAvailabilityRules(nextAvailabilityRules);
       setIsAvailabilityModalOpen(false);
+      refreshAvailability();
       setFeedback('Horarios guardados.');
     } catch (error) {
       setFeedback(
@@ -631,11 +673,11 @@ export default function AgendaPage() {
     }
   }
 
-  function selectAvailableSlot(slot: Date) {
+  function selectAvailableSlot(slot: AvailabilitySlot) {
     if (!selectedAvailabilityService) return;
 
     setQuickAppointmentServiceId(selectedAvailabilityService.id);
-    setQuickAppointmentStartAt(toDateTimeLocalValue(slot));
+    setQuickAppointmentStartAt(toDateTimeLocalValue(new Date(slot.startAt)));
     setQuickAppointmentCustomerName('');
     setQuickAppointmentCustomerPhone('');
     setQuickAppointmentNotes('');
@@ -669,6 +711,7 @@ export default function AgendaPage() {
       setQuickAppointmentError(null);
       setFeedback('Cita creada.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setQuickAppointmentError(
         error instanceof Error ? error.message : 'No se pudo crear la cita.',
@@ -723,6 +766,7 @@ export default function AgendaPage() {
       closeEditAppointmentModal();
       setFeedback('Cita actualizada.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setEditAppointmentError(
         error instanceof Error
@@ -741,6 +785,7 @@ export default function AgendaPage() {
       await updateAppointment(appointmentId, { status });
       setFeedback(successMessage);
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setFeedback(
         error instanceof Error
@@ -755,6 +800,7 @@ export default function AgendaPage() {
       await cancelAppointment(appointmentId);
       setFeedback('Cita cancelada.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No se pudo cancelar la cita.',
@@ -790,6 +836,7 @@ export default function AgendaPage() {
       closeEditBlockedSlotModal();
       setFeedback('Bloqueo actualizado.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setEditBlockedSlotError(
         error instanceof Error
@@ -808,6 +855,7 @@ export default function AgendaPage() {
       await deleteBlockedSlot(blockedSlotId);
       setFeedback('Bloqueo eliminado.');
       await loadAgendaData();
+      refreshAvailability();
     } catch (error) {
       setFeedback(
         error instanceof Error
@@ -1100,21 +1148,27 @@ export default function AgendaPage() {
 
                   {activeServices.length === 0 ? (
                     <p>Crea un servicio antes de consultar disponibilidad.</p>
-                  ) : !hasAvailabilityRulesForSelectedDay ? (
+                  ) : isAvailabilityLoading ? (
+                    <p>Calculando disponibilidad...</p>
+                  ) : availabilityError ? (
+                    <p>{availabilityError}</p>
+                  ) : availabilityReason === 'NO_RULES' ? (
                     <p>No hay horario configurado para este dia.</p>
-                  ) : availableSlots.length === 0 ? (
+                  ) : availabilityReason === 'OUT_OF_RANGE' ? (
+                    <p>La fecha esta fuera del rango permitido de reserva.</p>
+                  ) : availabilitySlots.length === 0 ? (
                     <p>No hay huecos disponibles para este servicio.</p>
                   ) : (
                     <div className="agenda-slot-grid">
-                      {availableSlots.map((slot) => (
+                      {availabilitySlots.map((slot) => (
                         <button
-                          key={slot.toISOString()}
+                          key={slot.startAt}
                           className="agenda-slot-chip"
                           type="button"
                           onClick={() => selectAvailableSlot(slot)}
                           title="Crear cita en este hueco"
                         >
-                          {formatShortTime(slot)}
+                          {slot.label}
                         </button>
                       ))}
                     </div>
@@ -2094,178 +2148,8 @@ function buildDayActivityItems(
   );
 }
 
-function calculateAvailableSlots({
-  selectedDate,
-  service,
-  services,
-  availabilityRules,
-  appointments,
-  blockedSlots,
-  bookingSettings,
-}: {
-  selectedDate: Date;
-  service: AgendaService;
-  services: AgendaService[];
-  availabilityRules: AvailabilityRule[];
-  appointments: Appointment[];
-  blockedSlots: BlockedSlot[];
-  bookingSettings: BookingSettings | null;
-}): Date[] {
-  if (!isWithinMaxDaysAhead(selectedDate, bookingSettings)) {
-    return [];
-  }
-
-  const weekday = getWeekdayForDate(selectedDate);
-  const dayRules = availabilityRules
-    .filter((rule) => rule.isActive && rule.weekday === weekday)
-    .sort(
-      (firstRule, secondRule) =>
-        timeToMinutes(firstRule.startTime) -
-        timeToMinutes(secondRule.startTime),
-    );
-  const occupiedIntervals = [
-    ...appointments.filter(isActiveAppointment).map((appointment) => {
-      const bufferMinutes = getServiceBufferMinutes(
-        appointment.serviceId,
-        services,
-      );
-
-      return {
-        start: new Date(appointment.startAt),
-        end: addMinutes(new Date(appointment.endAt), bufferMinutes),
-      };
-    }),
-    ...blockedSlots.map((blockedSlot) => ({
-      start: new Date(blockedSlot.startAt),
-      end: new Date(blockedSlot.endAt),
-    })),
-  ];
-  const earliestAllowedStart = getEarliestAllowedStart(
-    selectedDate,
-    bookingSettings,
-  );
-
-  return dayRules.flatMap((rule) =>
-    buildCandidateTimesForRule(rule, selectedDate).filter((candidateStart) => {
-      const candidateEnd = addMinutes(candidateStart, service.durationMinutes);
-      const occupiedEndForCheck = addMinutes(
-        candidateEnd,
-        service.bufferMinutes,
-      );
-      const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
-
-      if (occupiedEndForCheck > ruleEnd) {
-        return false;
-      }
-
-      if (candidateStart < earliestAllowedStart) {
-        return false;
-      }
-
-      return occupiedIntervals.every(
-        (interval) =>
-          !intervalsOverlap(
-            candidateStart,
-            occupiedEndForCheck,
-            interval.start,
-            interval.end,
-          ),
-      );
-    }),
-  );
-}
-
-function buildCandidateTimesForRule(
-  rule: AvailabilityRule,
-  selectedDate: Date,
-  stepMinutes = 15,
-): Date[] {
-  const candidates: Date[] = [];
-  const ruleStart = buildDateWithTime(selectedDate, rule.startTime);
-  const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
-
-  for (
-    let candidate = ruleStart;
-    candidate < ruleEnd;
-    candidate = addMinutes(candidate, stepMinutes)
-  ) {
-    candidates.push(candidate);
-  }
-
-  return candidates;
-}
-
-function getWeekdayForDate(date: Date): number {
-  return date.getDay();
-}
-
-function getEarliestAllowedStart(
-  selectedDate: Date,
-  bookingSettings: BookingSettings | null,
-): Date {
-  const startOfSelectedDay = new Date(
-    selectedDate.getFullYear(),
-    selectedDate.getMonth(),
-    selectedDate.getDate(),
-    0,
-    0,
-    0,
-    0,
-  );
-  const minimumNoticeDate = addMinutes(
-    new Date(),
-    (bookingSettings?.minNoticeHours ?? 0) * 60,
-  );
-
-  return minimumNoticeDate > startOfSelectedDay
-    ? minimumNoticeDate
-    : startOfSelectedDay;
-}
-
-function isWithinMaxDaysAhead(
-  selectedDate: Date,
-  bookingSettings: BookingSettings | null,
-): boolean {
-  if (!bookingSettings) {
-    return true;
-  }
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const selectedDateStart = new Date(selectedDate);
-  selectedDateStart.setHours(0, 0, 0, 0);
-  const maxDate = addMinutes(
-    todayStart,
-    bookingSettings.maxDaysAhead * 24 * 60,
-  );
-
-  return selectedDateStart <= maxDate;
-}
-
-function intervalsOverlap(
-  startA: Date,
-  endA: Date,
-  startB: Date,
-  endB: Date,
-): boolean {
-  return startA < endB && endA > startB;
-}
-
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60 * 1000);
-}
-
-function buildDateWithTime(date: Date, time: string): Date {
-  const [hours = '0', minutes = '0'] = time.split(':');
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    Number(hours),
-    Number(minutes),
-    0,
-    0,
-  );
 }
 
 function buildDefaultAvailabilityForm(): AvailabilityDayForm[] {
@@ -2474,6 +2358,14 @@ function toDateTimeLocalValue(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function toDateOnlyValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 function withTime(date: Date, hours: number, minutes: number): Date {
   return new Date(
     date.getFullYear(),
@@ -2538,15 +2430,6 @@ function formatAppointmentStatus(status: string): string {
 
 function isActiveAppointment(appointment: Appointment): boolean {
   return appointment.status !== 'CANCELLED';
-}
-
-function getServiceBufferMinutes(
-  serviceId: string | null | undefined,
-  services: AgendaService[],
-): number {
-  return (
-    services.find((service) => service.id === serviceId)?.bufferMinutes ?? 0
-  );
 }
 
 function getAppointmentSummary(dayAppointments: Appointment[]): string | null {

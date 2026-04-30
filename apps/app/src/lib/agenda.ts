@@ -76,6 +76,43 @@ export type AvailabilityRuleInput = {
   isActive?: boolean;
 };
 
+export type AvailabilitySlot = {
+  startAt: string;
+  endAt: string;
+  occupiedUntil: string;
+  label: string;
+};
+
+export type SearchAvailabilityResponse = {
+  date: string;
+  service: {
+    id: string;
+    name: string;
+    durationMinutes: number;
+    bufferMinutes: number;
+  };
+  settings: {
+    timezone: string;
+    minNoticeHours: number;
+    maxDaysAhead: number;
+  };
+  slots: AvailabilitySlot[];
+  meta: {
+    stepMinutes: number;
+    weekday: number;
+    rulesCount: number;
+    appointmentsCount: number;
+    blockedSlotsCount: number;
+    reason?: 'NO_RULES' | 'OUT_OF_RANGE';
+  };
+};
+
+export type SearchAvailabilityInput = {
+  serviceId: string;
+  date: string;
+  stepMinutes?: number;
+};
+
 export type CreateAgendaServiceInput = {
   name: string;
   description?: string;
@@ -230,5 +267,14 @@ export function updateAvailabilityRules(
   return apiFetch<AvailabilityRule[]>('/agenda/availability-rules', {
     method: 'PUT',
     body: { rules },
+  });
+}
+
+export function searchAgendaAvailability(
+  input: SearchAvailabilityInput,
+): Promise<SearchAvailabilityResponse> {
+  return apiFetch<SearchAvailabilityResponse>('/agenda/availability/search', {
+    method: 'POST',
+    body: input,
   });
 }
