@@ -789,10 +789,15 @@ export default function AgendaPage() {
                 const day = cell.day;
                 const dayAppointments = appointmentsByDay.get(day) ?? [];
                 const dayBlockedSlots = blockedSlotsByDay.get(day) ?? [];
-                const appointmentCount = dayAppointments.length;
+                const activeDayAppointments =
+                  dayAppointments.filter(isActiveAppointment);
+                const appointmentCount = activeDayAppointments.length;
+                const cancelledAppointmentCount =
+                  dayAppointments.length - activeDayAppointments.length;
                 const blockedSlotCount = dayBlockedSlots.length;
-                const appointmentSummary =
-                  getAppointmentSummary(dayAppointments);
+                const appointmentSummary = getAppointmentSummary(
+                  activeDayAppointments,
+                );
 
                 return (
                   <button
@@ -814,6 +819,13 @@ export default function AgendaPage() {
                     {blockedSlotCount > 0 ? (
                       <span className="agenda-day__badge agenda-day__badge--blocks">
                         {formatBlockedSlotCount(blockedSlotCount)}
+                      </span>
+                    ) : null}
+                    {cancelledAppointmentCount > 0 ? (
+                      <span className="agenda-day__badge agenda-day__badge--cancelled">
+                        {formatCancelledAppointmentCount(
+                          cancelledAppointmentCount,
+                        )}
                       </span>
                     ) : null}
                     {appointmentSummary ? (
@@ -840,7 +852,12 @@ export default function AgendaPage() {
                   dayActivityItems.map((item) => (
                     <article
                       key={`${item.kind}-${item.id}`}
-                      className={`agenda-list-item agenda-list-item--${item.kind}`}
+                      className={`agenda-list-item agenda-list-item--${item.kind}${
+                        item.kind === 'appointment' &&
+                        item.status === 'CANCELLED'
+                          ? ' agenda-list-item--cancelled'
+                          : ''
+                      }`}
                     >
                       <span>{formatTimeRange(item.startAt, item.endAt)}</span>
                       {item.kind === 'appointment' ? (
@@ -1766,12 +1783,10 @@ function calculateAvailableSlots({
         timeToMinutes(secondRule.startTime),
     );
   const occupiedIntervals = [
-    ...appointments
-      .filter((appointment) => appointment.status !== 'CANCELLED')
-      .map((appointment) => ({
-        start: new Date(appointment.startAt),
-        end: new Date(appointment.endAt),
-      })),
+    ...appointments.filter(isActiveAppointment).map((appointment) => ({
+      start: new Date(appointment.startAt),
+      end: new Date(appointment.endAt),
+    })),
     ...blockedSlots.map((blockedSlot) => ({
       start: new Date(blockedSlot.startAt),
       end: new Date(blockedSlot.endAt),
@@ -2156,6 +2171,16 @@ function formatBlockedSlotCount(blockedSlotCount: number): string {
   return `${blockedSlotCount} bloqueos`;
 }
 
+function formatCancelledAppointmentCount(
+  cancelledAppointmentCount: number,
+): string {
+  if (cancelledAppointmentCount === 1) {
+    return '1 cancelada';
+  }
+
+  return `${cancelledAppointmentCount} canceladas`;
+}
+
 function formatAppointmentStatus(status: string): string {
   if (status === 'CONFIRMED') return 'Confirmada';
   if (status === 'CANCELLED') return 'Cancelada';
@@ -2163,12 +2188,18 @@ function formatAppointmentStatus(status: string): string {
   return 'Pendiente';
 }
 
+function isActiveAppointment(appointment: Appointment): boolean {
+  return appointment.status !== 'CANCELLED';
+}
+
 function getAppointmentSummary(dayAppointments: Appointment[]): string | null {
-  if (dayAppointments.length === 0) {
+  const activeAppointments = dayAppointments.filter(isActiveAppointment);
+
+  if (activeAppointments.length === 0) {
     return null;
   }
 
-  const sortedAppointments = [...dayAppointments].sort(
+  const sortedAppointments = [...activeAppointments].sort(
     (firstAppointment, secondAppointment) =>
       new Date(firstAppointment.startAt).getTime() -
       new Date(secondAppointment.startAt).getTime(),

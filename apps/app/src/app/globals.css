@@ -1962,6 +1962,11 @@ input:focus {
   color: #a55510;
 }
 
+.agenda-day__badge--cancelled {
+  background: rgba(182, 57, 34, 0.08);
+  color: #9f4b42;
+}
+
 .agenda-day__summary {
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -2076,6 +2081,18 @@ input:focus {
 .agenda-list-item--blocked-slot {
   border-color: rgba(224, 142, 77, 0.22);
   background: rgba(255, 248, 240, 0.78);
+}
+
+.agenda-list-item--cancelled {
+  border-color: rgba(182, 57, 34, 0.14);
+  background: rgba(250, 247, 246, 0.78);
+  opacity: 0.74;
+}
+
+.agenda-list-item--cancelled strong {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(182, 57, 34, 0.34);
 }
 
 .agenda-availability-panel {
