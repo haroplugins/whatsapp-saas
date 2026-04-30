@@ -78,9 +78,21 @@ export type AvailabilityRuleInput = {
 
 export type CreateAgendaServiceInput = {
   name: string;
+  description?: string;
   durationMinutes: number;
   priceCents?: number;
+  currency?: string;
   bufferMinutes?: number;
+};
+
+export type UpdateAgendaServiceInput = {
+  name?: string;
+  description?: string;
+  durationMinutes?: number;
+  priceCents?: number | null;
+  currency?: string;
+  bufferMinutes?: number;
+  isActive?: boolean;
 };
 
 export type CreateAppointmentInput = {
@@ -123,6 +135,22 @@ export function createAgendaService(
   return apiFetch<AgendaService>('/agenda/services', {
     method: 'POST',
     body: input,
+  });
+}
+
+export function updateAgendaService(
+  id: string,
+  input: UpdateAgendaServiceInput,
+): Promise<AgendaService> {
+  return apiFetch<AgendaService>(`/agenda/services/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteAgendaService(id: string): Promise<AgendaService> {
+  return apiFetch<AgendaService>(`/agenda/services/${id}`, {
+    method: 'DELETE',
   });
 }
 

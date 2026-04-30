@@ -13,6 +13,7 @@ import {
   createAgendaService,
   createAppointment,
   createBlockedSlot,
+  deleteAgendaService,
   deleteBlockedSlot,
   fetchAgendaServices,
   fetchAppointments,
@@ -20,6 +21,7 @@ import {
   fetchBlockedSlots,
   fetchBookingSettings,
   updateAppointment,
+  updateAgendaService,
   updateAvailabilityRules,
   updateBlockedSlot,
 } from '../../../lib/agenda';
@@ -168,6 +170,19 @@ export default function AgendaPage() {
   const [serviceDuration, setServiceDuration] = useState('45');
   const [servicePrice, setServicePrice] = useState('');
   const [serviceBuffer, setServiceBuffer] = useState('0');
+  const [isServiceManagementModalOpen, setIsServiceManagementModalOpen] =
+    useState(false);
+  const [managingServiceId, setManagingServiceId] = useState('');
+  const [manageServiceName, setManageServiceName] = useState('');
+  const [manageServiceDescription, setManageServiceDescription] = useState('');
+  const [manageServiceDuration, setManageServiceDuration] = useState('45');
+  const [manageServicePrice, setManageServicePrice] = useState('');
+  const [manageServiceCurrency, setManageServiceCurrency] = useState('EUR');
+  const [manageServiceBuffer, setManageServiceBuffer] = useState('0');
+  const [manageServiceIsActive, setManageServiceIsActive] = useState(true);
+  const [manageServiceError, setManageServiceError] = useState<string | null>(
+    null,
+  );
 
   const [appointmentCustomerName, setAppointmentCustomerName] = useState('');
   const [appointmentCustomerPhone, setAppointmentCustomerPhone] = useState('');
@@ -238,6 +253,10 @@ export default function AgendaPage() {
         (appointment) => appointment.id === editingAppointmentId,
       ) ?? null,
     [appointments, editingAppointmentId],
+  );
+  const managingService = useMemo(
+    () => services.find((service) => service.id === managingServiceId) ?? null,
+    [managingServiceId, services],
   );
   const dayActivityItems = useMemo(
     () =>
@@ -313,8 +332,12 @@ export default function AgendaPage() {
 
   useEffect(() => {
     const firstService = activeServices[0];
-    if (!appointmentServiceId && firstService) {
-      setAppointmentServiceId(firstService.id);
+    const selectedServiceStillExists = activeServices.some(
+      (service) => service.id === appointmentServiceId,
+    );
+
+    if (!selectedServiceStillExists) {
+      setAppointmentServiceId(firstService?.id ?? '');
     }
   }, [activeServices, appointmentServiceId]);
 
@@ -439,6 +462,109 @@ export default function AgendaPage() {
         error instanceof Error
           ? error.message
           : 'No se pudo crear el servicio.',
+      );
+    }
+  }
+
+  function loadManagedServiceForm(service: AgendaService) {
+    setManagingServiceId(service.id);
+    setManageServiceName(service.name);
+    setManageServiceDescription(service.description ?? '');
+    setManageServiceDuration(String(service.durationMinutes));
+    setManageServicePrice(
+      service.priceCents === null || service.priceCents === undefined
+        ? ''
+        : String(service.priceCents),
+    );
+    setManageServiceCurrency(service.currency || 'EUR');
+    setManageServiceBuffer(String(service.bufferMinutes));
+    setManageServiceIsActive(service.isActive);
+    setManageServiceError(null);
+  }
+
+  function openServiceManagementModal() {
+    const firstService = services[0];
+
+    if (firstService) {
+      loadManagedServiceForm(firstService);
+    } else {
+      setManagingServiceId('');
+      setManageServiceError(null);
+    }
+
+    setIsServiceManagementModalOpen(true);
+  }
+
+  function closeServiceManagementModal() {
+    setIsServiceManagementModalOpen(false);
+    setManageServiceError(null);
+  }
+
+  function selectManagedService(serviceId: string) {
+    const nextService = services.find((service) => service.id === serviceId);
+    if (!nextService) return;
+
+    loadManagedServiceForm(nextService);
+  }
+
+  async function handleUpdateManagedService(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canUseAgenda || !managingServiceId) return;
+
+    try {
+      const nextService = await updateAgendaService(managingServiceId, {
+        name: manageServiceName.trim(),
+        description: manageServiceDescription.trim(),
+        durationMinutes: Number(manageServiceDuration),
+        priceCents: manageServicePrice ? Number(manageServicePrice) : null,
+        currency: manageServiceCurrency.trim().toUpperCase() || 'EUR',
+        bufferMinutes: Number(manageServiceBuffer),
+        isActive: manageServiceIsActive,
+      });
+      loadManagedServiceForm(nextService);
+      await loadAgendaData();
+      setFeedback('Servicio actualizado.');
+    } catch (error) {
+      setManageServiceError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el servicio.',
+      );
+    }
+  }
+
+  async function handleDeactivateManagedService() {
+    if (!canUseAgenda || !managingServiceId) return;
+
+    try {
+      const nextService = await deleteAgendaService(managingServiceId);
+      loadManagedServiceForm(nextService);
+      await loadAgendaData();
+      setFeedback('Servicio desactivado.');
+    } catch (error) {
+      setManageServiceError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo desactivar el servicio.',
+      );
+    }
+  }
+
+  async function handleReactivateManagedService() {
+    if (!canUseAgenda || !managingServiceId) return;
+
+    try {
+      const nextService = await updateAgendaService(managingServiceId, {
+        isActive: true,
+      });
+      loadManagedServiceForm(nextService);
+      await loadAgendaData();
+      setFeedback('Servicio reactivado.');
+    } catch (error) {
+      setManageServiceError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo reactivar el servicio.',
       );
     }
   }
@@ -1008,6 +1134,13 @@ export default function AgendaPage() {
                   <span className="workspace-header__eyebrow">Servicios</span>
                   <h3>Crear servicio</h3>
                 </div>
+                <button
+                  className="button button--ghost"
+                  type="button"
+                  onClick={openServiceManagementModal}
+                >
+                  Gestionar servicios
+                </button>
               </div>
               <div className="business-form">
                 <label className="business-form__field">
@@ -1344,6 +1477,210 @@ export default function AgendaPage() {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {isServiceManagementModalOpen ? (
+        <div
+          className="quick-appointment-modal-backdrop"
+          role="presentation"
+          onClick={closeServiceManagementModal}
+        >
+          <form
+            className="quick-appointment-modal service-management-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-management-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleUpdateManagedService}
+          >
+            <div className="quick-appointment-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Servicios</span>
+                <h3 id="service-management-modal-title">Gestionar servicios</h3>
+                <p>
+                  Edita duracion, precio, buffer y disponibilidad de los
+                  servicios que usa la agenda.
+                </p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeServiceManagementModal}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="quick-appointment-modal__body">
+              {manageServiceError ? (
+                <p className="form-error">{manageServiceError}</p>
+              ) : null}
+
+              {services.length === 0 ? (
+                <p className="config-conflict-note">
+                  Todavia no hay servicios creados.
+                </p>
+              ) : (
+                <>
+                  <label className="business-form__field">
+                    <span>Servicio</span>
+                    <select
+                      value={managingServiceId}
+                      onChange={(event) =>
+                        selectManagedService(event.target.value)
+                      }
+                    >
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                          {service.isActive ? '' : ' (Inactivo)'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {managingService ? (
+                    <span
+                      className={`service-status-badge${
+                        managingService.isActive
+                          ? ' service-status-badge--active'
+                          : ' service-status-badge--inactive'
+                      }`}
+                    >
+                      {managingService.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  ) : null}
+
+                  <div className="business-form">
+                    <label className="business-form__field">
+                      <span>Nombre</span>
+                      <input
+                        required
+                        type="text"
+                        value={manageServiceName}
+                        onChange={(event) =>
+                          setManageServiceName(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Duracion minutos</span>
+                      <input
+                        required
+                        min="1"
+                        type="number"
+                        value={manageServiceDuration}
+                        onChange={(event) =>
+                          setManageServiceDuration(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Precio centimos</span>
+                      <input
+                        min="0"
+                        type="number"
+                        value={manageServicePrice}
+                        onChange={(event) =>
+                          setManageServicePrice(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Moneda</span>
+                      <input
+                        required
+                        type="text"
+                        value={manageServiceCurrency}
+                        onChange={(event) =>
+                          setManageServiceCurrency(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Buffer minutos</span>
+                      <input
+                        required
+                        min="0"
+                        type="number"
+                        value={manageServiceBuffer}
+                        onChange={(event) =>
+                          setManageServiceBuffer(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <div className="business-form__field service-active-toggle">
+                      <span>Estado</span>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={manageServiceIsActive}
+                          onChange={(event) =>
+                            setManageServiceIsActive(event.target.checked)
+                          }
+                        />
+                        Activo para nuevas citas
+                      </label>
+                    </div>
+
+                    <label className="business-form__field business-form__field--full">
+                      <span>Descripcion</span>
+                      <textarea
+                        value={manageServiceDescription}
+                        onChange={(event) =>
+                          setManageServiceDescription(event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="quick-appointment-modal__footer">
+              {managingService ? (
+                managingService.isActive ? (
+                  <button
+                    className="button button--ghost service-management-modal__danger"
+                    type="button"
+                    onClick={handleDeactivateManagedService}
+                    disabled={isLoading}
+                  >
+                    Desactivar servicio
+                  </button>
+                ) : (
+                  <button
+                    className="button button--ghost"
+                    type="button"
+                    onClick={handleReactivateManagedService}
+                    disabled={isLoading}
+                  >
+                    Reactivar servicio
+                  </button>
+                )
+              ) : null}
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeServiceManagementModal}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button button--primary"
+                type="submit"
+                disabled={isLoading || !managingService}
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 

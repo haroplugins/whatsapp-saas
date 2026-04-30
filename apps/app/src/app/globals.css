@@ -2375,6 +2375,10 @@ input:focus {
   overflow: hidden;
 }
 
+.service-management-modal {
+  width: min(100%, 840px);
+}
+
 .quick-appointment-modal__header,
 .quick-appointment-modal__body,
 .quick-appointment-modal__footer {
@@ -2438,6 +2442,52 @@ input:focus {
 .quick-appointment-modal__footer {
   justify-content: flex-end;
   border-top: 1px solid var(--line);
+}
+
+.service-status-badge {
+  width: fit-content;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.38rem 0.64rem;
+}
+
+.service-status-badge--active {
+  background: rgba(13, 138, 106, 0.1);
+  color: var(--accent-strong);
+}
+
+.service-status-badge--inactive {
+  background: rgba(182, 57, 34, 0.08);
+  color: #9f4b42;
+}
+
+.service-active-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 700;
+  padding: 0.75rem 0.9rem;
+}
+
+.service-active-toggle input {
+  width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  accent-color: var(--accent);
+}
+
+.service-management-modal__danger {
+  margin-right: auto;
+  border-color: rgba(182, 57, 34, 0.16);
+  background: rgba(255, 242, 239, 0.82);
+  color: #9f2d1d;
 }
 
 .automation-card {
