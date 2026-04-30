@@ -65,4 +65,15 @@ export class AppointmentsController {
   ) {
     return this.appointmentsService.remove(currentUser.tenantId, appointmentId);
   }
+
+  @Delete(':id/permanent')
+  removePermanently(
+    @Param('id') appointmentId: string,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.appointmentsService.removePermanently(
+      currentUser.tenantId,
+      appointmentId,
+    );
+  }
 }

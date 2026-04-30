@@ -158,6 +158,25 @@ export class AppointmentsService {
     });
   }
 
+  async removePermanently(
+    tenantId: string,
+    appointmentId: string,
+  ): Promise<Appointment> {
+    const appointment = await this.getById(tenantId, appointmentId);
+
+    if (appointment.status !== AppointmentStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Solo se pueden eliminar definitivamente citas canceladas.',
+      );
+    }
+
+    return this.prismaService.appointment.delete({
+      where: {
+        id: appointmentId,
+      },
+    });
+  }
+
   private async getById(
     tenantId: string,
     appointmentId: string,
@@ -199,7 +218,7 @@ function parseDate(value: string, fieldName: string): Date {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    throw new BadRequestException(`${fieldName} must be a valid date.`);
+    throw new BadRequestException(`${fieldName} debe ser una fecha válida.`);
   }
 
   return date;
@@ -208,7 +227,7 @@ function parseDate(value: string, fieldName: string): Date {
 function calculateEndAt(startAt: Date, service: Service | null): Date {
   if (!service) {
     throw new BadRequestException(
-      'endAt is required when serviceId is not provided.',
+      'endAt es obligatorio cuando no se indica serviceId.',
     );
   }
 
@@ -217,7 +236,9 @@ function calculateEndAt(startAt: Date, service: Service | null): Date {
 
 function ensureStartBeforeEnd(startAt: Date, endAt: Date): void {
   if (startAt >= endAt) {
-    throw new BadRequestException('startAt must be before endAt.');
+    throw new BadRequestException(
+      'La fecha de inicio debe ser anterior a la fecha de fin.',
+    );
   }
 }
 

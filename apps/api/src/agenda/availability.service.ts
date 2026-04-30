@@ -13,6 +13,12 @@ type BookingSettingsSnapshot = {
   maxDaysAhead: number;
 };
 
+type DateOnlyParts = {
+  year: number;
+  month: number;
+  day: number;
+};
+
 type OccupiedInterval = {
   start: Date;
   end: Date;
@@ -58,6 +64,8 @@ const defaultBookingSettings: BookingSettingsSnapshot = {
   minNoticeHours: 2,
   maxDaysAhead: 30,
 };
+const appointmentNotAvailableMessage =
+  'La hora seleccionada ya no está disponible.';
 
 @Injectable()
 export class AvailabilityService {
@@ -68,15 +76,23 @@ export class AvailabilityService {
     searchAvailabilityDto: SearchAvailabilityDto,
   ): Promise<SearchAvailabilityResult> {
     const stepMinutes = searchAvailabilityDto.stepMinutes ?? 15;
-    const selectedDate = parseLocalDate(searchAvailabilityDto.date);
-    const dayStart = startOfDay(selectedDate);
-    const dayEnd = addMinutes(dayStart, 24 * 60);
-    const weekday = selectedDate.getDay();
     const service = await this.getActiveService(
       tenantId,
       searchAvailabilityDto.serviceId,
     );
     const settings = await this.getBookingSettings(tenantId);
+    const selectedDate = parseDateOnly(searchAvailabilityDto.date);
+    const dayStart = buildDateWithTime(
+      selectedDate,
+      '00:00',
+      settings.timezone,
+    );
+    const dayEnd = buildDateWithTime(
+      addDaysToDateOnly(selectedDate, 1),
+      '00:00',
+      settings.timezone,
+    );
+    const weekday = getWeekdayForDateOnly(selectedDate);
 
     if (!isWithinMaxDaysAhead(selectedDate, settings)) {
       return buildEmptyResult({
@@ -162,7 +178,12 @@ export class AvailabilityService {
     ];
     const earliestAllowedStart = getEarliestAllowedStart(dayStart, settings);
     const slots = availabilityRules.flatMap((rule) =>
-      buildCandidateTimesForRule(rule, selectedDate, stepMinutes)
+      buildCandidateTimesForRule(
+        rule,
+        selectedDate,
+        settings.timezone,
+        stepMinutes,
+      )
         .filter((candidateStart) => {
           const candidateEnd = addMinutes(
             candidateStart,
@@ -172,7 +193,11 @@ export class AvailabilityService {
             candidateEnd,
             service.bufferMinutes,
           );
-          const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
+          const ruleEnd = buildDateWithTime(
+            selectedDate,
+            rule.endTime,
+            settings.timezone,
+          );
 
           if (occupiedEndForCheck > ruleEnd) {
             return false;
@@ -203,7 +228,7 @@ export class AvailabilityService {
             startAt: candidateStart.toISOString(),
             endAt: candidateEnd.toISOString(),
             occupiedUntil: occupiedUntil.toISOString(),
-            label: formatShortTime(candidateStart),
+            label: formatShortTime(candidateStart, settings.timezone),
           };
         }),
     );
@@ -245,25 +270,27 @@ export class AvailabilityService {
       endAt,
     );
     const occupiedEndForCheck = addMinutes(candidateEnd, service.bufferMinutes);
-    const selectedDate = startOfDay(startAt);
-    const dayEnd = addMinutes(selectedDate, 24 * 60);
-    const weekday = selectedDate.getDay();
     const settings = await this.getBookingSettings(tenantId);
+    const selectedDate = getDatePartsInTimeZone(startAt, settings.timezone);
+    const dayStart = buildDateWithTime(
+      selectedDate,
+      '00:00',
+      settings.timezone,
+    );
+    const dayEnd = buildDateWithTime(
+      addDaysToDateOnly(selectedDate, 1),
+      '00:00',
+      settings.timezone,
+    );
+    const weekday = getWeekdayForDateOnly(selectedDate);
 
     if (!isWithinMaxDaysAhead(selectedDate, settings)) {
-      throw new BadRequestException(
-        'Selected appointment time is not available.',
-      );
+      throw new BadRequestException(appointmentNotAvailableMessage);
     }
 
-    const earliestAllowedStart = getEarliestAllowedStart(
-      selectedDate,
-      settings,
-    );
+    const earliestAllowedStart = getEarliestAllowedStart(dayStart, settings);
     if (startAt < earliestAllowedStart) {
-      throw new BadRequestException(
-        'Selected appointment time is not available.',
-      );
+      throw new BadRequestException(appointmentNotAvailableMessage);
     }
 
     const availabilityRules =
@@ -275,16 +302,22 @@ export class AvailabilityService {
         },
       });
     const fitsAvailabilityRule = availabilityRules.some((rule) => {
-      const ruleStart = buildDateWithTime(selectedDate, rule.startTime);
-      const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
+      const ruleStart = buildDateWithTime(
+        selectedDate,
+        rule.startTime,
+        settings.timezone,
+      );
+      const ruleEnd = buildDateWithTime(
+        selectedDate,
+        rule.endTime,
+        settings.timezone,
+      );
 
       return startAt >= ruleStart && occupiedEndForCheck <= ruleEnd;
     });
 
     if (!fitsAvailabilityRule) {
-      throw new BadRequestException(
-        'Selected appointment time is not available.',
-      );
+      throw new BadRequestException(appointmentNotAvailableMessage);
     }
 
     const [appointments, blockedSlots] = await Promise.all([
@@ -305,7 +338,7 @@ export class AvailabilityService {
             lt: dayEnd,
           },
           endAt: {
-            gt: selectedDate,
+            gt: dayStart,
           },
         },
         include: {
@@ -323,7 +356,7 @@ export class AvailabilityService {
             lt: dayEnd,
           },
           endAt: {
-            gt: selectedDate,
+            gt: dayStart,
           },
         },
       }),
@@ -351,9 +384,7 @@ export class AvailabilityService {
     );
 
     if (overlapsExistingActivity) {
-      throw new BadRequestException(
-        'Selected appointment time is not available.',
-      );
+      throw new BadRequestException(appointmentNotAvailableMessage);
     }
   }
 
@@ -374,7 +405,7 @@ export class AvailabilityService {
 
     if (!service.isActive) {
       throw new BadRequestException(
-        'Service must be active to search availability.',
+        'El servicio debe estar activo para consultar disponibilidad.',
       );
     }
 
@@ -440,7 +471,7 @@ function buildEmptyResult({
   };
 }
 
-function parseLocalDate(value: string): Date {
+function parseDateOnly(value: string): DateOnlyParts {
   const parts = value.split('-').map(Number);
   const yearValue = parts[0];
   const monthValue = parts[1];
@@ -454,22 +485,52 @@ function parseLocalDate(value: string): Date {
     throw new BadRequestException('date must be a valid YYYY-MM-DD date.');
   }
 
-  const date = new Date(yearValue, monthValue - 1, dayValue);
+  const date = new Date(Date.UTC(yearValue, monthValue - 1, dayValue));
 
   if (
     Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== yearValue ||
-    date.getMonth() !== monthValue - 1 ||
-    date.getDate() !== dayValue
+    date.getUTCFullYear() !== yearValue ||
+    date.getUTCMonth() !== monthValue - 1 ||
+    date.getUTCDate() !== dayValue
   ) {
     throw new BadRequestException('date must be a valid YYYY-MM-DD date.');
   }
 
-  return date;
+  return {
+    year: yearValue,
+    month: monthValue,
+    day: dayValue,
+  };
 }
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function getDatePartsInTimeZone(date: Date, timezone: string): DateOnlyParts {
+  const parts = getFormattedParts(date, timezone);
+
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+  };
+}
+
+function addDaysToDateOnly(date: DateOnlyParts, days: number): DateOnlyParts {
+  const nextDate = new Date(
+    Date.UTC(date.year, date.month - 1, date.day + days),
+  );
+
+  return {
+    year: nextDate.getUTCFullYear(),
+    month: nextDate.getUTCMonth() + 1,
+    day: nextDate.getUTCDate(),
+  };
+}
+
+function getWeekdayForDateOnly(date: DateOnlyParts): number {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+}
+
+function dateOnlyToTime(date: DateOnlyParts): number {
+  return Date.UTC(date.year, date.month - 1, date.day);
 }
 
 function addMinutes(date: Date, minutes: number): Date {
@@ -486,12 +547,13 @@ function getLaterDate(firstDate: Date, secondDate: Date | undefined): Date {
 
 function buildCandidateTimesForRule(
   rule: { startTime: string; endTime: string },
-  selectedDate: Date,
+  selectedDate: DateOnlyParts,
+  timezone: string,
   stepMinutes: number,
 ): Date[] {
   const candidates: Date[] = [];
-  const ruleStart = buildDateWithTime(selectedDate, rule.startTime);
-  const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
+  const ruleStart = buildDateWithTime(selectedDate, rule.startTime, timezone);
+  const ruleEnd = buildDateWithTime(selectedDate, rule.endTime, timezone);
 
   for (
     let candidate = ruleStart;
@@ -504,15 +566,66 @@ function buildCandidateTimesForRule(
   return candidates;
 }
 
-function buildDateWithTime(date: Date, time: string): Date {
+function buildDateWithTime(
+  date: DateOnlyParts,
+  time: string,
+  timezone: string,
+): Date {
   const [hours = '0', minutes = '0'] = time.split(':');
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
+  const utcGuess = Date.UTC(
+    date.year,
+    date.month - 1,
+    date.day,
     Number(hours),
     Number(minutes),
   );
+  const firstOffset = getTimeZoneOffsetMs(new Date(utcGuess), timezone);
+  const firstDate = new Date(utcGuess - firstOffset);
+  const secondOffset = getTimeZoneOffsetMs(firstDate, timezone);
+
+  return new Date(utcGuess - secondOffset);
+}
+
+function getTimeZoneOffsetMs(date: Date, timezone: string): number {
+  const parts = getFormattedParts(date, timezone);
+  const timezoneDateAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+
+  return timezoneDateAsUtc - date.getTime();
+}
+
+function getFormattedParts(
+  date: Date,
+  timezone: string,
+): DateOnlyParts & { hour: number; minute: number; second: number } {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+    hour: getPart('hour'),
+    minute: getPart('minute'),
+    second: getPart('second'),
+  };
 }
 
 function getEarliestAllowedStart(
@@ -530,14 +643,13 @@ function getEarliestAllowedStart(
 }
 
 function isWithinMaxDaysAhead(
-  selectedDate: Date,
+  selectedDate: DateOnlyParts,
   settings: BookingSettingsSnapshot,
 ): boolean {
-  const todayStart = startOfDay(new Date());
-  const selectedDateStart = startOfDay(selectedDate);
-  const maxDate = addMinutes(todayStart, settings.maxDaysAhead * 24 * 60);
+  const today = getDatePartsInTimeZone(new Date(), settings.timezone);
+  const maxDate = addDaysToDateOnly(today, settings.maxDaysAhead);
 
-  return selectedDateStart <= maxDate;
+  return dateOnlyToTime(selectedDate) <= dateOnlyToTime(maxDate);
 }
 
 function intervalsOverlap(
@@ -549,8 +661,9 @@ function intervalsOverlap(
   return startA < endB && endA > startB;
 }
 
-function formatShortTime(value: Date): string {
+function formatShortTime(value: Date, timezone: string): string {
   return new Intl.DateTimeFormat('es-ES', {
+    timeZone: timezone,
     hour: '2-digit',
     minute: '2-digit',
   }).format(value);

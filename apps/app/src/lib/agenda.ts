@@ -224,6 +224,12 @@ export function cancelAppointment(id: string): Promise<Appointment> {
   });
 }
 
+export function deleteAppointmentPermanently(id: string): Promise<Appointment> {
+  return apiFetch<Appointment>(`/agenda/appointments/${id}/permanent`, {
+    method: 'DELETE',
+  });
+}
+
 export function fetchBlockedSlots(): Promise<BlockedSlot[]> {
   return apiFetch<BlockedSlot[]>('/agenda/blocked-slots');
 }

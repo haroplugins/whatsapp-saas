@@ -15,6 +15,7 @@ import {
   createAppointment,
   createBlockedSlot,
   deleteAgendaService,
+  deleteAppointmentPermanently,
   deleteBlockedSlot,
   fetchAgendaServices,
   fetchAppointments,
@@ -810,6 +811,23 @@ export default function AgendaPage() {
     }
   }
 
+  async function handleDeleteAppointmentPermanently(appointmentId: string) {
+    if (!window.confirm('¿Eliminar definitivamente esta cita cancelada?')) {
+      return;
+    }
+
+    try {
+      await deleteAppointmentPermanently(appointmentId);
+      setFeedback('Cita eliminada.');
+      await loadAgendaData();
+      refreshAvailability();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : 'No se pudo eliminar la cita.',
+      );
+    }
+  }
+
   function openEditBlockedSlotModal(blockedSlot: BlockedSlot) {
     setEditingBlockedSlotId(blockedSlot.id);
     setEditBlockedSlotStartAt(
@@ -1094,7 +1112,17 @@ export default function AgendaPage() {
                               >
                                 Cancelar
                               </button>
-                            ) : null}
+                            ) : (
+                              <button
+                                className="agenda-list-action agenda-list-action--danger"
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteAppointmentPermanently(item.id)
+                                }
+                              >
+                                Eliminar
+                              </button>
+                            )}
                           </div>
                         </>
                       ) : (
