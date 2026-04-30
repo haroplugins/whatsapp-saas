@@ -10,13 +10,17 @@ import {
   Service,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AvailabilityService } from './availability.service';
 import { AppointmentsFilterDto } from './dto/appointments-filter.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly availabilityService: AvailabilityService,
+  ) {}
 
   async listByTenant(
     tenantId: string,
@@ -58,8 +62,18 @@ export class AppointmentsService {
     const endAt = createAppointmentDto.endAt
       ? parseDate(createAppointmentDto.endAt, 'endAt')
       : calculateEndAt(startAt, service);
+    const status = createAppointmentDto.status ?? AppointmentStatus.PENDING;
 
     ensureStartBeforeEnd(startAt, endAt);
+
+    if (service && isActiveAppointmentStatus(status)) {
+      await this.availabilityService.assertAppointmentSlotAvailable({
+        tenantId,
+        serviceId: service.id,
+        startAt,
+        endAt,
+      });
+    }
 
     return this.prismaService.appointment.create({
       data: {
@@ -69,7 +83,7 @@ export class AppointmentsService {
         customerPhone: createAppointmentDto.customerPhone,
         startAt,
         endAt,
-        status: createAppointmentDto.status ?? AppointmentStatus.PENDING,
+        status,
         source: createAppointmentDto.source ?? AppointmentSource.MANUAL,
         notes: createAppointmentDto.notes,
       },
@@ -82,24 +96,44 @@ export class AppointmentsService {
     updateAppointmentDto: UpdateAppointmentDto,
   ): Promise<Appointment> {
     const appointment = await this.getById(tenantId, appointmentId);
-    const service = updateAppointmentDto.serviceId
-      ? await this.getServiceById(tenantId, updateAppointmentDto.serviceId)
+    const hasStartAtChange = updateAppointmentDto.startAt !== undefined;
+    const hasServiceChange = updateAppointmentDto.serviceId !== undefined;
+    const finalServiceId =
+      updateAppointmentDto.serviceId ?? appointment.serviceId;
+    const service = finalServiceId
+      ? await this.getServiceById(tenantId, finalServiceId)
       : null;
     const startAt = updateAppointmentDto.startAt
       ? parseDate(updateAppointmentDto.startAt, 'startAt')
       : appointment.startAt;
     const endAt = updateAppointmentDto.endAt
       ? parseDate(updateAppointmentDto.endAt, 'endAt')
-      : appointment.endAt;
+      : service && (hasStartAtChange || hasServiceChange)
+        ? calculateEndAt(startAt, service)
+        : appointment.endAt;
+    const status = updateAppointmentDto.status ?? appointment.status;
 
     ensureStartBeforeEnd(startAt, endAt);
+
+    if (service && isActiveAppointmentStatus(status)) {
+      await this.availabilityService.assertAppointmentSlotAvailable({
+        tenantId,
+        serviceId: service.id,
+        startAt,
+        endAt,
+        appointmentIdToIgnore: appointmentId,
+      });
+    }
 
     return this.prismaService.appointment.update({
       where: {
         id: appointmentId,
       },
       data: {
-        serviceId: updateAppointmentDto.serviceId ? service?.id : undefined,
+        serviceId:
+          updateAppointmentDto.serviceId !== undefined
+            ? service?.id
+            : undefined,
         customerName: updateAppointmentDto.customerName,
         customerPhone: updateAppointmentDto.customerPhone,
         startAt: updateAppointmentDto.startAt ? startAt : undefined,
@@ -185,4 +219,8 @@ function ensureStartBeforeEnd(startAt: Date, endAt: Date): void {
   if (startAt >= endAt) {
     throw new BadRequestException('startAt must be before endAt.');
   }
+}
+
+function isActiveAppointmentStatus(status: AppointmentStatus): boolean {
+  return status !== AppointmentStatus.CANCELLED;
 }

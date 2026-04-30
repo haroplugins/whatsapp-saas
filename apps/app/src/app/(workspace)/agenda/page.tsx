@@ -677,7 +677,9 @@ export default function AgendaPage() {
     if (!selectedAvailabilityService) return;
 
     setQuickAppointmentServiceId(selectedAvailabilityService.id);
-    setQuickAppointmentStartAt(toDateTimeLocalValue(new Date(slot.startAt)));
+    setQuickAppointmentStartAt(
+      toDateTimeLocalFromDateAndTime(selectedDate, slot.label),
+    );
     setQuickAppointmentCustomerName('');
     setQuickAppointmentCustomerPhone('');
     setQuickAppointmentNotes('');
@@ -2364,6 +2366,18 @@ function toDateOnlyValue(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
+}
+
+function toDateTimeLocalFromDateAndTime(date: Date, timeLabel: string): string {
+  const timeMatch = timeLabel.match(/^(\d{1,2}):(\d{2})/);
+
+  if (!timeMatch) {
+    return `${toDateOnlyValue(date)}T00:00`;
+  }
+
+  const [, hours = '0', minutes = '0'] = timeMatch;
+
+  return `${toDateOnlyValue(date)}T${hours.padStart(2, '0')}:${minutes}`;
 }
 
 function withTime(date: Date, hours: number, minutes: number): Date {

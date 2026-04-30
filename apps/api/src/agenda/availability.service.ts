@@ -25,6 +25,14 @@ type AvailabilitySlot = {
   label: string;
 };
 
+type AssertAppointmentSlotAvailableInput = {
+  tenantId: string;
+  serviceId: string;
+  startAt: Date;
+  endAt?: Date;
+  appointmentIdToIgnore?: string;
+};
+
 type SearchAvailabilityResult = {
   date: string;
   service: {
@@ -224,6 +232,131 @@ export class AvailabilityService {
     };
   }
 
+  async assertAppointmentSlotAvailable({
+    tenantId,
+    serviceId,
+    startAt,
+    endAt,
+    appointmentIdToIgnore,
+  }: AssertAppointmentSlotAvailableInput): Promise<void> {
+    const service = await this.getActiveService(tenantId, serviceId);
+    const candidateEnd = getLaterDate(
+      addMinutes(startAt, service.durationMinutes),
+      endAt,
+    );
+    const occupiedEndForCheck = addMinutes(candidateEnd, service.bufferMinutes);
+    const selectedDate = startOfDay(startAt);
+    const dayEnd = addMinutes(selectedDate, 24 * 60);
+    const weekday = selectedDate.getDay();
+    const settings = await this.getBookingSettings(tenantId);
+
+    if (!isWithinMaxDaysAhead(selectedDate, settings)) {
+      throw new BadRequestException(
+        'Selected appointment time is not available.',
+      );
+    }
+
+    const earliestAllowedStart = getEarliestAllowedStart(
+      selectedDate,
+      settings,
+    );
+    if (startAt < earliestAllowedStart) {
+      throw new BadRequestException(
+        'Selected appointment time is not available.',
+      );
+    }
+
+    const availabilityRules =
+      await this.prismaService.availabilityRule.findMany({
+        where: {
+          tenantId,
+          weekday,
+          isActive: true,
+        },
+      });
+    const fitsAvailabilityRule = availabilityRules.some((rule) => {
+      const ruleStart = buildDateWithTime(selectedDate, rule.startTime);
+      const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
+
+      return startAt >= ruleStart && occupiedEndForCheck <= ruleEnd;
+    });
+
+    if (!fitsAvailabilityRule) {
+      throw new BadRequestException(
+        'Selected appointment time is not available.',
+      );
+    }
+
+    const [appointments, blockedSlots] = await Promise.all([
+      this.prismaService.appointment.findMany({
+        where: {
+          tenantId,
+          ...(appointmentIdToIgnore
+            ? {
+                id: {
+                  not: appointmentIdToIgnore,
+                },
+              }
+            : {}),
+          status: {
+            not: AppointmentStatus.CANCELLED,
+          },
+          startAt: {
+            lt: dayEnd,
+          },
+          endAt: {
+            gt: selectedDate,
+          },
+        },
+        include: {
+          service: {
+            select: {
+              bufferMinutes: true,
+            },
+          },
+        },
+      }),
+      this.prismaService.blockedSlot.findMany({
+        where: {
+          tenantId,
+          startAt: {
+            lt: dayEnd,
+          },
+          endAt: {
+            gt: selectedDate,
+          },
+        },
+      }),
+    ]);
+    const occupiedIntervals: OccupiedInterval[] = [
+      ...appointments.map((appointment) => ({
+        start: appointment.startAt,
+        end: addMinutes(
+          appointment.endAt,
+          appointment.service?.bufferMinutes ?? 0,
+        ),
+      })),
+      ...blockedSlots.map((blockedSlot) => ({
+        start: blockedSlot.startAt,
+        end: blockedSlot.endAt,
+      })),
+    ];
+    const overlapsExistingActivity = occupiedIntervals.some((interval) =>
+      intervalsOverlap(
+        startAt,
+        occupiedEndForCheck,
+        interval.start,
+        interval.end,
+      ),
+    );
+
+    if (overlapsExistingActivity) {
+      throw new BadRequestException(
+        'Selected appointment time is not available.',
+      );
+    }
+  }
+
   private async getActiveService(
     tenantId: string,
     serviceId: string,
@@ -341,6 +474,14 @@ function startOfDay(date: Date): Date {
 
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function getLaterDate(firstDate: Date, secondDate: Date | undefined): Date {
+  if (!secondDate) {
+    return firstDate;
+  }
+
+  return firstDate > secondDate ? firstDate : secondDate;
 }
 
 function buildCandidateTimesForRule(
