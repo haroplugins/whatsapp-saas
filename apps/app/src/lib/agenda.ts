@@ -97,6 +97,22 @@ export type CreateBlockedSlotInput = {
   reason?: string;
 };
 
+export type UpdateAppointmentInput = {
+  customerName?: string;
+  customerPhone?: string;
+  serviceId?: string;
+  startAt?: string;
+  endAt?: string;
+  status?: AppointmentStatus;
+  notes?: string;
+};
+
+export type UpdateBlockedSlotInput = {
+  startAt?: string;
+  endAt?: string;
+  reason?: string;
+};
+
 export function fetchAgendaServices(): Promise<AgendaService[]> {
   return apiFetch<AgendaService[]>('/agenda/services');
 }
@@ -127,6 +143,22 @@ export function createAppointment(
   });
 }
 
+export function updateAppointment(
+  id: string,
+  input: UpdateAppointmentInput,
+): Promise<Appointment> {
+  return apiFetch<Appointment>(`/agenda/appointments/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function cancelAppointment(id: string): Promise<Appointment> {
+  return apiFetch<Appointment>(`/agenda/appointments/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export function fetchBlockedSlots(): Promise<BlockedSlot[]> {
   return apiFetch<BlockedSlot[]>('/agenda/blocked-slots');
 }
@@ -137,6 +169,22 @@ export function createBlockedSlot(
   return apiFetch<BlockedSlot>('/agenda/blocked-slots', {
     method: 'POST',
     body: input,
+  });
+}
+
+export function updateBlockedSlot(
+  id: string,
+  input: UpdateBlockedSlotInput,
+): Promise<BlockedSlot> {
+  return apiFetch<BlockedSlot>(`/agenda/blocked-slots/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteBlockedSlot(id: string): Promise<BlockedSlot> {
+  return apiFetch<BlockedSlot>(`/agenda/blocked-slots/${id}`, {
+    method: 'DELETE',
   });
 }
 

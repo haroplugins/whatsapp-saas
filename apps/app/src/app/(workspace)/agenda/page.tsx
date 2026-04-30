@@ -8,15 +8,20 @@ import {
   type AvailabilityRuleInput,
   type BlockedSlot,
   type BookingSettings,
+  type AppointmentStatus,
+  cancelAppointment,
   createAgendaService,
   createAppointment,
   createBlockedSlot,
+  deleteBlockedSlot,
   fetchAgendaServices,
   fetchAppointments,
   fetchAvailabilityRules,
   fetchBlockedSlots,
   fetchBookingSettings,
+  updateAppointment,
   updateAvailabilityRules,
+  updateBlockedSlot,
 } from '../../../lib/agenda';
 import {
   defaultTenantEntitlements,
@@ -67,6 +72,7 @@ type DayActivityItem =
       customerName: string;
       serviceName: string;
       status: string;
+      appointment: Appointment;
     }
   | {
       id: string;
@@ -74,6 +80,7 @@ type DayActivityItem =
       startAt: string;
       endAt: string;
       reason: string;
+      blockedSlot: BlockedSlot;
     };
 
 const now = new Date();
@@ -86,6 +93,16 @@ const availabilityWeekdays = [
   { label: 'Viernes', weekday: 5 },
   { label: 'Sabado', weekday: 6 },
   { label: 'Domingo', weekday: 0 },
+];
+
+const appointmentStatusOptions: Array<{
+  value: AppointmentStatus;
+  label: string;
+}> = [
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'CONFIRMED', label: 'Confirmada' },
+  { value: 'COMPLETED', label: 'Completada' },
+  { value: 'CANCELLED', label: 'Cancelada' },
 ];
 
 export default function AgendaPage() {
@@ -120,6 +137,30 @@ export default function AgendaPage() {
     useState('');
   const [quickAppointmentNotes, setQuickAppointmentNotes] = useState('');
   const [quickAppointmentError, setQuickAppointmentError] = useState<
+    string | null
+  >(null);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<
+    string | null
+  >(null);
+  const [editAppointmentCustomerName, setEditAppointmentCustomerName] =
+    useState('');
+  const [editAppointmentCustomerPhone, setEditAppointmentCustomerPhone] =
+    useState('');
+  const [editAppointmentServiceId, setEditAppointmentServiceId] = useState('');
+  const [editAppointmentStartAt, setEditAppointmentStartAt] = useState('');
+  const [editAppointmentStatus, setEditAppointmentStatus] =
+    useState<AppointmentStatus>('PENDING');
+  const [editAppointmentNotes, setEditAppointmentNotes] = useState('');
+  const [editAppointmentError, setEditAppointmentError] = useState<
+    string | null
+  >(null);
+  const [editingBlockedSlotId, setEditingBlockedSlotId] = useState<
+    string | null
+  >(null);
+  const [editBlockedSlotStartAt, setEditBlockedSlotStartAt] = useState('');
+  const [editBlockedSlotEndAt, setEditBlockedSlotEndAt] = useState('');
+  const [editBlockedSlotReason, setEditBlockedSlotReason] = useState('');
+  const [editBlockedSlotError, setEditBlockedSlotError] = useState<
     string | null
   >(null);
 
@@ -190,6 +231,13 @@ export default function AgendaPage() {
         (service) => service.id === quickAppointmentServiceId,
       ) ?? null,
     [activeServices, quickAppointmentServiceId],
+  );
+  const editingAppointment = useMemo(
+    () =>
+      appointments.find(
+        (appointment) => appointment.id === editingAppointmentId,
+      ) ?? null,
+    [appointments, editingAppointmentId],
   );
   const dayActivityItems = useMemo(
     () =>
@@ -500,6 +548,147 @@ export default function AgendaPage() {
     }
   }
 
+  function openEditAppointmentModal(appointment: Appointment) {
+    setEditingAppointmentId(appointment.id);
+    setEditAppointmentCustomerName(appointment.customerName);
+    setEditAppointmentCustomerPhone(appointment.customerPhone ?? '');
+    setEditAppointmentServiceId(
+      appointment.serviceId ?? activeServices[0]?.id ?? '',
+    );
+    setEditAppointmentStartAt(
+      toDateTimeLocalValue(new Date(appointment.startAt)),
+    );
+    setEditAppointmentStatus(appointment.status);
+    setEditAppointmentNotes(appointment.notes ?? '');
+    setEditAppointmentError(null);
+  }
+
+  function closeEditAppointmentModal() {
+    setEditingAppointmentId(null);
+    setEditAppointmentError(null);
+  }
+
+  async function handleUpdateAppointment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingAppointmentId) return;
+
+    const service = services.find(
+      (currentService) => currentService.id === editAppointmentServiceId,
+    );
+    const startAt = new Date(editAppointmentStartAt);
+    const endAt = service
+      ? addMinutes(startAt, service.durationMinutes)
+      : editingAppointment
+        ? new Date(editingAppointment.endAt)
+        : startAt;
+
+    try {
+      await updateAppointment(editingAppointmentId, {
+        customerName: editAppointmentCustomerName.trim(),
+        customerPhone: editAppointmentCustomerPhone.trim() || undefined,
+        serviceId: editAppointmentServiceId,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        status: editAppointmentStatus,
+        notes: editAppointmentNotes.trim() || undefined,
+      });
+      closeEditAppointmentModal();
+      setFeedback('Cita actualizada.');
+      await loadAgendaData();
+    } catch (error) {
+      setEditAppointmentError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar la cita.',
+      );
+    }
+  }
+
+  async function updateAppointmentStatus(
+    appointmentId: string,
+    status: AppointmentStatus,
+    successMessage: string,
+  ) {
+    try {
+      await updateAppointment(appointmentId, { status });
+      setFeedback(successMessage);
+      await loadAgendaData();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar la cita.',
+      );
+    }
+  }
+
+  async function handleCancelAppointment(appointmentId: string) {
+    try {
+      await cancelAppointment(appointmentId);
+      setFeedback('Cita cancelada.');
+      await loadAgendaData();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : 'No se pudo cancelar la cita.',
+      );
+    }
+  }
+
+  function openEditBlockedSlotModal(blockedSlot: BlockedSlot) {
+    setEditingBlockedSlotId(blockedSlot.id);
+    setEditBlockedSlotStartAt(
+      toDateTimeLocalValue(new Date(blockedSlot.startAt)),
+    );
+    setEditBlockedSlotEndAt(toDateTimeLocalValue(new Date(blockedSlot.endAt)));
+    setEditBlockedSlotReason(blockedSlot.reason ?? '');
+    setEditBlockedSlotError(null);
+  }
+
+  function closeEditBlockedSlotModal() {
+    setEditingBlockedSlotId(null);
+    setEditBlockedSlotError(null);
+  }
+
+  async function handleUpdateBlockedSlot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingBlockedSlotId) return;
+
+    try {
+      await updateBlockedSlot(editingBlockedSlotId, {
+        startAt: new Date(editBlockedSlotStartAt).toISOString(),
+        endAt: new Date(editBlockedSlotEndAt).toISOString(),
+        reason: editBlockedSlotReason.trim() || undefined,
+      });
+      closeEditBlockedSlotModal();
+      setFeedback('Bloqueo actualizado.');
+      await loadAgendaData();
+    } catch (error) {
+      setEditBlockedSlotError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el bloqueo.',
+      );
+    }
+  }
+
+  async function handleDeleteBlockedSlot(blockedSlotId: string) {
+    if (!window.confirm('¿Eliminar este bloqueo?')) {
+      return;
+    }
+
+    try {
+      await deleteBlockedSlot(blockedSlotId);
+      setFeedback('Bloqueo eliminado.');
+      await loadAgendaData();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo eliminar el bloqueo.',
+      );
+    }
+  }
+
   return (
     <section className="agenda-page">
       <div className="dashboard-hero">
@@ -661,11 +850,80 @@ export default function AgendaPage() {
                             {item.serviceName} -{' '}
                             {formatAppointmentStatus(item.status)}
                           </small>
+                          <div className="agenda-list-item__actions">
+                            <button
+                              className="agenda-list-action"
+                              type="button"
+                              onClick={() =>
+                                openEditAppointmentModal(item.appointment)
+                              }
+                            >
+                              Editar
+                            </button>
+                            {item.status === 'PENDING' ? (
+                              <button
+                                className="agenda-list-action"
+                                type="button"
+                                onClick={() =>
+                                  updateAppointmentStatus(
+                                    item.id,
+                                    'CONFIRMED',
+                                    'Cita confirmada.',
+                                  )
+                                }
+                              >
+                                Confirmar
+                              </button>
+                            ) : null}
+                            {item.status === 'PENDING' ||
+                            item.status === 'CONFIRMED' ? (
+                              <button
+                                className="agenda-list-action"
+                                type="button"
+                                onClick={() =>
+                                  updateAppointmentStatus(
+                                    item.id,
+                                    'COMPLETED',
+                                    'Cita completada.',
+                                  )
+                                }
+                              >
+                                Completar
+                              </button>
+                            ) : null}
+                            {item.status !== 'CANCELLED' ? (
+                              <button
+                                className="agenda-list-action agenda-list-action--danger"
+                                type="button"
+                                onClick={() => handleCancelAppointment(item.id)}
+                              >
+                                Cancelar
+                              </button>
+                            ) : null}
+                          </div>
                         </>
                       ) : (
                         <>
                           <strong>{item.reason}</strong>
                           <small>Bloqueo</small>
+                          <div className="agenda-list-item__actions">
+                            <button
+                              className="agenda-list-action"
+                              type="button"
+                              onClick={() =>
+                                openEditBlockedSlotModal(item.blockedSlot)
+                              }
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="agenda-list-action agenda-list-action--danger"
+                              type="button"
+                              onClick={() => handleDeleteBlockedSlot(item.id)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
                         </>
                       )}
                     </article>
@@ -709,7 +967,7 @@ export default function AgendaPage() {
                           className="agenda-slot-chip"
                           type="button"
                           onClick={() => selectAvailableSlot(slot)}
-                          title="Rellenar el formulario de cita con esta hora"
+                          title="Crear cita en este hueco"
                         >
                           {formatShortTime(slot)}
                         </button>
@@ -1195,6 +1453,227 @@ export default function AgendaPage() {
           </form>
         </div>
       ) : null}
+
+      {editingAppointmentId ? (
+        <div
+          className="quick-appointment-modal-backdrop"
+          role="presentation"
+          onClick={closeEditAppointmentModal}
+        >
+          <form
+            className="quick-appointment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-appointment-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleUpdateAppointment}
+          >
+            <div className="quick-appointment-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Agenda</span>
+                <h3 id="edit-appointment-modal-title">Editar cita</h3>
+                <p>Actualiza los datos de la cita y su estado.</p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeEditAppointmentModal}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="quick-appointment-modal__body">
+              {editAppointmentError ? (
+                <p className="form-error">{editAppointmentError}</p>
+              ) : null}
+
+              <div className="business-form">
+                <label className="business-form__field">
+                  <span>Cliente</span>
+                  <input
+                    required
+                    type="text"
+                    value={editAppointmentCustomerName}
+                    onChange={(event) =>
+                      setEditAppointmentCustomerName(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Telefono</span>
+                  <input
+                    type="text"
+                    value={editAppointmentCustomerPhone}
+                    onChange={(event) =>
+                      setEditAppointmentCustomerPhone(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Servicio</span>
+                  <select
+                    required
+                    value={editAppointmentServiceId}
+                    onChange={(event) =>
+                      setEditAppointmentServiceId(event.target.value)
+                    }
+                  >
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} - {service.durationMinutes} min
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="business-form__field">
+                  <span>Fecha y hora</span>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={editAppointmentStartAt}
+                    onChange={(event) =>
+                      setEditAppointmentStartAt(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Estado</span>
+                  <select
+                    value={editAppointmentStatus}
+                    onChange={(event) =>
+                      setEditAppointmentStatus(
+                        event.target.value as AppointmentStatus,
+                      )
+                    }
+                  >
+                    {appointmentStatusOptions.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="business-form__field business-form__field--full">
+                  <span>Notas</span>
+                  <textarea
+                    value={editAppointmentNotes}
+                    onChange={(event) =>
+                      setEditAppointmentNotes(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="quick-appointment-modal__footer">
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeEditAppointmentModal}
+              >
+                Cancelar
+              </button>
+              <button className="button button--primary" type="submit">
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {editingBlockedSlotId ? (
+        <div
+          className="quick-appointment-modal-backdrop"
+          role="presentation"
+          onClick={closeEditBlockedSlotModal}
+        >
+          <form
+            className="quick-appointment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-blocked-slot-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleUpdateBlockedSlot}
+          >
+            <div className="quick-appointment-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Agenda</span>
+                <h3 id="edit-blocked-slot-modal-title">Editar bloqueo</h3>
+                <p>Ajusta el horario o motivo del bloqueo.</p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeEditBlockedSlotModal}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="quick-appointment-modal__body">
+              {editBlockedSlotError ? (
+                <p className="form-error">{editBlockedSlotError}</p>
+              ) : null}
+
+              <div className="business-form">
+                <label className="business-form__field">
+                  <span>Inicio</span>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={editBlockedSlotStartAt}
+                    onChange={(event) =>
+                      setEditBlockedSlotStartAt(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Fin</span>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={editBlockedSlotEndAt}
+                    onChange={(event) =>
+                      setEditBlockedSlotEndAt(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field business-form__field--full">
+                  <span>Motivo</span>
+                  <input
+                    type="text"
+                    value={editBlockedSlotReason}
+                    onChange={(event) =>
+                      setEditBlockedSlotReason(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="quick-appointment-modal__footer">
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeEditBlockedSlotModal}
+              >
+                Cancelar
+              </button>
+              <button className="button button--primary" type="submit">
+                Guardar bloqueo
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1238,6 +1717,7 @@ function buildDayActivityItems(
       customerName: appointment.customerName,
       serviceName: getServiceName(appointment.serviceId, services),
       status: appointment.status,
+      appointment,
     }),
   );
   const blockedSlotItems: DayActivityItem[] = blockedSlots.map(
@@ -1247,6 +1727,7 @@ function buildDayActivityItems(
       startAt: blockedSlot.startAt,
       endAt: blockedSlot.endAt,
       reason: blockedSlot.reason || 'Bloqueo manual',
+      blockedSlot,
     }),
   );
 
@@ -1285,10 +1766,12 @@ function calculateAvailableSlots({
         timeToMinutes(secondRule.startTime),
     );
   const occupiedIntervals = [
-    ...appointments.map((appointment) => ({
-      start: new Date(appointment.startAt),
-      end: new Date(appointment.endAt),
-    })),
+    ...appointments
+      .filter((appointment) => appointment.status !== 'CANCELLED')
+      .map((appointment) => ({
+        start: new Date(appointment.startAt),
+        end: new Date(appointment.endAt),
+      })),
     ...blockedSlots.map((blockedSlot) => ({
       start: new Date(blockedSlot.startAt),
       end: new Date(blockedSlot.endAt),

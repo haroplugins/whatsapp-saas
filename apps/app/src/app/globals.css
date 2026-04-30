@@ -2036,6 +2036,43 @@ input:focus {
   font-size: 0.84rem;
 }
 
+.agenda-list-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.25rem;
+}
+
+.agenda-list-action {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 0.34rem 0.58rem;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.agenda-list-action:hover {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.agenda-list-action--danger {
+  border-color: rgba(182, 57, 34, 0.16);
+  background: rgba(255, 242, 239, 0.82);
+  color: #9f2d1d;
+}
+
 .agenda-list-item--blocked-slot {
   border-color: rgba(224, 142, 77, 0.22);
   background: rgba(255, 248, 240, 0.78);
