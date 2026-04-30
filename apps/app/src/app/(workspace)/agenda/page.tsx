@@ -109,6 +109,19 @@ export default function AgendaPage() {
   const [availabilityForm, setAvailabilityForm] = useState<
     AvailabilityDayForm[]
   >(() => buildDefaultAvailabilityForm());
+  const [isQuickAppointmentModalOpen, setIsQuickAppointmentModalOpen] =
+    useState(false);
+  const [quickAppointmentServiceId, setQuickAppointmentServiceId] =
+    useState('');
+  const [quickAppointmentStartAt, setQuickAppointmentStartAt] = useState('');
+  const [quickAppointmentCustomerName, setQuickAppointmentCustomerName] =
+    useState('');
+  const [quickAppointmentCustomerPhone, setQuickAppointmentCustomerPhone] =
+    useState('');
+  const [quickAppointmentNotes, setQuickAppointmentNotes] = useState('');
+  const [quickAppointmentError, setQuickAppointmentError] = useState<
+    string | null
+  >(null);
 
   const [serviceName, setServiceName] = useState('');
   const [serviceDuration, setServiceDuration] = useState('45');
@@ -170,6 +183,13 @@ export default function AgendaPage() {
         (service) => service.id === selectedAvailabilityServiceId,
       ) ?? null,
     [activeServices, selectedAvailabilityServiceId],
+  );
+  const quickAppointmentService = useMemo(
+    () =>
+      activeServices.find(
+        (service) => service.id === quickAppointmentServiceId,
+      ) ?? null,
+    [activeServices, quickAppointmentServiceId],
   );
   const dayActivityItems = useMemo(
     () =>
@@ -438,8 +458,46 @@ export default function AgendaPage() {
   function selectAvailableSlot(slot: Date) {
     if (!selectedAvailabilityService) return;
 
-    setAppointmentServiceId(selectedAvailabilityService.id);
-    setAppointmentStartAt(toDateTimeLocalValue(slot));
+    setQuickAppointmentServiceId(selectedAvailabilityService.id);
+    setQuickAppointmentStartAt(toDateTimeLocalValue(slot));
+    setQuickAppointmentCustomerName('');
+    setQuickAppointmentCustomerPhone('');
+    setQuickAppointmentNotes('');
+    setQuickAppointmentError(null);
+    setIsQuickAppointmentModalOpen(true);
+  }
+
+  function closeQuickAppointmentModal() {
+    setIsQuickAppointmentModalOpen(false);
+    setQuickAppointmentError(null);
+  }
+
+  async function handleCreateQuickAppointment(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!canUseAgenda || !quickAppointmentServiceId) return;
+
+    try {
+      await createAppointment({
+        customerName: quickAppointmentCustomerName.trim(),
+        customerPhone: quickAppointmentCustomerPhone.trim() || undefined,
+        serviceId: quickAppointmentServiceId,
+        startAt: new Date(quickAppointmentStartAt).toISOString(),
+        notes: quickAppointmentNotes.trim() || undefined,
+      });
+      setIsQuickAppointmentModalOpen(false);
+      setQuickAppointmentCustomerName('');
+      setQuickAppointmentCustomerPhone('');
+      setQuickAppointmentNotes('');
+      setQuickAppointmentError(null);
+      setFeedback('Cita creada.');
+      await loadAgendaData();
+    } catch (error) {
+      setQuickAppointmentError(
+        error instanceof Error ? error.message : 'No se pudo crear la cita.',
+      );
+    }
   }
 
   return (
@@ -1009,6 +1067,132 @@ export default function AgendaPage() {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {isQuickAppointmentModalOpen ? (
+        <div
+          className="quick-appointment-modal-backdrop"
+          role="presentation"
+          onClick={closeQuickAppointmentModal}
+        >
+          <form
+            className="quick-appointment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-appointment-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleCreateQuickAppointment}
+          >
+            <div className="quick-appointment-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Agenda</span>
+                <h3 id="quick-appointment-modal-title">Crear cita</h3>
+                <p>
+                  Confirma el servicio y la hora elegida antes de registrar la
+                  cita.
+                </p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeQuickAppointmentModal}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="quick-appointment-modal__body">
+              {quickAppointmentError ? (
+                <p className="form-error">{quickAppointmentError}</p>
+              ) : null}
+
+              <div className="business-form">
+                <label className="business-form__field">
+                  <span>Servicio</span>
+                  <select
+                    required
+                    value={quickAppointmentServiceId}
+                    onChange={(event) =>
+                      setQuickAppointmentServiceId(event.target.value)
+                    }
+                  >
+                    {activeServices.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} - {service.durationMinutes} min
+                      </option>
+                    ))}
+                  </select>
+                  {quickAppointmentService ? (
+                    <small>
+                      Duracion {quickAppointmentService.durationMinutes} min
+                      {quickAppointmentService.bufferMinutes > 0
+                        ? ` + buffer ${quickAppointmentService.bufferMinutes} min`
+                        : ''}
+                    </small>
+                  ) : null}
+                </label>
+
+                <label className="business-form__field">
+                  <span>Fecha y hora</span>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={quickAppointmentStartAt}
+                    onChange={(event) =>
+                      setQuickAppointmentStartAt(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Cliente</span>
+                  <input
+                    required
+                    type="text"
+                    value={quickAppointmentCustomerName}
+                    onChange={(event) =>
+                      setQuickAppointmentCustomerName(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field">
+                  <span>Telefono</span>
+                  <input
+                    type="text"
+                    value={quickAppointmentCustomerPhone}
+                    onChange={(event) =>
+                      setQuickAppointmentCustomerPhone(event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="business-form__field business-form__field--full">
+                  <span>Notas</span>
+                  <textarea
+                    value={quickAppointmentNotes}
+                    onChange={(event) =>
+                      setQuickAppointmentNotes(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="quick-appointment-modal__footer">
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeQuickAppointmentModal}
+              >
+                Cancelar
+              </button>
+              <button className="button button--primary" type="submit">
+                Crear cita
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
     </section>

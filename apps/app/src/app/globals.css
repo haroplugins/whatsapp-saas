@@ -2300,6 +2300,92 @@ input:focus {
   border-top: 1px solid var(--line);
 }
 
+.quick-appointment-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 20, 16, 0.42);
+  padding: 1.5rem;
+}
+
+.quick-appointment-modal {
+  display: grid;
+  width: min(100%, 720px);
+  max-height: min(92vh, 760px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface-strong);
+  box-shadow: 0 24px 70px rgba(17, 55, 47, 0.24);
+  overflow: hidden;
+}
+
+.quick-appointment-modal__header,
+.quick-appointment-modal__body,
+.quick-appointment-modal__footer {
+  padding: 1.2rem;
+}
+
+.quick-appointment-modal__header,
+.quick-appointment-modal__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.quick-appointment-modal__header {
+  border-bottom: 1px solid var(--line);
+}
+
+.quick-appointment-modal__header h3 {
+  margin: 0.65rem 0 0.4rem;
+  font-family: Bahnschrift, 'Arial Narrow', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.quick-appointment-modal__header p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.quick-appointment-modal__body {
+  display: grid;
+  gap: 1rem;
+  overflow: auto;
+}
+
+.quick-appointment-modal__body select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%)
+      calc(100% - 18px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%)
+      calc(100% - 13px) 50% / 5px 5px no-repeat,
+    #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
+}
+
+.quick-appointment-modal__body select:focus {
+  outline: none;
+  border-color: rgba(13, 138, 106, 0.44);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
+}
+
+.quick-appointment-modal__footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+}
+
 .automation-card {
   display: grid;
   gap: 1rem;
@@ -2869,12 +2955,15 @@ input:focus {
     grid-template-columns: 1fr;
   }
 
-  .availability-modal-backdrop {
+  .availability-modal-backdrop,
+  .quick-appointment-modal-backdrop {
     padding: 0.75rem;
   }
 
   .availability-modal__header,
-  .availability-modal__footer {
+  .availability-modal__footer,
+  .quick-appointment-modal__header,
+  .quick-appointment-modal__footer {
     align-items: stretch;
     flex-direction: column;
   }
