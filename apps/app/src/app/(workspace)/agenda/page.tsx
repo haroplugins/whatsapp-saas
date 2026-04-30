@@ -256,6 +256,7 @@ export default function AgendaPage() {
     return calculateAvailableSlots({
       selectedDate,
       service: selectedAvailabilityService,
+      services,
       availabilityRules,
       appointments: selectedAppointments,
       blockedSlots: selectedBlockedSlots,
@@ -264,6 +265,7 @@ export default function AgendaPage() {
   }, [
     availabilityRules,
     bookingSettings,
+    services,
     selectedAppointments,
     selectedAvailabilityService,
     selectedBlockedSlots,
@@ -1758,6 +1760,7 @@ function buildDayActivityItems(
 function calculateAvailableSlots({
   selectedDate,
   service,
+  services,
   availabilityRules,
   appointments,
   blockedSlots,
@@ -1765,6 +1768,7 @@ function calculateAvailableSlots({
 }: {
   selectedDate: Date;
   service: AgendaService;
+  services: AgendaService[];
   availabilityRules: AvailabilityRule[];
   appointments: Appointment[];
   blockedSlots: BlockedSlot[];
@@ -1783,10 +1787,17 @@ function calculateAvailableSlots({
         timeToMinutes(secondRule.startTime),
     );
   const occupiedIntervals = [
-    ...appointments.filter(isActiveAppointment).map((appointment) => ({
-      start: new Date(appointment.startAt),
-      end: new Date(appointment.endAt),
-    })),
+    ...appointments.filter(isActiveAppointment).map((appointment) => {
+      const bufferMinutes = getServiceBufferMinutes(
+        appointment.serviceId,
+        services,
+      );
+
+      return {
+        start: new Date(appointment.startAt),
+        end: addMinutes(new Date(appointment.endAt), bufferMinutes),
+      };
+    }),
     ...blockedSlots.map((blockedSlot) => ({
       start: new Date(blockedSlot.startAt),
       end: new Date(blockedSlot.endAt),
@@ -1806,7 +1817,7 @@ function calculateAvailableSlots({
       );
       const ruleEnd = buildDateWithTime(selectedDate, rule.endTime);
 
-      if (candidateEnd > ruleEnd) {
+      if (occupiedEndForCheck > ruleEnd) {
         return false;
       }
 
@@ -2190,6 +2201,15 @@ function formatAppointmentStatus(status: string): string {
 
 function isActiveAppointment(appointment: Appointment): boolean {
   return appointment.status !== 'CANCELLED';
+}
+
+function getServiceBufferMinutes(
+  serviceId: string | null | undefined,
+  services: AgendaService[],
+): number {
+  return (
+    services.find((service) => service.id === serviceId)?.bufferMinutes ?? 0
+  );
 }
 
 function getAppointmentSummary(dayAppointments: Appointment[]): string | null {
