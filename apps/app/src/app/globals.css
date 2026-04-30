@@ -1986,6 +1986,7 @@ input:focus {
 
 .agenda-detail {
   display: grid;
+  align-content: start;
   gap: 1rem;
   padding: 1rem;
 }
@@ -2033,6 +2034,67 @@ input:focus {
 .agenda-list-item small {
   color: var(--text-muted);
   font-size: 0.84rem;
+}
+
+.agenda-list-item--blocked-slot {
+  border-color: rgba(224, 142, 77, 0.22);
+  background: rgba(255, 248, 240, 0.78);
+}
+
+.agenda-availability-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.agenda-availability-panel select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%)
+      calc(100% - 18px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%)
+      calc(100% - 13px) 50% / 5px 5px no-repeat,
+    #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
+}
+
+.agenda-availability-panel select:focus {
+  outline: none;
+  border-color: rgba(13, 138, 106, 0.44);
+  box-shadow: 0 0 0 4px rgba(13, 138, 106, 0.12);
+}
+
+.agenda-slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agenda-slot-chip {
+  border: 1px solid rgba(13, 138, 106, 0.2);
+  border-radius: 999px;
+  background: rgba(231, 247, 240, 0.86);
+  color: var(--accent-strong);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 0.48rem 0.72rem;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.agenda-slot-chip:hover {
+  border-color: rgba(13, 138, 106, 0.34);
+  background: rgba(216, 243, 234, 0.96);
+  transform: translateY(-1px);
 }
 
 .agenda-forms {
