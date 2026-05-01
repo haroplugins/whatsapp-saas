@@ -60,6 +60,11 @@ export type BookingOrchestratorDecision =
   | 'PLAN_UPGRADE_REQUIRED'
   | 'SMART_BOOKING_DISABLED'
   | 'NO_ACTION_NEEDED'
+  | 'ROUTE_TO_PRICE_FLOW_LATER'
+  | 'ROUTE_TO_HOURS_FLOW_LATER'
+  | 'READY_TO_RESOLVE_BOOKING'
+  | 'READY_TO_CHECK_AVAILABILITY_LATER'
+  | 'NEEDS_MORE_BOOKING_INFO'
   | 'AI_FALLBACK_CANDIDATE'
   | 'NEEDS_OPENAI_KEY'
   | 'READY_FOR_EXTRACTION';
@@ -80,6 +85,7 @@ export type BookingOrchestratorResult = {
   };
   hasOpenAIKey: boolean;
   decision: BookingOrchestratorDecision;
+  nextAction: BookingOrchestratorDecision;
   shouldUseAI: boolean;
   shouldCheckAvailability: boolean;
   shouldCreateAppointment: boolean;

@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { IntentRouterService } from '../intent-router/intent-router.service';
+import type { ClassifiedIntent } from '../intent-router/intent-router.types';
 import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
@@ -164,6 +165,7 @@ export class BookingAgentService {
         deterministicIntent,
         hasOpenAIKey,
         decision: 'PLAN_UPGRADE_REQUIRED',
+        nextAction: 'PLAN_UPGRADE_REQUIRED',
         shouldUseAI: false,
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
@@ -187,6 +189,7 @@ export class BookingAgentService {
         deterministicIntent,
         hasOpenAIKey,
         decision: 'SMART_BOOKING_DISABLED',
+        nextAction: 'SMART_BOOKING_DISABLED',
         shouldUseAI: false,
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
@@ -194,28 +197,40 @@ export class BookingAgentService {
       };
     }
 
-    const shouldUseAI = shouldUseBookingAgentExtractor(
-      deterministicIntent.intent,
-    );
-    const resolution = shouldUseAI
-      ? await this.bookingResolutionService.resolve(tenantId, text)
-      : undefined;
+    const routeDecision = getNonBookingIntentDecision(deterministicIntent);
+
+    if (routeDecision) {
+      return {
+        planAllowed,
+        smartBooking,
+        deterministicIntent,
+        hasOpenAIKey,
+        decision: routeDecision,
+        nextAction: routeDecision,
+        shouldUseAI: false,
+        shouldCheckAvailability: false,
+        shouldCreateAppointment: false,
+        shouldSendMessage: false,
+      };
+    }
+
+    const resolution = await this.bookingResolutionService.resolve(tenantId, text);
+    const decision = resolution.readyForAvailabilitySearch
+      ? 'READY_TO_CHECK_AVAILABILITY_LATER'
+      : 'NEEDS_MORE_BOOKING_INFO';
 
     return {
       planAllowed,
       smartBooking,
       deterministicIntent,
       hasOpenAIKey,
-      decision: getOrchestratorDecision({
-        hasOpenAIKey,
-        intent: deterministicIntent.intent,
-        shouldUseAI,
-      }),
-      shouldUseAI,
+      decision,
+      nextAction: decision,
+      shouldUseAI: false,
       shouldCheckAvailability: false,
       shouldCreateAppointment: false,
       shouldSendMessage: false,
-      ...(resolution ? { resolution } : {}),
+      resolution,
     };
   }
 
@@ -455,22 +470,20 @@ function getDiagnoseNextStep(input: {
   return 'READY_TO_EXTRACT';
 }
 
-function getOrchestratorDecision(input: {
-  hasOpenAIKey: boolean;
-  intent: string;
-  shouldUseAI: boolean;
-}): BookingOrchestratorDecision {
-  if (!input.shouldUseAI) {
+function getNonBookingIntentDecision(
+  deterministicIntent: ClassifiedIntent,
+): BookingOrchestratorDecision | null {
+  if (deterministicIntent.intent === 'PRICE_REQUEST') {
+    return 'ROUTE_TO_PRICE_FLOW_LATER';
+  }
+
+  if (deterministicIntent.intent === 'HOURS_REQUEST') {
+    return 'ROUTE_TO_HOURS_FLOW_LATER';
+  }
+
+  if (deterministicIntent.intent === 'UNKNOWN') {
     return 'NO_ACTION_NEEDED';
   }
 
-  if (!input.hasOpenAIKey) {
-    return 'NEEDS_OPENAI_KEY';
-  }
-
-  if (input.intent === 'UNKNOWN') {
-    return 'AI_FALLBACK_CANDIDATE';
-  }
-
-  return 'READY_FOR_EXTRACTION';
+  return null;
 }
