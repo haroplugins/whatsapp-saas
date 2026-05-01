@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AvailabilityService } from '../agenda/availability.service';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { IntentRouterService } from '../intent-router/intent-router.service';
@@ -15,6 +16,8 @@ import type {
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
   BookingAgentIntent,
+  BookingAvailabilityPreview,
+  BookingAvailabilityPreviewSlot,
   BookingOrchestratorDecision,
   BookingOrchestratorResult,
   ExtractedBookingIntent,
@@ -61,6 +64,7 @@ export class BookingAgentService {
     private readonly intentRouterService: IntentRouterService,
     private readonly smartBookingSettingsService: SmartBookingSettingsService,
     private readonly bookingResolutionService: BookingResolutionService,
+    private readonly availabilityService: AvailabilityService,
   ) {}
 
   async extract(
@@ -170,6 +174,10 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
+        availabilityPreview: {
+          checked: false,
+          reason: 'NOT_ALLOWED',
+        },
       });
     }
 
@@ -194,6 +202,10 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
+        availabilityPreview: {
+          checked: false,
+          reason: 'SMART_BOOKING_DISABLED',
+        },
       });
     }
 
@@ -211,6 +223,10 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
+        availabilityPreview: {
+          checked: false,
+          reason: 'NOT_BOOKING_INTENT',
+        },
       });
     }
 
@@ -218,6 +234,16 @@ export class BookingAgentService {
     const decision = resolution.readyForAvailabilitySearch
       ? 'READY_TO_CHECK_AVAILABILITY_LATER'
       : 'NEEDS_MORE_BOOKING_INFO';
+    const availabilityPreview = resolution.readyForAvailabilitySearch
+      ? await this.buildAvailabilityPreview({
+          tenantId,
+          resolution,
+          maxSuggestions: smartBooking.maxSuggestions,
+        })
+      : {
+          checked: false,
+          reason: 'NOT_READY',
+        } satisfies BookingAvailabilityPreview;
 
     return buildOrchestratorResult({
       planAllowed,
@@ -231,6 +257,7 @@ export class BookingAgentService {
       shouldCreateAppointment: false,
       shouldSendMessage: false,
       resolution,
+      availabilityPreview,
     });
   }
 
@@ -281,6 +308,61 @@ export class BookingAgentService {
 
   private hasOpenAIKey(): boolean {
     return Boolean(this.configService.get<string>('OPENAI_API_KEY')?.trim());
+  }
+
+  private async buildAvailabilityPreview({
+    tenantId,
+    resolution,
+    maxSuggestions,
+  }: {
+    tenantId: string;
+    resolution: BookingResolutionResult;
+    maxSuggestions: number;
+  }): Promise<BookingAvailabilityPreview> {
+    if (
+      resolution.serviceResolution.status !== 'MATCHED' ||
+      resolution.dateResolution.status !== 'RESOLVED'
+    ) {
+      return {
+        checked: false,
+        reason: 'NOT_READY',
+      };
+    }
+
+    const availability = await this.availabilityService.search(tenantId, {
+      serviceId: resolution.serviceResolution.serviceId,
+      date: resolution.dateResolution.date,
+      stepMinutes: 15,
+    });
+    const timePreference =
+      resolution.timePreference.status === 'RESOLVED'
+        ? resolution.timePreference.value
+        : 'UNKNOWN';
+    const slots = availability.slots.map((slot) => ({
+      startAt: slot.startAt,
+      endAt: slot.endAt,
+      occupiedUntil: slot.occupiedUntil,
+      label: slot.label,
+    }));
+    const filteredSlots = filterSlotsByTimePreference(
+      slots,
+      timePreference,
+    );
+    const suggestionLimit = normalizeMaxSuggestions(maxSuggestions);
+    const suggestedSlots = filteredSlots.slice(0, suggestionLimit);
+
+    return {
+      checked: true,
+      source: 'agenda.availability.search',
+      date: availability.date,
+      serviceId: availability.service.id,
+      serviceName: availability.service.name,
+      timePreference,
+      totalSlots: slots.length,
+      filteredSlots,
+      suggestedSlots,
+      hasAvailability: suggestedSlots.length > 0,
+    };
   }
 }
 
@@ -549,4 +631,81 @@ function buildOrchestratorExecution(input: Pick<
     shouldCreateAppointment: input.shouldCreateAppointment,
     shouldSendMessage: input.shouldSendMessage,
   };
+}
+
+function filterSlotsByTimePreference(
+  slots: BookingAvailabilityPreviewSlot[],
+  timePreference: string,
+): BookingAvailabilityPreviewSlot[] {
+  if (
+    timePreference === 'ANY' ||
+    timePreference === 'UNKNOWN' ||
+    !timePreference
+  ) {
+    return slots;
+  }
+
+  return slots.filter((slot) => isSlotInTimePreference(slot.label, timePreference));
+}
+
+function isSlotInTimePreference(label: string, timePreference: string): boolean {
+  const minutes = parseSlotLabelMinutes(label);
+
+  if (minutes === null) {
+    return false;
+  }
+
+  if (timePreference === 'MORNING') {
+    return minutes >= 6 * 60 && minutes < 12 * 60;
+  }
+
+  if (timePreference === 'AFTERNOON') {
+    return minutes >= 12 * 60 && minutes < 19 * 60;
+  }
+
+  if (timePreference === 'EVENING') {
+    return minutes >= 19 * 60 && minutes < 24 * 60;
+  }
+
+  return true;
+}
+
+function parseSlotLabelMinutes(label: string): number | null {
+  const match = label.match(/^(\d{1,2}):(\d{2})$/u);
+
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function normalizeMaxSuggestions(value: number): number {
+  if (!Number.isInteger(value)) {
+    return 3;
+  }
+
+  if (value < 1) {
+    return 3;
+  }
+
+  if (value > 10) {
+    return 10;
+  }
+
+  return value;
 }

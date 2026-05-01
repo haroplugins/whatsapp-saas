@@ -1,5 +1,8 @@
 import type { ClassifiedIntent } from '../intent-router/intent-router.types';
-import type { BookingResolutionResult } from './booking-resolution.types';
+import type {
+  BookingResolutionResult,
+  TimePreferenceValue,
+} from './booking-resolution.types';
 
 export type BookingAgentIntent =
   | 'BOOKING_REQUEST'
@@ -83,6 +86,7 @@ export type BookingOrchestratorResult = {
   shouldCreateAppointment: boolean;
   shouldSendMessage: boolean;
   resolution?: BookingResolutionResult;
+  availabilityPreview: BookingAvailabilityPreview;
   permissions: {
     planAllowed: boolean;
     smartBookingEnabled: boolean;
@@ -105,3 +109,32 @@ export type BookingOrchestratorResult = {
     shouldSendMessage: boolean;
   };
 };
+
+export type BookingAvailabilityPreviewSlot = {
+  startAt: string;
+  endAt: string;
+  occupiedUntil: string;
+  label: string;
+};
+
+export type BookingAvailabilityPreview =
+  | {
+      checked: false;
+      reason:
+        | 'NOT_ALLOWED'
+        | 'SMART_BOOKING_DISABLED'
+        | 'NOT_BOOKING_INTENT'
+        | 'NOT_READY';
+    }
+  | {
+      checked: true;
+      source: 'agenda.availability.search';
+      date: string;
+      serviceId: string;
+      serviceName: string;
+      timePreference: TimePreferenceValue;
+      totalSlots: number;
+      filteredSlots: BookingAvailabilityPreviewSlot[];
+      suggestedSlots: BookingAvailabilityPreviewSlot[];
+      hasAvailability: boolean;
+    };
