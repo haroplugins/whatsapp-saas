@@ -53,3 +53,33 @@ export type BookingAgentDiagnoseResult = {
   wouldCallAI: boolean;
   nextStep: BookingAgentDiagnoseNextStep;
 };
+
+export type BookingOrchestratorDecision =
+  | 'PLAN_UPGRADE_REQUIRED'
+  | 'SMART_BOOKING_DISABLED'
+  | 'NO_ACTION_NEEDED'
+  | 'AI_FALLBACK_CANDIDATE'
+  | 'NEEDS_OPENAI_KEY'
+  | 'READY_FOR_EXTRACTION';
+
+export type BookingOrchestratorResult = {
+  planAllowed: boolean;
+  smartBooking: null | {
+    enabled: boolean;
+    mode: string;
+    maxSuggestions: number;
+    missingInfoBehavior: string;
+  };
+  deterministicIntent: {
+    intent: string;
+    confidence: string;
+    matchedRule?: string;
+    normalizedText: string;
+  };
+  hasOpenAIKey: boolean;
+  decision: BookingOrchestratorDecision;
+  shouldUseAI: boolean;
+  shouldCheckAvailability: boolean;
+  shouldCreateAppointment: boolean;
+  shouldSendMessage: boolean;
+};

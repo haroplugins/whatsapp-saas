@@ -31,4 +31,15 @@ export class BookingAgentController {
       extractBookingDto.text,
     );
   }
+
+  @Post('orchestrate')
+  orchestrate(
+    @Body() extractBookingDto: ExtractBookingDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.orchestrate(
+      currentUser.tenantId,
+      extractBookingDto.text,
+    );
+  }
 }

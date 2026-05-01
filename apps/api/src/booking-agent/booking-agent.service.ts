@@ -13,6 +13,8 @@ import type {
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
   BookingAgentIntent,
+  BookingOrchestratorDecision,
+  BookingOrchestratorResult,
   ExtractedBookingIntent,
   TimePreference,
 } from './booking-agent.types';
@@ -139,6 +141,74 @@ export class BookingAgentService {
         intent: deterministicIntent.intent,
         wouldCallAI,
       }),
+    };
+  }
+
+  async orchestrate(
+    tenantId: string,
+    text: string,
+  ): Promise<BookingOrchestratorResult> {
+    const deterministicIntent = this.intentRouterService.classify(text);
+    const entitlements =
+      await this.entitlementsService.getTenantEntitlements(tenantId);
+    const planAllowed = entitlements.features.canUseSmartBooking;
+    const hasOpenAIKey = this.hasOpenAIKey();
+
+    if (!planAllowed) {
+      return {
+        planAllowed,
+        smartBooking: null,
+        deterministicIntent,
+        hasOpenAIKey,
+        decision: 'PLAN_UPGRADE_REQUIRED',
+        shouldUseAI: false,
+        shouldCheckAvailability: false,
+        shouldCreateAppointment: false,
+        shouldSendMessage: false,
+      };
+    }
+
+    const smartBookingSettings =
+      await this.smartBookingSettingsService.get(tenantId);
+    const smartBooking = {
+      enabled: smartBookingSettings.enabled,
+      mode: smartBookingSettings.mode,
+      maxSuggestions: smartBookingSettings.maxSuggestions,
+      missingInfoBehavior: smartBookingSettings.missingInfoBehavior,
+    };
+
+    if (!smartBooking.enabled) {
+      return {
+        planAllowed,
+        smartBooking,
+        deterministicIntent,
+        hasOpenAIKey,
+        decision: 'SMART_BOOKING_DISABLED',
+        shouldUseAI: false,
+        shouldCheckAvailability: false,
+        shouldCreateAppointment: false,
+        shouldSendMessage: false,
+      };
+    }
+
+    const shouldUseAI = shouldUseBookingAgentExtractor(
+      deterministicIntent.intent,
+    );
+
+    return {
+      planAllowed,
+      smartBooking,
+      deterministicIntent,
+      hasOpenAIKey,
+      decision: getOrchestratorDecision({
+        hasOpenAIKey,
+        intent: deterministicIntent.intent,
+        shouldUseAI,
+      }),
+      shouldUseAI,
+      shouldCheckAvailability: false,
+      shouldCreateAppointment: false,
+      shouldSendMessage: false,
     };
   }
 
@@ -372,4 +442,24 @@ function getDiagnoseNextStep(input: {
   }
 
   return 'READY_TO_EXTRACT';
+}
+
+function getOrchestratorDecision(input: {
+  hasOpenAIKey: boolean;
+  intent: string;
+  shouldUseAI: boolean;
+}): BookingOrchestratorDecision {
+  if (!input.shouldUseAI) {
+    return 'NO_ACTION_NEEDED';
+  }
+
+  if (!input.hasOpenAIKey) {
+    return 'NEEDS_OPENAI_KEY';
+  }
+
+  if (input.intent === 'UNKNOWN') {
+    return 'AI_FALLBACK_CANDIDATE';
+  }
+
+  return 'READY_FOR_EXTRACTION';
 }
