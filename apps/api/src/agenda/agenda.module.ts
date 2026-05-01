@@ -14,6 +14,8 @@ import { BookingSettingsController } from './booking-settings.controller';
 import { BookingSettingsService } from './booking-settings.service';
 import { ServicesController } from './services.controller';
 import { ServicesService } from './services.service';
+import { SmartBookingSettingsController } from './smart-booking-settings.controller';
+import { SmartBookingSettingsService } from './smart-booking-settings.service';
 
 @Module({
   imports: [AuthModule, EntitlementsModule],
@@ -24,6 +26,7 @@ import { ServicesService } from './services.service';
     BookingSettingsController,
     AvailabilityRulesController,
     AvailabilityController,
+    SmartBookingSettingsController,
   ],
   providers: [
     AgendaEntitlementGuard,
@@ -33,6 +36,7 @@ import { ServicesService } from './services.service';
     BookingSettingsService,
     AvailabilityRulesService,
     AvailabilityService,
+    SmartBookingSettingsService,
   ],
 })
 export class AgendaModule {}

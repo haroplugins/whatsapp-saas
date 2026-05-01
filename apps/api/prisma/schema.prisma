@@ -59,20 +59,32 @@ enum AppointmentSource {
   IMPORT
 }
 
+enum SmartBookingMode {
+  SUGGEST_SLOTS
+  REQUEST_CONFIRMATION
+  AUTO_CONFIRM
+}
+
+enum SmartBookingMissingInfoBehavior {
+  ASK_CLIENT
+  HANDOFF_TO_HUMAN
+}
+
 model Tenant {
-  id              String           @id @default(cuid())
-  name            String
-  plan            TenantPlan       @default(BASIC)
-  users           User[]
-  conversations   Conversation[]
-  automations     Automation[]
-  services        Service[]
-  appointments    Appointment[]
-  blockedSlots    BlockedSlot[]
-  bookingSettings BookingSettings?
-  availabilityRules AvailabilityRule[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                   String                @id @default(cuid())
+  name                 String
+  plan                 TenantPlan            @default(BASIC)
+  users                User[]
+  conversations        Conversation[]
+  automations          Automation[]
+  services             Service[]
+  appointments         Appointment[]
+  blockedSlots         BlockedSlot[]
+  bookingSettings      BookingSettings?
+  availabilityRules    AvailabilityRule[]
+  smartBookingSettings SmartBookingSettings?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 }
 
 model User {
@@ -211,4 +223,16 @@ model AvailabilityRule {
 
   @@index([tenantId])
   @@index([tenantId, weekday])
+}
+
+model SmartBookingSettings {
+  id                  String                          @id @default(cuid())
+  tenantId            String                          @unique
+  enabled             Boolean                         @default(false)
+  mode                SmartBookingMode                @default(SUGGEST_SLOTS)
+  maxSuggestions      Int                             @default(3)
+  missingInfoBehavior SmartBookingMissingInfoBehavior @default(ASK_CLIENT)
+  createdAt           DateTime                        @default(now())
+  updatedAt           DateTime                        @updatedAt
+  tenant              Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
