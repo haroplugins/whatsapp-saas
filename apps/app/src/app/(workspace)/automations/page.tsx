@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   type BusinessHours,
@@ -10,12 +11,23 @@ import {
   readStoredAIConfig,
   saveStoredAIConfig,
 } from '../../../lib/ai-config';
+import {
+  defaultTenantEntitlements,
+  fetchTenantEntitlements,
+  type TenantEntitlements,
+} from '../../../lib/entitlements';
 
 type AutomationKey = 'welcome' | 'off_hours';
+type SmartBookingMode = 'suggest_slots' | 'request_confirmation' | 'auto_confirm';
 
 type AutomationConfig = {
   enabled: boolean;
   message: string;
+};
+
+type SmartBookingConfig = {
+  enabled: boolean;
+  mode: SmartBookingMode;
 };
 
 type AutomationsState = Record<AutomationKey, AutomationConfig>;
@@ -27,6 +39,7 @@ type AutomationDefinition = {
 };
 
 const automationsStorageKey = 'automations';
+const smartBookingStorageKey = 'smartBookingAutomation';
 
 const automationDefinitions: AutomationDefinition[] = [
   {
@@ -76,8 +89,19 @@ const defaultAutomationsState: AutomationsState = {
   },
 };
 
+const defaultSmartBookingConfig: SmartBookingConfig = {
+  enabled: false,
+  mode: 'suggest_slots',
+};
+
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<AutomationsState>(defaultAutomationsState);
+  const [smartBookingConfig, setSmartBookingConfig] = useState<SmartBookingConfig>(
+    defaultSmartBookingConfig,
+  );
+  const [entitlements, setEntitlements] = useState<TenantEntitlements>(
+    defaultTenantEntitlements,
+  );
   const [businessHours, setBusinessHours] = useState<BusinessHours>({
     timezone: 'Europe/Madrid',
     days: [1, 2, 3, 4, 5],
@@ -86,11 +110,39 @@ export default function AutomationsPage() {
   });
   const [activeAutomationKey, setActiveAutomationKey] = useState<AutomationKey | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const canUseSmartBooking = entitlements.features.canUseSmartBooking;
+  const canUseAutoBookingConfirm = entitlements.features.canUseAutoBookingConfirm;
+  const smartBookingStatus = canUseSmartBooking
+    ? smartBookingConfig.enabled
+      ? 'Activada'
+      : 'Desactivada'
+    : 'Bloqueada';
+  const smartBookingLockMessage =
+    entitlements.plan === 'PRO'
+      ? 'Tu plan Pro incluye Agenda manual. La agenda inteligente estara disponible en Premium.'
+      : 'Disponible en Premium.';
 
   useEffect(() => {
     setAutomations(readStoredAutomations());
     setBusinessHours(readStoredBusinessHours());
+    setSmartBookingConfig(readStoredSmartBookingConfig());
     setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchTenantEntitlements()
+      .then((nextEntitlements) => {
+        if (isMounted) setEntitlements(nextEntitlements);
+      })
+      .catch(() => {
+        if (isMounted) setEntitlements(defaultTenantEntitlements);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -108,6 +160,14 @@ export default function AutomationsPage() {
 
     saveStoredBusinessHours(businessHours);
   }, [businessHours, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || !canUseSmartBooking) {
+      return;
+    }
+
+    window.localStorage.setItem(smartBookingStorageKey, JSON.stringify(smartBookingConfig));
+  }, [canUseSmartBooking, isHydrated, smartBookingConfig]);
 
   const activeAutomationDefinition = useMemo(
     () =>
@@ -149,6 +209,26 @@ export default function AutomationsPage() {
       : [...businessHours.days, day].sort((firstDay, secondDay) => firstDay - secondDay);
 
     updateBusinessHours({ days: nextDays });
+  }
+
+  function updateSmartBookingConfig(updates: Partial<SmartBookingConfig>) {
+    if (!canUseSmartBooking) {
+      return;
+    }
+
+    setSmartBookingConfig((currentConfig) => {
+      const requestedMode = updates.mode ?? currentConfig.mode;
+      const nextMode =
+        requestedMode === 'auto_confirm' && !canUseAutoBookingConfirm
+          ? 'request_confirmation'
+          : requestedMode;
+
+      return {
+        ...currentConfig,
+        ...updates,
+        mode: nextMode,
+      };
+    });
   }
 
   return (
@@ -269,6 +349,94 @@ export default function AutomationsPage() {
             </article>
           );
         })}
+
+        <article
+          className={`automation-card smart-booking-card ${
+            canUseSmartBooking ? '' : 'automation-card--locked'
+          }`}
+        >
+          <div className="automation-card__header">
+            <div>
+              <div className="automation-card__badges">
+                <span
+                  className={`automation-status ${
+                    smartBookingConfig.enabled && canUseSmartBooking
+                      ? 'automation-status--enabled'
+                      : ''
+                  }`}
+                >
+                  {smartBookingStatus}
+                </span>
+                {!canUseSmartBooking ? (
+                  <span className="plan-badge plan-badge--premium">PREMIUM</span>
+                ) : null}
+              </div>
+              <h3>Agenda inteligente</h3>
+            </div>
+            <button
+              className={`toggle-switch ${
+                smartBookingConfig.enabled && canUseSmartBooking ? 'toggle-switch--enabled' : ''
+              }`}
+              type="button"
+              aria-pressed={smartBookingConfig.enabled && canUseSmartBooking}
+              disabled={!canUseSmartBooking}
+              onClick={() =>
+                updateSmartBookingConfig({ enabled: !smartBookingConfig.enabled })
+              }
+            >
+              <span />
+            </button>
+          </div>
+
+          <p>
+            Permite que el sistema ayude a responder solicitudes de cita usando
+            tus servicios, horarios y disponibilidad real.
+          </p>
+
+          <div className="smart-booking-card__source" aria-label="Fuentes de agenda">
+            <span>Servicios</span>
+            <span>Horarios</span>
+            <span>Citas</span>
+            <span>Bloqueos</span>
+            <span>Disponibilidad backend</span>
+          </div>
+
+          {!canUseSmartBooking ? (
+            <p className="config-conflict-note">{smartBookingLockMessage}</p>
+          ) : (
+            <div className="smart-booking-card__config business-form">
+              <label className="business-form__field">
+                <span>Modo de actuacion</span>
+                <select
+                  value={smartBookingConfig.mode}
+                  onChange={(event) =>
+                    updateSmartBookingConfig({
+                      mode: event.target.value as SmartBookingMode,
+                    })
+                  }
+                >
+                  <option value="suggest_slots">Solo sugerir huecos</option>
+                  <option value="request_confirmation">
+                    Pedir confirmacion antes de reservar
+                  </option>
+                  {canUseAutoBookingConfirm ? (
+                    <option value="auto_confirm">Confirmar automaticamente</option>
+                  ) : null}
+                </select>
+              </label>
+              <p className="config-conflict-note">
+                Esta automatizacion usara la Agenda configurada. Para cambiar
+                horarios o servicios, ve a Agenda.
+              </p>
+            </div>
+          )}
+
+          <div className="automation-card__footer">
+            <Link className="button button--ghost" href="/agenda">
+              Configurar Agenda
+            </Link>
+          </div>
+        </article>
       </div>
 
       {activeAutomationDefinition ? (
@@ -342,6 +510,38 @@ export default function AutomationsPage() {
       ) : null}
     </section>
   );
+}
+
+function readStoredSmartBookingConfig(): SmartBookingConfig {
+  const storedValue = window.localStorage.getItem(smartBookingStorageKey);
+
+  if (!storedValue) {
+    return defaultSmartBookingConfig;
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Partial<SmartBookingConfig>;
+    const parsedMode = parseSmartBookingMode(parsedValue.mode);
+
+    return {
+      enabled: parsedValue.enabled ?? defaultSmartBookingConfig.enabled,
+      mode: parsedMode ?? defaultSmartBookingConfig.mode,
+    };
+  } catch {
+    return defaultSmartBookingConfig;
+  }
+}
+
+function parseSmartBookingMode(mode: unknown): SmartBookingMode | null {
+  if (
+    mode === 'suggest_slots' ||
+    mode === 'request_confirmation' ||
+    mode === 'auto_confirm'
+  ) {
+    return mode;
+  }
+
+  return null;
 }
 
 function readStoredAutomations(): AutomationsState {

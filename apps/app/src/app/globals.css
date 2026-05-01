@@ -2500,11 +2500,23 @@ input:focus {
   padding: 1.4rem;
 }
 
+.automation-card--locked {
+  border-color: rgba(224, 142, 77, 0.26);
+  background: rgba(255, 251, 246, 0.96);
+}
+
 .automation-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.automation-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .automation-card h3,
@@ -2542,6 +2554,23 @@ input:focus {
   color: var(--accent-strong);
 }
 
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.34rem 0.72rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plan-badge--premium {
+  border: 1px solid rgba(83, 61, 132, 0.18);
+  background: rgba(243, 239, 255, 0.88);
+  color: #5f3f9a;
+}
+
 .toggle-switch {
   display: inline-flex;
   align-items: center;
@@ -2576,9 +2605,37 @@ input:focus {
   transform: translateX(1.32rem);
 }
 
+.toggle-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .automation-card__footer {
   display: grid;
   gap: 1rem;
+}
+
+.smart-booking-card__source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.smart-booking-card__source span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(13, 138, 106, 0.13);
+  border-radius: 999px;
+  background: rgba(231, 247, 240, 0.7);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.38rem 0.68rem;
+}
+
+.smart-booking-card__config {
+  display: grid;
+  gap: 0.8rem;
 }
 
 .business-hours-card {
