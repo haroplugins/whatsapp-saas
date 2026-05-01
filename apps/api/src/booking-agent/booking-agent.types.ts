@@ -1,3 +1,4 @@
+import type { ClassifiedIntent } from '../intent-router/intent-router.types';
 import type { BookingResolutionResult } from './booking-resolution.types';
 
 export type BookingAgentIntent =
@@ -45,12 +46,7 @@ export type BookingAgentDiagnoseResult = {
     maxSuggestions: number;
     missingInfoBehavior: string;
   };
-  deterministicIntent: {
-    intent: string;
-    confidence: string;
-    matchedRule?: string;
-    normalizedText: string;
-  };
+  deterministicIntent: ClassifiedIntent;
   hasOpenAIKey: boolean;
   wouldCallAI: boolean;
   nextStep: BookingAgentDiagnoseNextStep;
@@ -70,6 +66,7 @@ export type BookingOrchestratorDecision =
   | 'READY_FOR_EXTRACTION';
 
 export type BookingOrchestratorResult = {
+  schemaVersion: 'booking-orchestrator.v1';
   planAllowed: boolean;
   smartBooking: null | {
     enabled: boolean;
@@ -77,12 +74,7 @@ export type BookingOrchestratorResult = {
     maxSuggestions: number;
     missingInfoBehavior: string;
   };
-  deterministicIntent: {
-    intent: string;
-    confidence: string;
-    matchedRule?: string;
-    normalizedText: string;
-  };
+  deterministicIntent: ClassifiedIntent;
   hasOpenAIKey: boolean;
   decision: BookingOrchestratorDecision;
   nextAction: BookingOrchestratorDecision;
@@ -91,4 +83,25 @@ export type BookingOrchestratorResult = {
   shouldCreateAppointment: boolean;
   shouldSendMessage: boolean;
   resolution?: BookingResolutionResult;
+  permissions: {
+    planAllowed: boolean;
+    smartBookingEnabled: boolean;
+    smartBookingMode: string | null;
+  };
+  intent: {
+    type: ClassifiedIntent['intent'];
+    confidence: ClassifiedIntent['confidence'];
+    matchedRule?: string;
+    normalizedText: string;
+  };
+  readiness: {
+    readyForAvailabilitySearch: boolean;
+    missingFields: string[];
+  };
+  execution: {
+    shouldUseAI: boolean;
+    shouldCheckAvailability: boolean;
+    shouldCreateAppointment: boolean;
+    shouldSendMessage: boolean;
+  };
 };

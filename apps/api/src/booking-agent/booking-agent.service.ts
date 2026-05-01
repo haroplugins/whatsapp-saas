@@ -159,7 +159,7 @@ export class BookingAgentService {
     const hasOpenAIKey = this.hasOpenAIKey();
 
     if (!planAllowed) {
-      return {
+      return buildOrchestratorResult({
         planAllowed,
         smartBooking: null,
         deterministicIntent,
@@ -170,7 +170,7 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
-      };
+      });
     }
 
     const smartBookingSettings =
@@ -183,7 +183,7 @@ export class BookingAgentService {
     };
 
     if (!smartBooking.enabled) {
-      return {
+      return buildOrchestratorResult({
         planAllowed,
         smartBooking,
         deterministicIntent,
@@ -194,13 +194,13 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
-      };
+      });
     }
 
     const routeDecision = getNonBookingIntentDecision(deterministicIntent);
 
     if (routeDecision) {
-      return {
+      return buildOrchestratorResult({
         planAllowed,
         smartBooking,
         deterministicIntent,
@@ -211,7 +211,7 @@ export class BookingAgentService {
         shouldCheckAvailability: false,
         shouldCreateAppointment: false,
         shouldSendMessage: false,
-      };
+      });
     }
 
     const resolution = await this.bookingResolutionService.resolve(tenantId, text);
@@ -219,7 +219,7 @@ export class BookingAgentService {
       ? 'READY_TO_CHECK_AVAILABILITY_LATER'
       : 'NEEDS_MORE_BOOKING_INFO';
 
-    return {
+    return buildOrchestratorResult({
       planAllowed,
       smartBooking,
       deterministicIntent,
@@ -231,7 +231,7 @@ export class BookingAgentService {
       shouldCreateAppointment: false,
       shouldSendMessage: false,
       resolution,
-    };
+    });
   }
 
   resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
@@ -486,4 +486,67 @@ function getNonBookingIntentDecision(
   }
 
   return null;
+}
+
+function buildOrchestratorResult(input: Omit<
+  BookingOrchestratorResult,
+  'schemaVersion' | 'permissions' | 'intent' | 'readiness' | 'execution'
+>): BookingOrchestratorResult {
+  return {
+    schemaVersion: 'booking-orchestrator.v1',
+    ...input,
+    permissions: buildOrchestratorPermissions(input),
+    intent: buildOrchestratorIntent(input.deterministicIntent),
+    readiness: buildOrchestratorReadiness(input.resolution),
+    execution: buildOrchestratorExecution(input),
+  };
+}
+
+function buildOrchestratorPermissions(input: Pick<
+  BookingOrchestratorResult,
+  'planAllowed' | 'smartBooking'
+>): BookingOrchestratorResult['permissions'] {
+  return {
+    planAllowed: input.planAllowed,
+    smartBookingEnabled: input.smartBooking?.enabled ?? false,
+    smartBookingMode: input.smartBooking?.mode ?? null,
+  };
+}
+
+function buildOrchestratorIntent(
+  deterministicIntent: ClassifiedIntent,
+): BookingOrchestratorResult['intent'] {
+  return {
+    type: deterministicIntent.intent,
+    confidence: deterministicIntent.confidence,
+    ...(deterministicIntent.matchedRule
+      ? { matchedRule: deterministicIntent.matchedRule }
+      : {}),
+    normalizedText: deterministicIntent.normalizedText,
+  };
+}
+
+function buildOrchestratorReadiness(
+  resolution: BookingResolutionResult | undefined,
+): BookingOrchestratorResult['readiness'] {
+  return {
+    readyForAvailabilitySearch:
+      resolution?.readyForAvailabilitySearch ?? false,
+    missingFields: resolution?.missingFields ?? [],
+  };
+}
+
+function buildOrchestratorExecution(input: Pick<
+  BookingOrchestratorResult,
+  | 'shouldUseAI'
+  | 'shouldCheckAvailability'
+  | 'shouldCreateAppointment'
+  | 'shouldSendMessage'
+>): BookingOrchestratorResult['execution'] {
+  return {
+    shouldUseAI: input.shouldUseAI,
+    shouldCheckAvailability: input.shouldCheckAvailability,
+    shouldCreateAppointment: input.shouldCreateAppointment,
+    shouldSendMessage: input.shouldSendMessage,
+  };
 }
