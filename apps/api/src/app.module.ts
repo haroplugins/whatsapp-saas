@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AgendaModule } from './agenda/agenda.module';
 import { AutomationsModule } from './automations/automations.module';
 import { AuthModule } from './auth/auth.module';
+import { BookingAgentModule } from './booking-agent/booking-agent.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
@@ -28,6 +29,7 @@ const rootEnvPath = resolve(process.cwd(), '.env');
     AutomationsModule,
     UsersModule,
     AuthModule,
+    BookingAgentModule,
     EntitlementsModule,
     ConversationsModule,
     MessagesModule,
