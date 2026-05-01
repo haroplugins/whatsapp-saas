@@ -3,6 +3,25 @@ import { intentRules } from './intent-router.rules';
 import type { ClassifiedIntent } from './intent-router.types';
 
 const bookingActionWords = ['quiero', 'necesito', 'pedir', 'reservar'];
+const bookingCancelWords = [
+  'cancelar',
+  'cancela',
+  'anular',
+  'anula',
+  'anulacion',
+  'no puedo venir',
+  'no podre venir',
+  'no puedo asistir',
+];
+const bookingChangeWords = [
+  'cambiar',
+  'mover',
+  'modificar',
+  'aplazar',
+  'reprogramar',
+  'pasar',
+  'pasamela',
+];
 const bookingTimeWords = [
   'manana',
   'viernes',
@@ -11,7 +30,7 @@ const bookingTimeWords = [
   'tarde',
   'manana por la manana',
 ];
-const bookingNouns = ['cita', 'hora'];
+const bookingNouns = ['cita', 'hora', 'reserva'];
 const availabilityWords = ['hueco', 'libre'];
 const priceWords = ['precio', 'cuesta', 'vale'];
 const hoursWords = ['horario', 'abris', 'cerrais'];
@@ -58,9 +77,25 @@ function classifyByKeywordCombination(
   normalizedText: string,
 ): Pick<ClassifiedIntent, 'intent' | 'matchedRule'> | null {
   const bookingNoun = findWord(normalizedText, bookingNouns);
+  const bookingCancel = findWord(normalizedText, bookingCancelWords);
+  const bookingChange = findWord(normalizedText, bookingChangeWords);
   const bookingAction = findWord(normalizedText, bookingActionWords);
   const bookingTime = findWord(normalizedText, bookingTimeWords);
   const availability = findWord(normalizedText, availabilityWords);
+
+  if (bookingCancel && bookingNoun) {
+    return {
+      intent: 'BOOKING_CANCEL',
+      matchedRule: `booking_cancel:keywords:${bookingCancel}+${bookingNoun}`,
+    };
+  }
+
+  if (bookingChange && bookingNoun) {
+    return {
+      intent: 'BOOKING_CHANGE',
+      matchedRule: `booking_change:keywords:${bookingChange}+${bookingNoun}`,
+    };
+  }
 
   if (bookingNoun && bookingAction) {
     return {
