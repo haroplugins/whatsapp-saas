@@ -38,5 +38,6 @@ import { SmartBookingSettingsService } from './smart-booking-settings.service';
     AvailabilityService,
     SmartBookingSettingsService,
   ],
+  exports: [SmartBookingSettingsService],
 })
 export class AgendaModule {}

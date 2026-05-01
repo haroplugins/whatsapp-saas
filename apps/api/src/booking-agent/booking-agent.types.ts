@@ -26,3 +26,30 @@ export type ExtractedBookingIntent = {
   missingFields: string[];
   rawText: string;
 };
+
+export type BookingAgentDiagnoseNextStep =
+  | 'PLAN_UPGRADE_REQUIRED'
+  | 'SMART_BOOKING_DISABLED'
+  | 'NO_ACTION_NEEDED'
+  | 'AI_FALLBACK_CANDIDATE'
+  | 'OPENAI_KEY_REQUIRED'
+  | 'READY_TO_EXTRACT';
+
+export type BookingAgentDiagnoseResult = {
+  planAllowed: boolean;
+  smartBooking: null | {
+    enabled: boolean;
+    mode: string;
+    maxSuggestions: number;
+    missingInfoBehavior: string;
+  };
+  deterministicIntent: {
+    intent: string;
+    confidence: string;
+    matchedRule?: string;
+    normalizedText: string;
+  };
+  hasOpenAIKey: boolean;
+  wouldCallAI: boolean;
+  nextStep: BookingAgentDiagnoseNextStep;
+};

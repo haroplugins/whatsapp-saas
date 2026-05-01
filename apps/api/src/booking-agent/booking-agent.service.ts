@@ -5,9 +5,13 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
+import { IntentRouterService } from '../intent-router/intent-router.service';
 import type {
   BookingAgentConfidence,
+  BookingAgentDiagnoseNextStep,
+  BookingAgentDiagnoseResult,
   BookingAgentIntent,
   ExtractedBookingIntent,
   TimePreference,
@@ -49,6 +53,8 @@ export class BookingAgentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly intentRouterService: IntentRouterService,
+    private readonly smartBookingSettingsService: SmartBookingSettingsService,
   ) {}
 
   async extract(
@@ -75,6 +81,65 @@ export class BookingAgentService {
     const content = await this.requestExtraction(apiKey, model, text);
 
     return parseModelOutput(content, text);
+  }
+
+  async diagnose(
+    tenantId: string,
+    text: string,
+  ): Promise<BookingAgentDiagnoseResult> {
+    const deterministicIntent = this.intentRouterService.classify(text);
+    const entitlements =
+      await this.entitlementsService.getTenantEntitlements(tenantId);
+    const planAllowed = entitlements.features.canUseSmartBooking;
+    const hasOpenAIKey = this.hasOpenAIKey();
+
+    if (!planAllowed) {
+      return {
+        planAllowed,
+        smartBooking: null,
+        deterministicIntent,
+        hasOpenAIKey,
+        wouldCallAI: false,
+        nextStep: 'PLAN_UPGRADE_REQUIRED',
+      };
+    }
+
+    const smartBookingSettings =
+      await this.smartBookingSettingsService.get(tenantId);
+    const smartBooking = {
+      enabled: smartBookingSettings.enabled,
+      mode: smartBookingSettings.mode,
+      maxSuggestions: smartBookingSettings.maxSuggestions,
+      missingInfoBehavior: smartBookingSettings.missingInfoBehavior,
+    };
+
+    if (!smartBooking.enabled) {
+      return {
+        planAllowed,
+        smartBooking,
+        deterministicIntent,
+        hasOpenAIKey,
+        wouldCallAI: false,
+        nextStep: 'SMART_BOOKING_DISABLED',
+      };
+    }
+
+    const wouldCallAI = shouldUseBookingAgentExtractor(
+      deterministicIntent.intent,
+    );
+
+    return {
+      planAllowed,
+      smartBooking,
+      deterministicIntent,
+      hasOpenAIKey,
+      wouldCallAI,
+      nextStep: getDiagnoseNextStep({
+        hasOpenAIKey,
+        intent: deterministicIntent.intent,
+        wouldCallAI,
+      }),
+    };
   }
 
   private async requestExtraction(
@@ -116,6 +181,10 @@ export class BookingAgentService {
 
     const payload = (await response.json()) as OpenAIChatCompletionResponse;
     return payload.choices?.[0]?.message?.content ?? '';
+  }
+
+  private hasOpenAIKey(): boolean {
+    return Boolean(this.configService.get<string>('OPENAI_API_KEY')?.trim());
   }
 }
 
@@ -272,4 +341,35 @@ function normalizeMissingFields(value: unknown): string[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function shouldUseBookingAgentExtractor(intent: string): boolean {
+  return (
+    intent === 'BOOKING_REQUEST' ||
+    intent === 'BOOKING_CHANGE' ||
+    intent === 'BOOKING_CANCEL' ||
+    intent === 'PRICE_REQUEST' ||
+    intent === 'HOURS_REQUEST' ||
+    intent === 'UNKNOWN'
+  );
+}
+
+function getDiagnoseNextStep(input: {
+  hasOpenAIKey: boolean;
+  intent: string;
+  wouldCallAI: boolean;
+}): BookingAgentDiagnoseNextStep {
+  if (!input.wouldCallAI) {
+    return 'NO_ACTION_NEEDED';
+  }
+
+  if (!input.hasOpenAIKey) {
+    return 'OPENAI_KEY_REQUIRED';
+  }
+
+  if (input.intent === 'UNKNOWN') {
+    return 'AI_FALLBACK_CANDIDATE';
+  }
+
+  return 'READY_TO_EXTRACT';
 }

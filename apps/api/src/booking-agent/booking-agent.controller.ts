@@ -20,4 +20,15 @@ export class BookingAgentController {
       extractBookingDto.text,
     );
   }
+
+  @Post('diagnose')
+  diagnose(
+    @Body() extractBookingDto: ExtractBookingDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.diagnose(
+      currentUser.tenantId,
+      extractBookingDto.text,
+    );
+  }
 }
