@@ -1,3 +1,5 @@
+import type { BookingResolutionResult } from './booking-resolution.types';
+
 export type BookingAgentIntent =
   | 'BOOKING_REQUEST'
   | 'BOOKING_CHANGE'
@@ -82,4 +84,5 @@ export type BookingOrchestratorResult = {
   shouldCheckAvailability: boolean;
   shouldCreateAppointment: boolean;
   shouldSendMessage: boolean;
+  resolution?: BookingResolutionResult;
 };

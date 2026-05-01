@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { IntentRouterService } from '../intent-router/intent-router.service';
+import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
   BookingAgentDiagnoseNextStep,
@@ -18,6 +19,7 @@ import type {
   ExtractedBookingIntent,
   TimePreference,
 } from './booking-agent.types';
+import type { BookingResolutionResult } from './booking-resolution.types';
 
 type OpenAIChatCompletionResponse = {
   choices?: Array<{
@@ -57,6 +59,7 @@ export class BookingAgentService {
     private readonly entitlementsService: EntitlementsService,
     private readonly intentRouterService: IntentRouterService,
     private readonly smartBookingSettingsService: SmartBookingSettingsService,
+    private readonly bookingResolutionService: BookingResolutionService,
   ) {}
 
   async extract(
@@ -194,6 +197,9 @@ export class BookingAgentService {
     const shouldUseAI = shouldUseBookingAgentExtractor(
       deterministicIntent.intent,
     );
+    const resolution = shouldUseAI
+      ? await this.bookingResolutionService.resolve(tenantId, text)
+      : undefined;
 
     return {
       planAllowed,
@@ -209,7 +215,12 @@ export class BookingAgentService {
       shouldCheckAvailability: false,
       shouldCreateAppointment: false,
       shouldSendMessage: false,
+      ...(resolution ? { resolution } : {}),
     };
+  }
+
+  resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
+    return this.bookingResolutionService.resolve(tenantId, text);
   }
 
   private async requestExtraction(

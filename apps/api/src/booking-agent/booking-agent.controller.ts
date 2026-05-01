@@ -4,6 +4,7 @@ import { CurrentUserDto } from '../auth/dto/current-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BookingAgentService } from './booking-agent.service';
 import { ExtractBookingDto } from './dto/extract-booking.dto';
+import { ResolveBookingRequestDto } from './dto/resolve-booking-request.dto';
 
 @Controller('booking-agent')
 @UseGuards(JwtAuthGuard)
@@ -34,12 +35,23 @@ export class BookingAgentController {
 
   @Post('orchestrate')
   orchestrate(
-    @Body() extractBookingDto: ExtractBookingDto,
+    @Body() extractBookingDto: ResolveBookingRequestDto,
     @CurrentUser() currentUser: CurrentUserDto,
   ) {
     return this.bookingAgentService.orchestrate(
       currentUser.tenantId,
       extractBookingDto.text,
+    );
+  }
+
+  @Post('resolve')
+  resolve(
+    @Body() resolveBookingRequestDto: ResolveBookingRequestDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.resolve(
+      currentUser.tenantId,
+      resolveBookingRequestDto.text,
     );
   }
 }
