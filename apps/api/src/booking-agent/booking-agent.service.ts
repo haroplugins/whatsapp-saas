@@ -656,11 +656,11 @@ function isSlotInTimePreference(label: string, timePreference: string): boolean 
   }
 
   if (timePreference === 'MORNING') {
-    return minutes >= 6 * 60 && minutes < 12 * 60;
+    return minutes >= 6 * 60 && minutes < 14 * 60;
   }
 
   if (timePreference === 'AFTERNOON') {
-    return minutes >= 12 * 60 && minutes < 19 * 60;
+    return minutes >= 15 * 60 && minutes < 21 * 60;
   }
 
   if (timePreference === 'EVENING') {
