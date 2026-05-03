@@ -18,6 +18,7 @@ import type {
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
   BookingAgentIntent,
+  BookingAgentSimulationResult,
   BookingAvailabilityPreview,
   BookingAvailabilityPreviewSlot,
   BookingOrchestratorDecision,
@@ -27,6 +28,7 @@ import type {
   TimePreference,
 } from './booking-agent.types';
 import type { BookingResolutionResult } from './booking-resolution.types';
+import type { SimulateIncomingMessageDto } from './dto/simulate-incoming-message.dto';
 
 type OpenAIChatCompletionResponse = {
   choices?: Array<{
@@ -310,6 +312,35 @@ export class BookingAgentService {
     return result;
   }
 
+  async simulateIncomingMessage(
+    tenantId: string,
+    userId: string | undefined,
+    input: SimulateIncomingMessageDto,
+  ): Promise<BookingAgentSimulationResult> {
+    const orchestrator = await this.orchestrateDryRun(
+      tenantId,
+      userId,
+      input.text,
+    );
+    const source = normalizeOptionalString(input.source) ?? 'manual_test';
+
+    return {
+      ok: true,
+      mode: 'dry_run',
+      source,
+      input: buildSimulationInput(input),
+      orchestrator,
+      would: {
+        sendMessage: false,
+        createAppointment: false,
+        useOpenAI: false,
+        suggestedReplyText: orchestrator.suggestedReply.prepared
+          ? orchestrator.suggestedReply.text
+          : null,
+      },
+    };
+  }
+
   resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
     return this.bookingResolutionService.resolve(tenantId, text);
   }
@@ -556,6 +587,26 @@ function normalizeNullableString(value: unknown): string | null {
 
   const trimmedValue = value.trim();
   return trimmedValue.length > 0 ? trimmedValue : null;
+}
+
+function normalizeOptionalString(value: string | undefined): string | undefined {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function buildSimulationInput(
+  input: SimulateIncomingMessageDto,
+): BookingAgentSimulationResult['input'] {
+  const conversationId = normalizeOptionalString(input.conversationId);
+  const customerPhone = normalizeOptionalString(input.customerPhone);
+  const customerName = normalizeOptionalString(input.customerName);
+
+  return {
+    text: input.text,
+    ...(conversationId ? { conversationId } : {}),
+    ...(customerPhone ? { customerPhone } : {}),
+    ...(customerName ? { customerName } : {}),
+  };
 }
 
 function normalizeMissingFields(value: unknown): string[] {

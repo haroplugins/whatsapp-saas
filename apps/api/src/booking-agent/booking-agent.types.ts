@@ -111,6 +111,25 @@ export type BookingOrchestratorResult = {
   };
 };
 
+export type BookingAgentSimulationResult = {
+  ok: true;
+  mode: 'dry_run';
+  source: string;
+  input: {
+    text: string;
+    conversationId?: string;
+    customerPhone?: string;
+    customerName?: string;
+  };
+  orchestrator: BookingOrchestratorResult;
+  would: {
+    sendMessage: false;
+    createAppointment: false;
+    useOpenAI: false;
+    suggestedReplyText: string | null;
+  };
+};
+
 export type BookingSuggestedReplyReason =
   | 'SLOTS_AVAILABLE'
   | 'NO_SLOTS_AVAILABLE'

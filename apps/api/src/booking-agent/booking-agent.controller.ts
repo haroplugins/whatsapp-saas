@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BookingAgentService } from './booking-agent.service';
 import { ExtractBookingDto } from './dto/extract-booking.dto';
 import { ResolveBookingRequestDto } from './dto/resolve-booking-request.dto';
+import { SimulateIncomingMessageDto } from './dto/simulate-incoming-message.dto';
 
 @Controller('booking-agent')
 @UseGuards(JwtAuthGuard)
@@ -53,6 +54,18 @@ export class BookingAgentController {
       currentUser.tenantId,
       currentUser.userId,
       extractBookingDto.text,
+    );
+  }
+
+  @Post('simulate-incoming-message')
+  simulateIncomingMessage(
+    @Body() simulateIncomingMessageDto: SimulateIncomingMessageDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.simulateIncomingMessage(
+      currentUser.tenantId,
+      currentUser.userId,
+      simulateIncomingMessageDto,
     );
   }
 
