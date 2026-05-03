@@ -130,6 +130,25 @@ export type BookingAgentSimulationResult = {
   };
 };
 
+export type BookingAgentConversationDryRunResult = {
+  ok: true;
+  mode: 'dry_run';
+  source: 'conversation_latest_message';
+  conversationId: string;
+  messageId: string;
+  input: {
+    text: string;
+    conversationId: string;
+  };
+  orchestrator: BookingOrchestratorResult;
+  would: {
+    sendMessage: false;
+    createAppointment: false;
+    useOpenAI: false;
+    suggestedReplyText: string | null;
+  };
+};
+
 export type BookingAgentDryRunLogListItem = {
   id: string;
   createdAt: string;

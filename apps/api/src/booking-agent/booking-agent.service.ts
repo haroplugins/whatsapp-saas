@@ -2,10 +2,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Prisma } from '@prisma/client';
+import { MessageSender, type Prisma } from '@prisma/client';
 import { AvailabilityService } from '../agenda/availability.service';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
@@ -15,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
+  BookingAgentConversationDryRunResult,
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
   BookingAgentDryRunLogsResult,
@@ -387,6 +389,77 @@ export class BookingAgentService {
       meta: {
         limit,
         count: items.length,
+      },
+    };
+  }
+
+  async dryRunLatestConversationMessage(
+    tenantId: string,
+    userId: string | undefined,
+    conversationId: string,
+  ): Promise<BookingAgentConversationDryRunResult> {
+    const conversation = await this.prismaService.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found.');
+    }
+
+    const message = await this.prismaService.message.findFirst({
+      where: {
+        conversationId: conversation.id,
+        sender: MessageSender.CLIENT,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        content: true,
+      },
+    });
+
+    if (!message) {
+      throw new BadRequestException(
+        'No incoming client message found for this conversation.',
+      );
+    }
+
+    const text = message.content.trim();
+
+    if (!text) {
+      throw new BadRequestException(
+        'Latest incoming client message has no usable text.',
+      );
+    }
+
+    const orchestrator = await this.orchestrateDryRun(tenantId, userId, text);
+
+    return {
+      ok: true,
+      mode: 'dry_run',
+      source: 'conversation_latest_message',
+      conversationId: conversation.id,
+      messageId: message.id,
+      input: {
+        text,
+        conversationId: conversation.id,
+      },
+      orchestrator,
+      would: {
+        sendMessage: false,
+        createAppointment: false,
+        useOpenAI: false,
+        suggestedReplyText: orchestrator.suggestedReply.prepared
+          ? orchestrator.suggestedReply.text
+          : null,
       },
     };
   }
