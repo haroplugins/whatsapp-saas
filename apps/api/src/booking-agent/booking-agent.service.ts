@@ -17,6 +17,7 @@ import type {
   BookingAgentConfidence,
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
+  BookingAgentDryRunLogsResult,
   BookingAgentIntent,
   BookingAgentSimulationResult,
   BookingAvailabilityPreview,
@@ -28,6 +29,7 @@ import type {
   TimePreference,
 } from './booking-agent.types';
 import type { BookingResolutionResult } from './booking-resolution.types';
+import type { ListDryRunLogsDto } from './dto/list-dry-run-logs.dto';
 import type { SimulateIncomingMessageDto } from './dto/simulate-incoming-message.dto';
 
 type OpenAIChatCompletionResponse = {
@@ -341,6 +343,54 @@ export class BookingAgentService {
     };
   }
 
+  async listDryRunLogs(
+    tenantId: string,
+    query: ListDryRunLogsDto,
+  ): Promise<BookingAgentDryRunLogsResult> {
+    const limit = normalizeDryRunLogLimit(query.limit);
+    const intent = normalizeOptionalString(query.intent);
+    const decision = normalizeOptionalString(query.decision);
+    const items = await this.prismaService.bookingAgentDryRunLog.findMany({
+      where: {
+        tenantId,
+        ...(intent ? { intent } : {}),
+        ...(decision ? { decision } : {}),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      select: {
+        id: true,
+        createdAt: true,
+        inputText: true,
+        intent: true,
+        decision: true,
+        nextAction: true,
+        suggestedReplyPrepared: true,
+        suggestedReplyReason: true,
+        suggestedReplyText: true,
+        hasAvailability: true,
+        availabilityChecked: true,
+        serviceName: true,
+        serviceId: true,
+        date: true,
+        timePreference: true,
+      },
+    });
+
+    return {
+      items: items.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+      })),
+      meta: {
+        limit,
+        count: items.length,
+      },
+    };
+  }
+
   resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
     return this.bookingResolutionService.resolve(tenantId, text);
   }
@@ -592,6 +642,16 @@ function normalizeNullableString(value: unknown): string | null {
 function normalizeOptionalString(value: string | undefined): string | undefined {
   const trimmedValue = value?.trim();
   return trimmedValue ? trimmedValue : undefined;
+}
+
+function normalizeDryRunLogLimit(value: string | undefined): number {
+  const parsedValue = Number(value?.trim());
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    return 20;
+  }
+
+  return Math.min(parsedValue, 100);
 }
 
 function buildSimulationInput(

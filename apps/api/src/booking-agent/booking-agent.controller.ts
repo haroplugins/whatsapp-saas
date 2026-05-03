@@ -1,9 +1,10 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../auth/dto/current-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BookingAgentService } from './booking-agent.service';
 import { ExtractBookingDto } from './dto/extract-booking.dto';
+import { ListDryRunLogsDto } from './dto/list-dry-run-logs.dto';
 import { ResolveBookingRequestDto } from './dto/resolve-booking-request.dto';
 import { SimulateIncomingMessageDto } from './dto/simulate-incoming-message.dto';
 
@@ -66,6 +67,17 @@ export class BookingAgentController {
       currentUser.tenantId,
       currentUser.userId,
       simulateIncomingMessageDto,
+    );
+  }
+
+  @Get('dry-run-logs')
+  listDryRunLogs(
+    @Query() query: ListDryRunLogsDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.listDryRunLogs(
+      currentUser.tenantId,
+      query,
     );
   }
 

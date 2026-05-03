@@ -130,6 +130,32 @@ export type BookingAgentSimulationResult = {
   };
 };
 
+export type BookingAgentDryRunLogListItem = {
+  id: string;
+  createdAt: string;
+  inputText: string;
+  intent: string | null;
+  decision: string | null;
+  nextAction: string | null;
+  suggestedReplyPrepared: boolean;
+  suggestedReplyReason: string | null;
+  suggestedReplyText: string | null;
+  hasAvailability: boolean | null;
+  availabilityChecked: boolean;
+  serviceName: string | null;
+  serviceId: string | null;
+  date: string | null;
+  timePreference: string | null;
+};
+
+export type BookingAgentDryRunLogsResult = {
+  items: BookingAgentDryRunLogListItem[];
+  meta: {
+    limit: number;
+    count: number;
+  };
+};
+
 export type BookingSuggestedReplyReason =
   | 'SLOTS_AVAILABLE'
   | 'NO_SLOTS_AVAILABLE'
