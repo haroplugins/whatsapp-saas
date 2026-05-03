@@ -2,6 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   ActionType,
   Conversation,
+  ConversationDraft,
+  ConversationDraftSource,
+  ConversationDraftStatus,
   ConversationStatus,
   MessageSender,
   TriggerType,
@@ -24,6 +27,18 @@ type FindOrCreateWhatsappConversationInput = {
 };
 
 type ConversationFilterType = 'business' | 'personal';
+
+type UpsertConversationDraftInput = {
+  tenantId: string;
+  conversationId: string;
+  userId: string;
+  content: string;
+  source?: ConversationDraftSource;
+};
+
+type ConversationDraftResponse = {
+  draft: ConversationDraft | null;
+};
 
 @Injectable()
 export class ConversationsService {
@@ -148,6 +163,72 @@ export class ConversationsService {
         isBusiness,
       },
     });
+  }
+
+  async getDraft(
+    tenantId: string,
+    conversationId: string,
+  ): Promise<ConversationDraftResponse> {
+    await this.getById(tenantId, conversationId);
+
+    const draft = await this.prismaService.conversationDraft.findFirst({
+      where: {
+        tenantId,
+        conversationId,
+      },
+    });
+
+    return {
+      draft,
+    };
+  }
+
+  async upsertDraft(
+    input: UpsertConversationDraftInput,
+  ): Promise<ConversationDraftResponse> {
+    await this.getById(input.tenantId, input.conversationId);
+
+    const draft = await this.prismaService.conversationDraft.upsert({
+      where: {
+        conversationId: input.conversationId,
+      },
+      create: {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        userId: input.userId,
+        content: input.content,
+        source: input.source ?? ConversationDraftSource.MANUAL,
+        status: ConversationDraftStatus.ACTIVE,
+      },
+      update: {
+        userId: input.userId,
+        content: input.content,
+        source: input.source ?? ConversationDraftSource.MANUAL,
+        status: ConversationDraftStatus.ACTIVE,
+      },
+    });
+
+    return {
+      draft,
+    };
+  }
+
+  async deleteDraft(
+    tenantId: string,
+    conversationId: string,
+  ): Promise<{ ok: true }> {
+    await this.getById(tenantId, conversationId);
+
+    await this.prismaService.conversationDraft.deleteMany({
+      where: {
+        tenantId,
+        conversationId,
+      },
+    });
+
+    return {
+      ok: true,
+    };
   }
 
   private async executeStatusChangeAutomations(

@@ -33,6 +33,17 @@ enum MessageSender {
   CLIENT
 }
 
+enum ConversationDraftSource {
+  MANUAL
+  BOOKING_ADVISOR
+}
+
+enum ConversationDraftStatus {
+  ACTIVE
+  APPLIED
+  DISCARDED
+}
+
 enum TriggerType {
   KEYWORD
   STATUS_CHANGE
@@ -77,6 +88,7 @@ model Tenant {
   users                User[]
   conversations        Conversation[]
   automations          Automation[]
+  conversationDrafts   ConversationDraft[]
   services             Service[]
   appointments         Appointment[]
   blockedSlots         BlockedSlot[]
@@ -98,6 +110,7 @@ model User {
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookingAgentDryRuns BookingAgentDryRunLog[] @relation("BookingAgentDryRunUser")
+  conversationDrafts ConversationDraft[] @relation("ConversationDraftUser")
 
   @@index([tenantId])
   @@unique([tenantId, email])
@@ -112,6 +125,7 @@ model Conversation {
   controlMode ConversationControlMode @default(NONE)
   isBusiness  Boolean
   messages    Message[]
+  draft       ConversationDraft?
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -128,6 +142,28 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+}
+
+/// Draft text prepared for a conversation. Not a sent message.
+/// Before production use, apply retention/privacy policy.
+model ConversationDraft {
+  id             String                  @id @default(cuid())
+  tenantId       String
+  conversationId String                  @unique
+  userId         String?
+  content        String
+  source         ConversationDraftSource @default(MANUAL)
+  status         ConversationDraftStatus @default(ACTIVE)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation   Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User?                   @relation("ConversationDraftUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, source])
+  @@index([tenantId, status])
+  @@index([userId])
 }
 
 model Automation {
