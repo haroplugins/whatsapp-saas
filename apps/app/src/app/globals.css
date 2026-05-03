@@ -1222,6 +1222,13 @@ input:focus {
   padding: 0.82rem 0.9rem;
 }
 
+.conversation-draft-card__note {
+  margin: -0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .conversation-draft-card__actions {
   display: flex;
   flex-wrap: wrap;

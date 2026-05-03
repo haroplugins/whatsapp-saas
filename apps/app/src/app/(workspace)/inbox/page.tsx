@@ -576,7 +576,7 @@ export default function InboxPage() {
 
   async function discardConversationDraft() {
     if (!selectedPersistedConversationId || !conversationDraft || isDeletingConversationDraft) return;
-    const shouldDiscard = window.confirm('Descartar este borrador?');
+    const shouldDiscard = window.confirm('¿Descartar este borrador?');
     if (!shouldDiscard) return;
 
     setIsDeletingConversationDraft(true);
@@ -620,7 +620,7 @@ export default function InboxPage() {
       setConversationDraft((currentDraft) => currentDraft?.id === draftId ? null : currentDraft);
     } catch (error) {
       console.error('Could not clear conversation draft after manual send.', error);
-      setConversationDraftError('El mensaje se envio, pero no se pudo limpiar el borrador.');
+      setConversationDraftError('El mensaje se envió, pero no se pudo limpiar el borrador.');
     } finally {
       setDraftLoadedIntoComposerId((currentDraftId) => currentDraftId === draftId ? null : currentDraftId);
     }
@@ -711,7 +711,7 @@ export default function InboxPage() {
         <div>
           <span className="workspace-header__eyebrow">Inbox</span>
           <h2>Responde mensajes como si ya estuvieran entrando.</h2>
-          <p>Simula conversaciones de clientes, abre el chat y practica respuestas sin conectar todavia ningun backend.</p>
+          <p>Simula conversaciones de clientes, abre el chat y practica respuestas sin conectar todavía ningún backend.</p>
         </div>
         <div className="inbox-hero__actions">
           <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular webhook WA</button>
@@ -884,11 +884,12 @@ export default function InboxPage() {
                       <div className="conversation-draft-card__header">
                         <div>
                           <strong>Borrador sugerido</strong>
-                          <span>{getConversationDraftSourceLabel(conversationDraft.source)} - Este borrador todavia no se ha enviado.</span>
+                          <span>{getConversationDraftSourceLabel(conversationDraft.source)} · No enviada</span>
                         </div>
-                        <span className="conversation-draft-card__badge">{conversationDraft.status}</span>
+                        <span className="conversation-draft-card__badge">{getConversationDraftStatusLabel(conversationDraft.status)}</span>
                       </div>
                       <p className="conversation-draft-card__content">{conversationDraft.content}</p>
+                      <p className="conversation-draft-card__note">Pulsa 'Usar en respuesta' para copiarla al cuadro de texto. El mensaje no se enviará hasta que pulses Enviar.</p>
                       <div className="conversation-draft-card__actions">
                         <button className="button button--ghost conversation-draft-card__button" type="button" onClick={useConversationDraftInReply}>
                           Usar en respuesta
@@ -908,8 +909,8 @@ export default function InboxPage() {
                     <>
                       <div className="conversation-draft-card__header">
                         <div>
-                          <strong>Borrador Advisor</strong>
-                          <span>Genera una sugerencia como borrador. No se enviara ningun mensaje.</span>
+                          <strong>Sugerencia Advisor</strong>
+                          <span>Genera una respuesta sugerida para revisar antes de enviarla.</span>
                         </div>
                       </div>
                       {conversationDraftError ? (
@@ -1010,8 +1011,13 @@ function getControlModeBadgeClass(conversation: Conversation): string {
   return 'conversation-badge--control-none';
 }
 function getConversationDraftSourceLabel(source: ConversationDraft['source']): string {
-  if (source === 'BOOKING_ADVISOR') return 'Advisor de agenda';
-  return 'Manual';
+  if (source === 'BOOKING_ADVISOR') return 'Sugerencia del Advisor';
+  return 'Borrador manual';
+}
+function getConversationDraftStatusLabel(status: ConversationDraft['status']): string {
+  if (status === 'APPLIED') return 'USADO';
+  if (status === 'DISCARDED') return 'DESCARTADO';
+  return 'BORRADOR';
 }
 function isPersistedConversation(conversation: Conversation): boolean {
   return conversation.source === 'whatsapp' &&
