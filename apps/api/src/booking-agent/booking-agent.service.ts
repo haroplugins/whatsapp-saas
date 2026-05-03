@@ -322,7 +322,7 @@ export class BookingAgentService {
         timePreference: result.availabilityPreview.checked
           ? result.availabilityPreview.timePreference
           : result.resolution?.timePreference.value,
-        resultJson: toPrismaJson(result),
+        resultJson: toPrismaJson(buildSanitizedDryRunResult(result)),
       },
     });
 
@@ -1357,6 +1357,51 @@ function normalizeMaxSuggestions(value: number): number {
   }
 
   return value;
+}
+
+function buildSanitizedDryRunResult(
+  result: BookingOrchestratorResult,
+): Prisma.InputJsonObject {
+  return {
+    schemaVersion: result.schemaVersion,
+    decision: result.decision,
+    nextAction: result.nextAction,
+    permissions: result.permissions,
+    intent: {
+      type: result.intent.type,
+      confidence: result.intent.confidence,
+      matchedRule: result.intent.matchedRule ?? null,
+    },
+    readiness: result.readiness,
+    execution: result.execution,
+    availabilityPreview: sanitizeAvailabilityPreview(
+      result.availabilityPreview,
+    ),
+    suggestedReply: {
+      prepared: result.suggestedReply.prepared,
+      reason: result.suggestedReply.reason,
+    },
+  };
+}
+
+function sanitizeAvailabilityPreview(
+  availabilityPreview: BookingAvailabilityPreview,
+): Prisma.InputJsonObject {
+  if (!availabilityPreview.checked) {
+    return {
+      checked: false,
+      reason: availabilityPreview.reason,
+      hasAvailability: null,
+      suggestedSlotCount: null,
+    };
+  }
+
+  return {
+    checked: true,
+    reason: null,
+    hasAvailability: availabilityPreview.hasAvailability,
+    suggestedSlotCount: availabilityPreview.suggestedSlots.length,
+  };
 }
 
 function toPrismaJson(value: unknown): Prisma.InputJsonValue {

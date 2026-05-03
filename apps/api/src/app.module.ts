@@ -12,6 +12,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module';
 import { IncomingMessagesModule } from './incoming-messages/incoming-messages.module';
 import { IntentRouterModule } from './intent-router/intent-router.module';
 import { MessagesModule } from './messages/messages.module';
+import { DataRetentionService } from './privacy/data-retention.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -38,5 +39,6 @@ const rootEnvPath = resolve(process.cwd(), '.env');
     DashboardModule,
     WebhooksModule,
   ],
+  providers: [DataRetentionService],
 })
 export class AppModule {}
