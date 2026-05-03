@@ -101,6 +101,18 @@ export class BookingAgentController {
     );
   }
 
+  @Post('conversations/:conversationId/advisor/save-draft')
+  saveAdvisorDraftForConversation(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.saveAdvisorDraftForConversation(
+      currentUser.tenantId,
+      currentUser.userId,
+      conversationId,
+    );
+  }
+
   @Post('conversations/:conversationId/advisor')
   advisorForConversation(
     @Param('conversationId') conversationId: string,

@@ -6,9 +6,14 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageSender, type Prisma } from '@prisma/client';
+import {
+  ConversationDraftSource,
+  MessageSender,
+  type Prisma,
+} from '@prisma/client';
 import { AvailabilityService } from '../agenda/availability.service';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { IntentRouterService } from '../intent-router/intent-router.service';
 import type { ClassifiedIntent } from '../intent-router/intent-router.types';
@@ -16,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
+  BookingAgentAdvisorDraftSavedResult,
   BookingAgentAdvisorRecommendedAction,
   BookingAgentConversationAdvisorResult,
   BookingAgentConversationDryRunResult,
@@ -77,6 +83,7 @@ export class BookingAgentService {
     private readonly bookingResolutionService: BookingResolutionService,
     private readonly availabilityService: AvailabilityService,
     private readonly prismaService: PrismaService,
+    private readonly conversationsService: ConversationsService,
   ) {}
 
   async extract(
@@ -511,6 +518,48 @@ export class BookingAgentService {
       raw: {
         dryRunLogCreated: true,
       },
+    };
+  }
+
+  async saveAdvisorDraftForConversation(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+  ): Promise<BookingAgentAdvisorDraftSavedResult> {
+    const advisor = await this.advisorForConversation(
+      tenantId,
+      userId,
+      conversationId,
+    );
+    const content = advisor.advisor.suggestedReplyText?.trim();
+
+    if (!content) {
+      throw new BadRequestException(
+        'El advisor no ha preparado una respuesta sugerida para guardar.',
+      );
+    }
+
+    const { draft } = await this.conversationsService.upsertDraft({
+      tenantId,
+      conversationId,
+      userId,
+      content,
+      source: ConversationDraftSource.BOOKING_ADVISOR,
+    });
+
+    if (!draft) {
+      throw new ServiceUnavailableException(
+        'No se pudo guardar el borrador del advisor.',
+      );
+    }
+
+    return {
+      ok: true,
+      mode: 'advisor_draft_saved',
+      conversationId: advisor.conversationId,
+      messageId: advisor.messageId,
+      draft,
+      advisor,
     };
   }
 

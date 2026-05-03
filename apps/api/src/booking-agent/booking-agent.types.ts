@@ -1,3 +1,4 @@
+import type { ConversationDraft } from '@prisma/client';
 import type { ClassifiedIntent } from '../intent-router/intent-router.types';
 import type {
   BookingResolutionResult,
@@ -181,6 +182,15 @@ export type BookingAgentConversationAdvisorResult = {
   raw: {
     dryRunLogCreated: true;
   };
+};
+
+export type BookingAgentAdvisorDraftSavedResult = {
+  ok: true;
+  mode: 'advisor_draft_saved';
+  conversationId: string;
+  messageId: string;
+  draft: ConversationDraft;
+  advisor: BookingAgentConversationAdvisorResult;
 };
 
 export type BookingAgentDryRunLogListItem = {
