@@ -16,6 +16,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
+  BookingAgentAdvisorRecommendedAction,
+  BookingAgentConversationAdvisorResult,
   BookingAgentConversationDryRunResult,
   BookingAgentDiagnoseNextStep,
   BookingAgentDiagnoseResult,
@@ -468,6 +470,50 @@ export class BookingAgentService {
     };
   }
 
+  async advisorForConversation(
+    tenantId: string,
+    userId: string | undefined,
+    conversationId: string,
+  ): Promise<BookingAgentConversationAdvisorResult> {
+    const dryRun = await this.dryRunLatestConversationMessage(
+      tenantId,
+      userId,
+      conversationId,
+    );
+    const orchestrator = dryRun.orchestrator;
+
+    return {
+      ok: true,
+      mode: 'advisor_dry_run',
+      conversationId: dryRun.conversationId,
+      messageId: dryRun.messageId,
+      inputText: dryRun.input.text,
+      summary: {
+        intent: orchestrator.deterministicIntent.intent,
+        decision: orchestrator.decision,
+        suggestedReplyPrepared: orchestrator.suggestedReply.prepared,
+        suggestedReplyReason: orchestrator.suggestedReply.reason,
+        hasAvailability: orchestrator.availabilityPreview.checked
+          ? orchestrator.availabilityPreview.hasAvailability
+          : null,
+        serviceName: getAdvisorServiceName(orchestrator),
+        date: getAdvisorDate(orchestrator),
+        timePreference: getAdvisorTimePreference(orchestrator),
+      },
+      advisor: {
+        recommendedAction: getAdvisorRecommendedAction(orchestrator),
+        suggestedReplyText: orchestrator.suggestedReply.prepared
+          ? orchestrator.suggestedReply.text
+          : null,
+        safeToSendAutomatically: false,
+        notes: buildAdvisorNotes(orchestrator),
+      },
+      raw: {
+        dryRunLogCreated: true,
+      },
+    };
+  }
+
   resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
     return this.bookingResolutionService.resolve(tenantId, text);
   }
@@ -762,6 +808,106 @@ function buildSimulationInput(
     ...(customerPhone ? { customerPhone } : {}),
     ...(customerName ? { customerName } : {}),
   };
+}
+
+function getAdvisorServiceName(
+  orchestrator: BookingOrchestratorResult,
+): string | null {
+  if (orchestrator.availabilityPreview.checked) {
+    return orchestrator.availabilityPreview.serviceName;
+  }
+
+  if (orchestrator.resolution?.serviceResolution.status === 'MATCHED') {
+    return orchestrator.resolution.serviceResolution.serviceName;
+  }
+
+  return null;
+}
+
+function getAdvisorDate(orchestrator: BookingOrchestratorResult): string | null {
+  if (orchestrator.availabilityPreview.checked) {
+    return orchestrator.availabilityPreview.date;
+  }
+
+  if (orchestrator.resolution?.dateResolution.status === 'RESOLVED') {
+    return orchestrator.resolution.dateResolution.date;
+  }
+
+  return null;
+}
+
+function getAdvisorTimePreference(
+  orchestrator: BookingOrchestratorResult,
+): string | null {
+  if (orchestrator.availabilityPreview.checked) {
+    return orchestrator.availabilityPreview.timePreference;
+  }
+
+  return orchestrator.resolution?.timePreference.value ?? null;
+}
+
+function getAdvisorRecommendedAction(
+  orchestrator: BookingOrchestratorResult,
+): BookingAgentAdvisorRecommendedAction {
+  if (
+    !orchestrator.permissions.planAllowed ||
+    !orchestrator.permissions.smartBookingEnabled
+  ) {
+    return 'ESCALATE_TO_HUMAN';
+  }
+
+  if (orchestrator.deterministicIntent.intent === 'UNKNOWN') {
+    return 'NO_ACTION';
+  }
+
+  if (
+    orchestrator.suggestedReply.reason === 'MISSING_SERVICE' ||
+    orchestrator.suggestedReply.reason === 'MISSING_DATE'
+  ) {
+    return 'ASK_FOR_MORE_INFO';
+  }
+
+  if (orchestrator.availabilityPreview.checked) {
+    return 'CHECK_AVAILABILITY_RESULT';
+  }
+
+  if (orchestrator.suggestedReply.prepared) {
+    return 'REVIEW_SUGGESTED_REPLY';
+  }
+
+  return 'NO_ACTION';
+}
+
+function buildAdvisorNotes(orchestrator: BookingOrchestratorResult): string[] {
+  const notes = [
+    'Dry-run only. No message has been sent.',
+    'No appointment has been created.',
+  ];
+  const missingFields = orchestrator.readiness.missingFields;
+
+  if (missingFields.includes('service')) {
+    notes.push('Missing required booking information: service.');
+  }
+
+  if (missingFields.includes('date')) {
+    notes.push('Missing required booking information: date.');
+  }
+
+  if (missingFields.includes('customerName')) {
+    notes.push(
+      'Customer name is still missing, but it is not required yet to suggest slots.',
+    );
+  }
+
+  if (orchestrator.availabilityPreview.checked) {
+    notes.push(
+      orchestrator.availabilityPreview.hasAvailability
+        ? 'Availability was checked and slots were found.'
+        : 'Availability was checked but no slots were found.',
+    );
+  }
+
+  return notes;
 }
 
 function normalizeMissingFields(value: unknown): string[] {

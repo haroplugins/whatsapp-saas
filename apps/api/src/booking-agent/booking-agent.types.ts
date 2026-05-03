@@ -149,6 +149,40 @@ export type BookingAgentConversationDryRunResult = {
   };
 };
 
+export type BookingAgentAdvisorRecommendedAction =
+  | 'REVIEW_SUGGESTED_REPLY'
+  | 'ASK_FOR_MORE_INFO'
+  | 'NO_ACTION'
+  | 'CHECK_AVAILABILITY_RESULT'
+  | 'ESCALATE_TO_HUMAN';
+
+export type BookingAgentConversationAdvisorResult = {
+  ok: true;
+  mode: 'advisor_dry_run';
+  conversationId: string;
+  messageId: string;
+  inputText: string;
+  summary: {
+    intent: string;
+    decision: string;
+    suggestedReplyPrepared: boolean;
+    suggestedReplyReason: string | null;
+    hasAvailability: boolean | null;
+    serviceName: string | null;
+    date: string | null;
+    timePreference: string | null;
+  };
+  advisor: {
+    recommendedAction: BookingAgentAdvisorRecommendedAction;
+    suggestedReplyText: string | null;
+    safeToSendAutomatically: false;
+    notes: string[];
+  };
+  raw: {
+    dryRunLogCreated: true;
+  };
+};
+
 export type BookingAgentDryRunLogListItem = {
   id: string;
   createdAt: string;

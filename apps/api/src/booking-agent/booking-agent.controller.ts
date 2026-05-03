@@ -101,6 +101,18 @@ export class BookingAgentController {
     );
   }
 
+  @Post('conversations/:conversationId/advisor')
+  advisorForConversation(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.advisorForConversation(
+      currentUser.tenantId,
+      currentUser.userId,
+      conversationId,
+    );
+  }
+
   @Post('resolve')
   resolve(
     @Body() resolveBookingRequestDto: ResolveBookingRequestDto,
