@@ -19,6 +19,15 @@ export type ConversationDraftResponse = {
   draft: ConversationDraft | null;
 };
 
+export type BookingAdvisorDraftSavedResponse = {
+  ok: true;
+  mode: 'advisor_draft_saved';
+  conversationId: string;
+  messageId: string;
+  draft: ConversationDraft;
+  advisor: unknown;
+};
+
 export function fetchConversationDraft(
   conversationId: string,
 ): Promise<ConversationDraftResponse> {
@@ -33,4 +42,15 @@ export function deleteConversationDraft(
   return apiFetch<{ ok: true }>(`/conversations/${conversationId}/draft`, {
     method: 'DELETE',
   });
+}
+
+export function saveBookingAdvisorDraft(
+  conversationId: string,
+): Promise<BookingAdvisorDraftSavedResponse> {
+  return apiFetch<BookingAdvisorDraftSavedResponse>(
+    `/booking-agent/conversations/${conversationId}/advisor/save-draft`,
+    {
+      method: 'POST',
+    },
+  );
 }

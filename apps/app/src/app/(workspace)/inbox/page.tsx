@@ -3,7 +3,7 @@ import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as Rea
 import { apiFetch } from '../../../lib/api';
 import { isOutsideBusinessHours, readStoredBusinessHours } from '../../../lib/business-hours';
 import { buildBusinessAutomationReply, readStoredBusinessProfile, type AutomationReplyKind } from '../../../lib/business-profile';
-import { deleteConversationDraft, fetchConversationDraft, type ConversationDraft } from '../../../lib/conversation-drafts';
+import { deleteConversationDraft, fetchConversationDraft, saveBookingAdvisorDraft, type ConversationDraft } from '../../../lib/conversation-drafts';
 import {
   createMockFileMessage,
   createMockTextMessage,
@@ -84,6 +84,7 @@ export default function InboxPage() {
   const [conversationDraft, setConversationDraft] = useState<ConversationDraft | null>(null);
   const [isConversationDraftLoading, setIsConversationDraftLoading] = useState(false);
   const [isDeletingConversationDraft, setIsDeletingConversationDraft] = useState(false);
+  const [isGeneratingConversationDraft, setIsGeneratingConversationDraft] = useState(false);
   const [conversationDraftError, setConversationDraftError] = useState<string | null>(null);
   const [draftLoadedIntoComposerId, setDraftLoadedIntoComposerId] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +182,7 @@ export default function InboxPage() {
       setConversationDraft(null);
       setConversationDraftError(null);
       setIsConversationDraftLoading(false);
+      setIsGeneratingConversationDraft(false);
       setDraftLoadedIntoComposerId(null);
       return;
     }
@@ -591,6 +593,23 @@ export default function InboxPage() {
     }
   }
 
+  async function generateAdvisorDraft() {
+    if (!selectedPersistedConversationId || isGeneratingConversationDraft) return;
+
+    setIsGeneratingConversationDraft(true);
+    setConversationDraftError(null);
+    try {
+      const response = await saveBookingAdvisorDraft(selectedPersistedConversationId);
+      setConversationDraft(response.draft);
+      setDraftLoadedIntoComposerId(null);
+    } catch (error) {
+      console.error('Could not generate advisor draft.', error);
+      setConversationDraftError('No se pudo generar la sugerencia.');
+    } finally {
+      setIsGeneratingConversationDraft(false);
+    }
+  }
+
   async function clearConversationDraftAfterManualSend(
     conversationId: string,
     draftId: string,
@@ -856,7 +875,7 @@ export default function InboxPage() {
                 ) : null}
                 <div ref={chatBottomRef} />
               </div>
-              {selectedPersistedConversationId && (isConversationDraftLoading || conversationDraft || conversationDraftError) ? (
+              {selectedPersistedConversationId ? (
                 <aside className="conversation-draft-card" aria-live="polite">
                   {isConversationDraftLoading ? (
                     <span className="conversation-draft-card__status">Cargando borrador...</span>
@@ -874,13 +893,34 @@ export default function InboxPage() {
                         <button className="button button--ghost conversation-draft-card__button" type="button" onClick={useConversationDraftInReply}>
                           Usar en respuesta
                         </button>
+                        <button className="button button--ghost conversation-draft-card__button" type="button" onClick={generateAdvisorDraft} disabled={isGeneratingConversationDraft}>
+                          {isGeneratingConversationDraft ? 'Generando sugerencia...' : 'Actualizar sugerencia'}
+                        </button>
                         <button className="button button--ghost conversation-draft-card__button conversation-draft-card__button--danger" type="button" onClick={discardConversationDraft} disabled={isDeletingConversationDraft}>
                           {isDeletingConversationDraft ? 'Descartando...' : 'Descartar borrador'}
                         </button>
                       </div>
+                      {conversationDraftError ? (
+                        <span className="conversation-draft-card__status conversation-draft-card__status--error">{conversationDraftError}</span>
+                      ) : null}
                     </>
                   ) : (
-                    <span className="conversation-draft-card__status conversation-draft-card__status--error">{conversationDraftError}</span>
+                    <>
+                      <div className="conversation-draft-card__header">
+                        <div>
+                          <strong>Borrador Advisor</strong>
+                          <span>Genera una sugerencia como borrador. No se enviara ningun mensaje.</span>
+                        </div>
+                      </div>
+                      {conversationDraftError ? (
+                        <span className="conversation-draft-card__status conversation-draft-card__status--error">{conversationDraftError}</span>
+                      ) : null}
+                      <div className="conversation-draft-card__actions">
+                        <button className="button button--ghost conversation-draft-card__button" type="button" onClick={generateAdvisorDraft} disabled={isGeneratingConversationDraft}>
+                          {isGeneratingConversationDraft ? 'Generando sugerencia...' : 'Sugerir respuesta'}
+                        </button>
+                      </div>
+                    </>
                   )}
                 </aside>
               ) : null}
