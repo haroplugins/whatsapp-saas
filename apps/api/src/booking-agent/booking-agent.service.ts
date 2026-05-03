@@ -5,11 +5,13 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '@prisma/client';
 import { AvailabilityService } from '../agenda/availability.service';
 import { SmartBookingSettingsService } from '../agenda/smart-booking-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { IntentRouterService } from '../intent-router/intent-router.service';
 import type { ClassifiedIntent } from '../intent-router/intent-router.types';
+import { PrismaService } from '../prisma/prisma.service';
 import { BookingResolutionService } from './booking-resolution.service';
 import type {
   BookingAgentConfidence,
@@ -66,6 +68,7 @@ export class BookingAgentService {
     private readonly smartBookingSettingsService: SmartBookingSettingsService,
     private readonly bookingResolutionService: BookingResolutionService,
     private readonly availabilityService: AvailabilityService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   async extract(
@@ -260,6 +263,51 @@ export class BookingAgentService {
       resolution,
       availabilityPreview,
     });
+  }
+
+  async orchestrateDryRun(
+    tenantId: string,
+    userId: string | undefined,
+    text: string,
+  ): Promise<BookingOrchestratorResult> {
+    const result = await this.orchestrate(tenantId, text);
+
+    // Dry-run audit only. Production retention/encryption policy should be
+    // defined before storing real customer conversations at scale.
+    await this.prismaService.bookingAgentDryRunLog.create({
+      data: {
+        tenantId,
+        userId: userId ?? null,
+        inputText: text,
+        intent: result.deterministicIntent.intent,
+        decision: result.decision,
+        nextAction: result.nextAction,
+        suggestedReplyPrepared: result.suggestedReply.prepared,
+        suggestedReplyReason: result.suggestedReply.reason,
+        suggestedReplyText: result.suggestedReply.prepared
+          ? result.suggestedReply.text
+          : null,
+        hasAvailability: result.availabilityPreview.checked
+          ? result.availabilityPreview.hasAvailability
+          : null,
+        availabilityChecked: result.availabilityPreview.checked,
+        serviceName: result.availabilityPreview.checked
+          ? result.availabilityPreview.serviceName
+          : null,
+        serviceId: result.availabilityPreview.checked
+          ? result.availabilityPreview.serviceId
+          : null,
+        date: result.availabilityPreview.checked
+          ? result.availabilityPreview.date
+          : null,
+        timePreference: result.availabilityPreview.checked
+          ? result.availabilityPreview.timePreference
+          : result.resolution?.timePreference.value,
+        resultJson: toPrismaJson(result),
+      },
+    });
+
+    return result;
   }
 
   resolve(tenantId: string, text: string): Promise<BookingResolutionResult> {
@@ -846,4 +894,8 @@ function normalizeMaxSuggestions(value: number): number {
   }
 
   return value;
+}
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }

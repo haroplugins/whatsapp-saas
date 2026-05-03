@@ -44,6 +44,18 @@ export class BookingAgentController {
     );
   }
 
+  @Post('orchestrate-dry-run')
+  orchestrateDryRun(
+    @Body() extractBookingDto: ResolveBookingRequestDto,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.bookingAgentService.orchestrateDryRun(
+      currentUser.tenantId,
+      currentUser.userId,
+      extractBookingDto.text,
+    );
+  }
+
   @Post('resolve')
   resolve(
     @Body() resolveBookingRequestDto: ResolveBookingRequestDto,

@@ -83,6 +83,7 @@ model Tenant {
   bookingSettings      BookingSettings?
   availabilityRules    AvailabilityRule[]
   smartBookingSettings SmartBookingSettings?
+  bookingAgentDryRuns  BookingAgentDryRunLog[] @relation("BookingAgentDryRunTenant")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 }
@@ -96,6 +97,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookingAgentDryRuns BookingAgentDryRunLog[] @relation("BookingAgentDryRunUser")
 
   @@index([tenantId])
   @@unique([tenantId, email])
@@ -235,4 +237,35 @@ model SmartBookingSettings {
   createdAt           DateTime                        @default(now())
   updatedAt           DateTime                        @updatedAt
   tenant              Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Dry-run audit log for booking orchestrator decisions.
+/// Contains customer-provided text in inputText/resultJson.
+/// Before production use, apply retention and encryption/privacy policy.
+model BookingAgentDryRunLog {
+  id                     String   @id @default(cuid())
+  tenantId               String
+  userId                 String?
+  inputText              String
+  intent                 String?
+  decision               String?
+  nextAction             String?
+  suggestedReplyPrepared Boolean
+  suggestedReplyReason   String?
+  suggestedReplyText     String?
+  hasAvailability        Boolean?
+  availabilityChecked    Boolean
+  serviceName            String?
+  serviceId              String?
+  date                   String?
+  timePreference         String?
+  resultJson             Json
+  createdAt              DateTime @default(now())
+  tenant                 Tenant   @relation("BookingAgentDryRunTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  user                   User?    @relation("BookingAgentDryRunUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, decision])
+  @@index([tenantId, intent])
+  @@index([userId])
 }
