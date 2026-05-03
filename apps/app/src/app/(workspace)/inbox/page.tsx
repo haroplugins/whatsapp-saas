@@ -85,6 +85,7 @@ export default function InboxPage() {
   const [isConversationDraftLoading, setIsConversationDraftLoading] = useState(false);
   const [isDeletingConversationDraft, setIsDeletingConversationDraft] = useState(false);
   const [conversationDraftError, setConversationDraftError] = useState<string | null>(null);
+  const [draftLoadedIntoComposerId, setDraftLoadedIntoComposerId] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
@@ -172,6 +173,7 @@ export default function InboxPage() {
   useEffect(() => {
     setEditingMessageId(null);
     setEditingDraft('');
+    setDraftLoadedIntoComposerId(null);
   }, [selectedConversationId]);
 
   useEffect(() => {
@@ -179,6 +181,7 @@ export default function InboxPage() {
       setConversationDraft(null);
       setConversationDraftError(null);
       setIsConversationDraftLoading(false);
+      setDraftLoadedIntoComposerId(null);
       return;
     }
 
@@ -428,6 +431,9 @@ export default function InboxPage() {
     const content = draftMessage.trim();
 
     if (isPersistedConversation(selectedConversation)) {
+      const draftToClearAfterSend = conversationDraft && draftLoadedIntoComposerId === conversationDraft.id
+        ? conversationDraft
+        : null;
       setIsSendingMessage(true);
       try {
         const persistedMessage = await apiFetch<PersistedMessage>(`/conversations/${selectedConversation.id}/messages`, {
@@ -450,6 +456,12 @@ export default function InboxPage() {
           isAutoReplyTyping: false,
         } : conversation));
         setDraftMessage('');
+        if (draftToClearAfterSend) {
+          await clearConversationDraftAfterManualSend(
+            selectedConversation.id,
+            draftToClearAfterSend.id,
+          );
+        }
       } catch (error) {
         console.error('Could not persist manual inbox reply.', error);
       } finally {
@@ -557,6 +569,7 @@ export default function InboxPage() {
   function useConversationDraftInReply() {
     if (!conversationDraft) return;
     setDraftMessage(conversationDraft.content);
+    setDraftLoadedIntoComposerId(conversationDraft.id);
   }
 
   async function discardConversationDraft() {
@@ -573,7 +586,24 @@ export default function InboxPage() {
       console.error('Could not discard conversation draft.', error);
       setConversationDraftError('No se pudo descartar el borrador.');
     } finally {
+      setDraftLoadedIntoComposerId(null);
       setIsDeletingConversationDraft(false);
+    }
+  }
+
+  async function clearConversationDraftAfterManualSend(
+    conversationId: string,
+    draftId: string,
+  ) {
+    setConversationDraftError(null);
+    try {
+      await deleteConversationDraft(conversationId);
+      setConversationDraft((currentDraft) => currentDraft?.id === draftId ? null : currentDraft);
+    } catch (error) {
+      console.error('Could not clear conversation draft after manual send.', error);
+      setConversationDraftError('El mensaje se envio, pero no se pudo limpiar el borrador.');
+    } finally {
+      setDraftLoadedIntoComposerId((currentDraftId) => currentDraftId === draftId ? null : currentDraftId);
     }
   }
 
