@@ -41,7 +41,7 @@ export class DashboardService {
       },
     };
 
-    const [total, sentByUser, sentByClient] = await Promise.all([
+    const [total, sentByUser, sentByClient, sentByAi] = await Promise.all([
       this.prismaService.message.count({
         where: conversationFilter,
       }),
@@ -57,12 +57,19 @@ export class DashboardService {
           sender: MessageSender.CLIENT,
         },
       }),
+      this.prismaService.message.count({
+        where: {
+          ...conversationFilter,
+          sender: MessageSender.AI,
+        },
+      }),
     ]);
 
     return {
       total,
       sentByUser,
       sentByClient,
+      sentByAi,
     };
   }
 

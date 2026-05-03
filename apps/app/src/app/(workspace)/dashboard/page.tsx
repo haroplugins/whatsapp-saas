@@ -13,6 +13,7 @@ type MessagesSummary = {
   total: number;
   sentByUser: number;
   sentByClient: number;
+  sentByAi: number;
 };
 
 type AutomationsSummary = {
@@ -138,6 +139,12 @@ export default function DashboardPage() {
               <span>Client</span>
               <strong className={isLoading ? 'metric-card__skeleton' : ''}>
                 {isLoading ? ' ' : data?.messages.sentByClient ?? 0}
+              </strong>
+            </div>
+            <div>
+              <span>Asistente</span>
+              <strong className={isLoading ? 'metric-card__skeleton' : ''}>
+                {isLoading ? ' ' : data?.messages.sentByAi ?? 0}
               </strong>
             </div>
           </div>

@@ -1109,6 +1109,12 @@ input:focus {
   border: 1px solid rgba(13, 138, 106, 0.16);
 }
 
+.chat-message--ai {
+  justify-self: end;
+  background: linear-gradient(135deg, #e9f0ff 0%, #f6f8ff 100%);
+  border: 1px solid rgba(71, 94, 178, 0.18);
+}
+
 .chat-message--auto {
   justify-self: end;
   background: linear-gradient(135deg, #fff3dc 0%, #fffaf0 100%);

@@ -1,7 +1,7 @@
 export type ConversationSource = 'mock' | 'whatsapp';
 export type NormalizedConversationStatus = 'pending' | 'done';
 export type NormalizedConversationControlMode = 'none' | 'ai' | 'human';
-export type NormalizedMessageSender = 'client' | 'user' | 'auto';
+export type NormalizedMessageSender = 'client' | 'user' | 'auto' | 'ai';
 export type NormalizedMessageType = 'text' | 'file' | 'image' | 'audio';
 
 export type NormalizedMessage = {
@@ -196,7 +196,7 @@ export function withConversationPreview(conversation: NormalizedConversation): N
 
 export function getMessagePreview(message: NormalizedMessage | undefined): string {
   if (!message) return '';
-  const prefix = message.sender === 'user' ? 'Tu: ' : message.sender === 'auto' ? 'Auto: ' : '';
+  const prefix = message.sender === 'user' ? 'Tu: ' : message.sender === 'auto' ? 'Auto: ' : message.sender === 'ai' ? 'Asistente: ' : '';
   if (message.type === 'text') return `${prefix}${message.text ?? ''}`;
   return `${prefix}Archivo: ${message.fileName ?? 'Archivo adjunto'}`;
 }
@@ -351,6 +351,7 @@ function readMessageType(value: unknown, fileMimeType: unknown): NormalizedMessa
 function readMessageSender(value: unknown): NormalizedMessageSender {
   if (value === 'USER' || value === 'user') return 'user';
   if (value === 'AUTO' || value === 'auto') return 'auto';
+  if (value === 'AI' || value === 'ai') return 'ai';
   return 'client';
 }
 

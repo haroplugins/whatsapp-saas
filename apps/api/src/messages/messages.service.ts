@@ -54,7 +54,7 @@ export class MessagesService {
 
     if (data.sender === MessageSender.USER) {
       await this.markConversationHumanControlled(conversation.id);
-    } else if (!skipAutomations) {
+    } else if (data.sender === MessageSender.CLIENT && !skipAutomations) {
       await this.runIncomingMessageAutomations({
         tenantId: conversation.tenantId,
         conversationId: conversation.id,

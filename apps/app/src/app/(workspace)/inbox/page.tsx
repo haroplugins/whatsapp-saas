@@ -45,7 +45,7 @@ type PolledWhatsappMessage = {
 type PersistedMessage = {
   id: string;
   conversationId: string;
-  sender: 'USER' | 'CLIENT';
+  sender: 'USER' | 'CLIENT' | 'AI';
   content: string;
   createdAt: string;
 };
@@ -1029,7 +1029,7 @@ function normalizePersistedMessage(message: PersistedMessage): Message {
     id: message.id,
     conversationId: message.conversationId,
     source: 'whatsapp',
-    sender: message.sender === 'USER' ? 'user' : 'client',
+    sender: message.sender === 'USER' ? 'user' : message.sender === 'AI' ? 'ai' : 'client',
     type: 'text',
     text: message.content,
     createdAt: message.createdAt,
@@ -1037,11 +1037,13 @@ function normalizePersistedMessage(message: PersistedMessage): Message {
 }
 function getMessageBubbleClass(message: Message): string {
   if (isUserSender(message.sender)) return 'chat-message--user';
+  if (message.sender === 'ai') return 'chat-message--ai';
   if (message.sender === 'auto') return 'chat-message--auto';
   return 'chat-message--client';
 }
 function getMessageSenderLabel(message: Message, clientName: string): string {
   if (isUserSender(message.sender)) return 'Tu';
+  if (message.sender === 'ai') return 'Asistente';
   if (message.sender === 'auto') return 'Auto';
   return clientName;
 }
