@@ -9,6 +9,7 @@ import { BookingAgentModule } from './booking-agent/booking-agent.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
+import { IncomingMessageRouterModule } from './incoming-message-router/incoming-message-router.module';
 import { IncomingMessagesModule } from './incoming-messages/incoming-messages.module';
 import { IntentRouterModule } from './intent-router/intent-router.module';
 import { MessagesModule } from './messages/messages.module';
@@ -34,6 +35,7 @@ const rootEnvPath = resolve(process.cwd(), '.env');
     EntitlementsModule,
     ConversationsModule,
     MessagesModule,
+    IncomingMessageRouterModule,
     IncomingMessagesModule,
     IntentRouterModule,
     DashboardModule,
