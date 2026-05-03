@@ -3,6 +3,7 @@ import { type ChangeEvent, type Dispatch, type FormEvent, type MouseEvent as Rea
 import { apiFetch } from '../../../lib/api';
 import { isOutsideBusinessHours, readStoredBusinessHours } from '../../../lib/business-hours';
 import { buildBusinessAutomationReply, readStoredBusinessProfile, type AutomationReplyKind } from '../../../lib/business-profile';
+import { deleteConversationDraft, fetchConversationDraft, type ConversationDraft } from '../../../lib/conversation-drafts';
 import {
   createMockFileMessage,
   createMockTextMessage,
@@ -80,6 +81,10 @@ export default function InboxPage() {
   const [activeFilter, setActiveFilter] = useState<ConversationFilter>('all');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState('');
+  const [conversationDraft, setConversationDraft] = useState<ConversationDraft | null>(null);
+  const [isConversationDraftLoading, setIsConversationDraftLoading] = useState(false);
+  const [isDeletingConversationDraft, setIsDeletingConversationDraft] = useState(false);
+  const [conversationDraftError, setConversationDraftError] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const inboxLayoutRef = useRef<HTMLDivElement | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
@@ -94,6 +99,7 @@ export default function InboxPage() {
     return toTimestamp(second.lastMessageAt) - toTimestamp(first.lastMessageAt);
   }), [conversations]);
   const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+  const selectedPersistedConversationId = selectedConversation && isPersistedConversation(selectedConversation) ? selectedConversation.id : null;
   const isDraftEmpty = draftMessage.trim().length === 0;
   const selectedConversationNote = selectedConversation ? privateNotes[selectedConversation.id] ?? '' : '';
   const conversationCounts = useMemo(() => ({
@@ -167,6 +173,39 @@ export default function InboxPage() {
     setEditingMessageId(null);
     setEditingDraft('');
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!isHydrated || !selectedPersistedConversationId) {
+      setConversationDraft(null);
+      setConversationDraftError(null);
+      setIsConversationDraftLoading(false);
+      return;
+    }
+
+    let isCurrentRequest = true;
+    setIsConversationDraftLoading(true);
+    setConversationDraftError(null);
+
+    fetchConversationDraft(selectedPersistedConversationId)
+      .then((response) => {
+        if (!isCurrentRequest) return;
+        setConversationDraft(response.draft);
+      })
+      .catch((error) => {
+        if (!isCurrentRequest) return;
+        console.error('Could not load conversation draft.', error);
+        setConversationDraft(null);
+        setConversationDraftError('No se pudo cargar el borrador.');
+      })
+      .finally(() => {
+        if (!isCurrentRequest) return;
+        setIsConversationDraftLoading(false);
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [isHydrated, selectedPersistedConversationId]);
 
   useEffect(() => {
     if (!chatBottomRef.current) return;
@@ -515,6 +554,29 @@ export default function InboxPage() {
     window.localStorage.setItem(privateNotesStorageKey, JSON.stringify(nextPrivateNotes));
   }
 
+  function useConversationDraftInReply() {
+    if (!conversationDraft) return;
+    setDraftMessage(conversationDraft.content);
+  }
+
+  async function discardConversationDraft() {
+    if (!selectedPersistedConversationId || !conversationDraft || isDeletingConversationDraft) return;
+    const shouldDiscard = window.confirm('Descartar este borrador?');
+    if (!shouldDiscard) return;
+
+    setIsDeletingConversationDraft(true);
+    setConversationDraftError(null);
+    try {
+      await deleteConversationDraft(selectedPersistedConversationId);
+      setConversationDraft(null);
+    } catch (error) {
+      console.error('Could not discard conversation draft.', error);
+      setConversationDraftError('No se pudo descartar el borrador.');
+    } finally {
+      setIsDeletingConversationDraft(false);
+    }
+  }
+
   function migratePrivateNote(previousConversationId: string, nextConversationId: string) {
     if (previousConversationId === nextConversationId) return;
     const previousNote = privateNotes[previousConversationId];
@@ -764,6 +826,34 @@ export default function InboxPage() {
                 ) : null}
                 <div ref={chatBottomRef} />
               </div>
+              {selectedPersistedConversationId && (isConversationDraftLoading || conversationDraft || conversationDraftError) ? (
+                <aside className="conversation-draft-card" aria-live="polite">
+                  {isConversationDraftLoading ? (
+                    <span className="conversation-draft-card__status">Cargando borrador...</span>
+                  ) : conversationDraft ? (
+                    <>
+                      <div className="conversation-draft-card__header">
+                        <div>
+                          <strong>Borrador sugerido</strong>
+                          <span>{getConversationDraftSourceLabel(conversationDraft.source)} - Este borrador todavia no se ha enviado.</span>
+                        </div>
+                        <span className="conversation-draft-card__badge">{conversationDraft.status}</span>
+                      </div>
+                      <p className="conversation-draft-card__content">{conversationDraft.content}</p>
+                      <div className="conversation-draft-card__actions">
+                        <button className="button button--ghost conversation-draft-card__button" type="button" onClick={useConversationDraftInReply}>
+                          Usar en respuesta
+                        </button>
+                        <button className="button button--ghost conversation-draft-card__button conversation-draft-card__button--danger" type="button" onClick={discardConversationDraft} disabled={isDeletingConversationDraft}>
+                          {isDeletingConversationDraft ? 'Descartando...' : 'Descartar borrador'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="conversation-draft-card__status conversation-draft-card__status--error">{conversationDraftError}</span>
+                  )}
+                </aside>
+              ) : null}
               <form className="chat-composer" onSubmit={handleSendMessage}>
                 <input id={fileInputId} className="chat-composer__file-input" type="file" aria-label="Adjuntar archivo" onChange={handleFileSelected} />
                 <label className="chat-composer__attach" htmlFor={fileInputId} title="Adjuntar archivo" aria-label="Adjuntar archivo">
@@ -848,6 +938,10 @@ function getControlModeBadgeClass(conversation: Conversation): string {
   if (conversation.controlMode === 'human') return 'conversation-badge--control-human';
   if (conversation.controlMode === 'ai') return 'conversation-badge--control-ai';
   return 'conversation-badge--control-none';
+}
+function getConversationDraftSourceLabel(source: ConversationDraft['source']): string {
+  if (source === 'BOOKING_ADVISOR') return 'Advisor de agenda';
+  return 'Manual';
 }
 function isPersistedConversation(conversation: Conversation): boolean {
   return conversation.source === 'whatsapp' &&
