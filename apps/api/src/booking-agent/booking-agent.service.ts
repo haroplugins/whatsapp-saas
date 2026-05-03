@@ -20,6 +20,7 @@ import type {
   BookingAvailabilityPreviewSlot,
   BookingOrchestratorDecision,
   BookingOrchestratorResult,
+  BookingSuggestedReply,
   ExtractedBookingIntent,
   TimePreference,
 } from './booking-agent.types';
@@ -572,7 +573,12 @@ function getNonBookingIntentDecision(
 
 function buildOrchestratorResult(input: Omit<
   BookingOrchestratorResult,
-  'schemaVersion' | 'permissions' | 'intent' | 'readiness' | 'execution'
+  | 'schemaVersion'
+  | 'permissions'
+  | 'intent'
+  | 'readiness'
+  | 'execution'
+  | 'suggestedReply'
 >): BookingOrchestratorResult {
   return {
     schemaVersion: 'booking-orchestrator.v1',
@@ -581,6 +587,7 @@ function buildOrchestratorResult(input: Omit<
     intent: buildOrchestratorIntent(input.deterministicIntent),
     readiness: buildOrchestratorReadiness(input.resolution),
     execution: buildOrchestratorExecution(input),
+    suggestedReply: buildSuggestedReply(input),
   };
 }
 
@@ -631,6 +638,137 @@ function buildOrchestratorExecution(input: Pick<
     shouldCreateAppointment: input.shouldCreateAppointment,
     shouldSendMessage: input.shouldSendMessage,
   };
+}
+
+function buildSuggestedReply(input: Pick<
+  BookingOrchestratorResult,
+  | 'availabilityPreview'
+  | 'deterministicIntent'
+  | 'resolution'
+  | 'smartBooking'
+>): BookingSuggestedReply {
+  if (!input.smartBooking) {
+    return {
+      prepared: false,
+      reason: 'NOT_ALLOWED',
+    };
+  }
+
+  if (!input.smartBooking.enabled) {
+    return {
+      prepared: false,
+      reason: 'SMART_BOOKING_DISABLED',
+    };
+  }
+
+  if (
+    input.deterministicIntent.intent !== 'BOOKING_REQUEST' &&
+    input.deterministicIntent.intent !== 'BOOKING_CHANGE' &&
+    input.deterministicIntent.intent !== 'BOOKING_CANCEL'
+  ) {
+    return {
+      prepared: false,
+      reason: 'NOT_BOOKING_INTENT',
+    };
+  }
+
+  const serviceStatus = input.resolution?.serviceResolution.status;
+  const dateStatus = input.resolution?.dateResolution.status;
+
+  if (
+    !input.resolution ||
+    serviceStatus === 'MISSING' ||
+    serviceStatus === 'NOT_FOUND' ||
+    serviceStatus === 'MULTIPLE_MATCHES'
+  ) {
+    return {
+      prepared: true,
+      reason: 'MISSING_SERVICE',
+      text: '¿Para qué servicio quieres reservar?',
+    };
+  }
+
+  if (dateStatus !== 'RESOLVED') {
+    return {
+      prepared: true,
+      reason: 'MISSING_DATE',
+      text: '¿Qué día te iría bien para la cita?',
+    };
+  }
+
+  if (
+    input.resolution.serviceResolution.status !== 'MATCHED' ||
+    input.resolution.dateResolution.status !== 'RESOLVED'
+  ) {
+    return {
+      prepared: true,
+      reason: 'MISSING_INFO',
+      text: 'Necesito algún dato más para poder buscar huecos.',
+    };
+  }
+
+  if (!input.availabilityPreview.checked) {
+    return {
+      prepared: true,
+      reason: 'MISSING_INFO',
+      text: 'Necesito algún dato más para poder buscar huecos.',
+    };
+  }
+
+  if (!input.availabilityPreview.hasAvailability) {
+    return {
+      prepared: true,
+      reason: 'NO_SLOTS_AVAILABLE',
+      text: `No tengo disponibilidad para ${input.availabilityPreview.serviceName} en ese día/franja. ¿Quieres que busque otro día?`,
+    };
+  }
+
+  return {
+    prepared: true,
+    reason: 'SLOTS_AVAILABLE',
+    text: buildSlotsAvailableReply(input.resolution, input.availabilityPreview),
+  };
+}
+
+function buildSlotsAvailableReply(
+  resolution: BookingResolutionResult,
+  availabilityPreview: Extract<
+    BookingAvailabilityPreview,
+    { checked: true }
+  >,
+): string {
+  const dateLabel =
+    resolution.dateResolution.status === 'RESOLVED'
+      ? resolution.dateResolution.source || resolution.dateResolution.date
+      : availabilityPreview.date;
+  const timeLabel = getTimePreferenceLabel(availabilityPreview.timePreference);
+  const header = [
+    `Tengo disponibilidad para ${availabilityPreview.serviceName} el ${dateLabel}`,
+    timeLabel,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const slots = availabilityPreview.suggestedSlots
+    .map((slot) => `- ${slot.label}`)
+    .join('\n');
+
+  return `${header}:\n${slots}\n\n¿Te va bien alguna de estas horas?`;
+}
+
+function getTimePreferenceLabel(timePreference: string): string {
+  if (timePreference === 'MORNING') {
+    return 'por la mañana';
+  }
+
+  if (timePreference === 'AFTERNOON') {
+    return 'por la tarde';
+  }
+
+  if (timePreference === 'EVENING') {
+    return 'por la noche';
+  }
+
+  return '';
 }
 
 function filterSlotsByTimePreference(

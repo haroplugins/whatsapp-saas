@@ -87,6 +87,7 @@ export type BookingOrchestratorResult = {
   shouldSendMessage: boolean;
   resolution?: BookingResolutionResult;
   availabilityPreview: BookingAvailabilityPreview;
+  suggestedReply: BookingSuggestedReply;
   permissions: {
     planAllowed: boolean;
     smartBookingEnabled: boolean;
@@ -109,6 +110,33 @@ export type BookingOrchestratorResult = {
     shouldSendMessage: boolean;
   };
 };
+
+export type BookingSuggestedReplyReason =
+  | 'SLOTS_AVAILABLE'
+  | 'NO_SLOTS_AVAILABLE'
+  | 'MISSING_SERVICE'
+  | 'MISSING_DATE'
+  | 'MISSING_INFO'
+  | 'NOT_BOOKING_INTENT'
+  | 'NOT_ALLOWED'
+  | 'SMART_BOOKING_DISABLED';
+
+export type BookingSuggestedReply =
+  | {
+      prepared: false;
+      reason:
+        | 'NOT_BOOKING_INTENT'
+        | 'NOT_ALLOWED'
+        | 'SMART_BOOKING_DISABLED';
+    }
+  | {
+      prepared: true;
+      reason: Exclude<
+        BookingSuggestedReplyReason,
+        'NOT_BOOKING_INTENT' | 'NOT_ALLOWED' | 'SMART_BOOKING_DISABLED'
+      >;
+      text: string;
+    };
 
 export type BookingAvailabilityPreviewSlot = {
   startAt: string;
