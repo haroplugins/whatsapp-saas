@@ -82,6 +82,19 @@ enum SmartBookingMissingInfoBehavior {
   HANDOFF_TO_HUMAN
 }
 
+enum AutomaticReplySource {
+  BOOKING_ADVISOR
+  CLASSIC_AUTOMATION
+  OFF_HOURS
+}
+
+enum AutomaticReplyStatus {
+  DRY_RUN
+  SENT
+  BLOCKED
+  FAILED
+}
+
 model Tenant {
   id                   String                @id @default(cuid())
   name                 String
@@ -97,6 +110,7 @@ model Tenant {
   availabilityRules    AvailabilityRule[]
   smartBookingSettings SmartBookingSettings?
   bookingAgentDryRuns  BookingAgentDryRunLog[] @relation("BookingAgentDryRunTenant")
+  automaticReplyLogs   AutomaticReplyLog[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 }
@@ -127,6 +141,7 @@ model Conversation {
   isBusiness  Boolean
   messages    Message[]
   draft       ConversationDraft?
+  automaticReplyLogs AutomaticReplyLog[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -141,6 +156,8 @@ model Message {
   content        String
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  automaticReplyTriggerLogs AutomaticReplyLog[] @relation("AutomaticReplyTriggeringMessage")
+  automaticReplySentLogs AutomaticReplyLog[] @relation("AutomaticReplySentMessage")
 
   @@index([conversationId])
 }
@@ -305,4 +322,32 @@ model BookingAgentDryRunLog {
   @@index([tenantId, decision])
   @@index([tenantId, intent])
   @@index([userId])
+}
+
+model AutomaticReplyLog {
+  id                  String                @id @default(cuid())
+  tenantId            String
+  conversationId      String
+  triggeringMessageId String
+  sentMessageId       String?
+  source              AutomaticReplySource?
+  routerDecision      String
+  selectedSource      String?
+  status              AutomaticReplyStatus @default(DRY_RUN)
+  reason              String?
+  replyTextPreview    String?
+  replyTextHash       String?
+  resultJson          Json?
+  expiresAt           DateTime?
+  createdAt           DateTime              @default(now())
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation        Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  triggeringMessage   Message               @relation("AutomaticReplyTriggeringMessage", fields: [triggeringMessageId], references: [id], onDelete: Cascade)
+  sentMessage         Message?              @relation("AutomaticReplySentMessage", fields: [sentMessageId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, source])
+  @@index([conversationId])
+  @@index([triggeringMessageId])
 }

@@ -1,10 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ActionType,
+  AutomaticReplySource,
+  AutomaticReplyStatus,
   ConversationControlMode,
   MessageSender,
+  type Prisma,
   TriggerType,
 } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { BookingAgentService } from '../booking-agent/booking-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
@@ -12,10 +17,15 @@ import type {
   IncomingMessageReplyRouterDryRunResult,
 } from './incoming-message-router.types';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_AUTOMATIC_REPLY_LOG_RETENTION_DAYS = 14;
+const REPLY_TEXT_PREVIEW_MAX_LENGTH = 300;
+
 @Injectable()
 export class IncomingMessageRouterService {
   constructor(
     private readonly bookingAgentService: BookingAgentService,
+    private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
   ) {}
 
@@ -56,7 +66,7 @@ export class IncomingMessageRouterService {
     }
 
     if (message.sender !== MessageSender.CLIENT) {
-      return buildRouterResult({
+      return this.persistAutomaticReplyLogAndReturn(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -68,7 +78,7 @@ export class IncomingMessageRouterService {
     }
 
     if (conversation.controlMode === ConversationControlMode.HUMAN) {
-      return buildRouterResult({
+      return this.persistAutomaticReplyLogAndReturn(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -94,7 +104,7 @@ export class IncomingMessageRouterService {
     ];
 
     if (candidates.length === 0) {
-      return buildRouterResult({
+      return this.persistAutomaticReplyLogAndReturn(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -106,7 +116,7 @@ export class IncomingMessageRouterService {
     }
 
     if (candidates.length > 1) {
-      return buildRouterResult({
+      return this.persistAutomaticReplyLogAndReturn(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -120,7 +130,7 @@ export class IncomingMessageRouterService {
     const candidate = candidates[0]!;
 
     if (candidate.source === 'CLASSIC_AUTOMATION') {
-      return buildRouterResult({
+      return this.persistAutomaticReplyLogAndReturn(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -131,7 +141,7 @@ export class IncomingMessageRouterService {
       });
     }
 
-    return buildRouterResult({
+    return this.persistAutomaticReplyLogAndReturn(tenantId, {
       conversationId,
       messageId,
       controlMode: conversation.controlMode,
@@ -140,6 +150,65 @@ export class IncomingMessageRouterService {
       selectedSource: 'BOOKING_ADVISOR',
       reason: 'One Booking Advisor reply candidate found.',
     });
+  }
+
+  private async persistAutomaticReplyLogAndReturn(
+    tenantId: string,
+    input: Parameters<typeof buildRouterResult>[0],
+  ): Promise<IncomingMessageReplyRouterDryRunResult> {
+    const result = buildRouterResult(input);
+    await this.createAutomaticReplyLog(tenantId, result);
+    return result;
+  }
+
+  private async createAutomaticReplyLog(
+    tenantId: string,
+    result: IncomingMessageReplyRouterDryRunResult,
+  ): Promise<void> {
+    const selectedCandidate = result.decision.selectedSource
+      ? result.candidates.find(
+          (candidate) => candidate.source === result.decision.selectedSource,
+        )
+      : null;
+    const replyTextPreview = selectedCandidate
+      ? truncateText(selectedCandidate.replyTextPreview)
+      : null;
+    const expiresAt = new Date(
+      Date.now() + this.getAutomaticReplyLogRetentionDays() * DAY_MS,
+    );
+
+    await this.prismaService.automaticReplyLog.create({
+      data: {
+        tenantId,
+        conversationId: result.conversationId,
+        triggeringMessageId: result.messageId,
+        sentMessageId: null,
+        source: mapAutomaticReplySource(result.decision.selectedSource),
+        routerDecision: result.decision.type,
+        selectedSource: result.decision.selectedSource,
+        status: AutomaticReplyStatus.DRY_RUN,
+        reason: result.decision.reason,
+        replyTextPreview,
+        replyTextHash: selectedCandidate
+          ? hashText(selectedCandidate.replyTextPreview)
+          : null,
+        resultJson: buildAutomaticReplyLogResultJson(result),
+        expiresAt,
+      },
+    });
+  }
+
+  private getAutomaticReplyLogRetentionDays(): number {
+    const value = this.configService.get<string>(
+      'AUTOMATIC_REPLY_LOG_RETENTION_DAYS',
+    );
+    const parsed = Number(value);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return DEFAULT_AUTOMATIC_REPLY_LOG_RETENTION_DAYS;
+    }
+
+    return parsed;
   }
 
   private async getClassicAutomationCandidates(input: {
@@ -251,6 +320,45 @@ function buildRouterResult(input: {
       reason: input.reason,
     },
   };
+}
+
+function mapAutomaticReplySource(
+  selectedSource: IncomingMessageReplyRouterDryRunResult['decision']['selectedSource'],
+): AutomaticReplySource | null {
+  if (selectedSource === 'BOOKING_ADVISOR') {
+    return AutomaticReplySource.BOOKING_ADVISOR;
+  }
+
+  if (selectedSource === 'CLASSIC_AUTOMATION') {
+    return AutomaticReplySource.CLASSIC_AUTOMATION;
+  }
+
+  return null;
+}
+
+function buildAutomaticReplyLogResultJson(
+  result: IncomingMessageReplyRouterDryRunResult,
+): Prisma.InputJsonObject {
+  return {
+    mode: result.mode,
+    controlMode: result.controlMode,
+    candidateSources: result.candidates.map((candidate) => candidate.source),
+    candidateReasons: result.candidates.map((candidate) => candidate.reason),
+    candidateCount: result.candidates.length,
+    decisionType: result.decision.type,
+    selectedSource: result.decision.selectedSource,
+    shouldSendMessage: result.decision.shouldSendMessage,
+  };
+}
+
+function truncateText(text: string): string {
+  return text.length > REPLY_TEXT_PREVIEW_MAX_LENGTH
+    ? text.slice(0, REPLY_TEXT_PREVIEW_MAX_LENGTH)
+    : text;
+}
+
+function hashText(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
 }
 
 function normalizeText(text: string): string {

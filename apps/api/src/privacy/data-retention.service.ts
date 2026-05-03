@@ -59,7 +59,7 @@ export class DataRetentionService implements OnModuleInit, OnModuleDestroy {
     try {
       // Drafts and dry-run logs can contain customer-provided text. Keep only
       // the short operational window needed for human review and debugging.
-      const [draftResult, dryRunLogResult] =
+      const [draftResult, dryRunLogResult, automaticReplyLogResult] =
         await this.prismaService.$transaction([
           this.prismaService.conversationDraft.deleteMany({
             where: {
@@ -75,10 +75,17 @@ export class DataRetentionService implements OnModuleInit, OnModuleDestroy {
               },
             },
           }),
+          this.prismaService.automaticReplyLog.deleteMany({
+            where: {
+              expiresAt: {
+                lt: new Date(now),
+              },
+            },
+          }),
         ]);
 
       this.logger.log(
-        `Retention ${reason}: deleted ${draftResult.count} ConversationDraft older than ${draftRetentionDays} days and ${dryRunLogResult.count} BookingAgentDryRunLog older than ${dryRunLogRetentionDays} days.`,
+        `Retention ${reason}: deleted ${draftResult.count} ConversationDraft older than ${draftRetentionDays} days, ${dryRunLogResult.count} BookingAgentDryRunLog older than ${dryRunLogRetentionDays} days, and ${automaticReplyLogResult.count} expired AutomaticReplyLog.`,
       );
     } catch (error: unknown) {
       this.logger.error(
