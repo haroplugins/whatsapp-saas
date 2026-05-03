@@ -254,6 +254,9 @@ export class BookingAgentService {
           checked: false,
           reason: 'NOT_READY',
         } satisfies BookingAvailabilityPreview;
+    const activeServiceNames = needsServiceOptions(resolution)
+      ? await this.listActiveServiceNames(tenantId)
+      : undefined;
 
     return buildOrchestratorResult({
       planAllowed,
@@ -268,6 +271,7 @@ export class BookingAgentService {
       shouldSendMessage: false,
       resolution,
       availabilityPreview,
+      activeServiceNames,
     });
   }
 
@@ -567,6 +571,24 @@ export class BookingAgentService {
       hasAvailability: suggestedSlots.length > 0,
     };
   }
+
+  private async listActiveServiceNames(tenantId: string): Promise<string[]> {
+    const services = await this.prismaService.service.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+      take: 6,
+      select: {
+        name: true,
+      },
+    });
+
+    return services.map((service) => service.name);
+  }
 }
 
 const bookingAgentSystemPrompt = `Eres un extractor de intencion para la agenda de un negocio.
@@ -803,7 +825,7 @@ function getNonBookingIntentDecision(
   return null;
 }
 
-function buildOrchestratorResult(input: Omit<
+type BuildOrchestratorResultInput = Omit<
   BookingOrchestratorResult,
   | 'schemaVersion'
   | 'permissions'
@@ -811,10 +833,19 @@ function buildOrchestratorResult(input: Omit<
   | 'readiness'
   | 'execution'
   | 'suggestedReply'
->): BookingOrchestratorResult {
+> & {
+  activeServiceNames?: string[];
+};
+
+function buildOrchestratorResult(
+  input: BuildOrchestratorResultInput,
+): BookingOrchestratorResult {
+  const { activeServiceNames: _activeServiceNames, ...resultInput } = input;
+  void _activeServiceNames;
+
   return {
     schemaVersion: 'booking-orchestrator.v1',
-    ...input,
+    ...resultInput,
     permissions: buildOrchestratorPermissions(input),
     intent: buildOrchestratorIntent(input.deterministicIntent),
     readiness: buildOrchestratorReadiness(input.resolution),
@@ -873,8 +904,9 @@ function buildOrchestratorExecution(input: Pick<
 }
 
 function buildSuggestedReply(input: Pick<
-  BookingOrchestratorResult,
+  BuildOrchestratorResultInput,
   | 'availabilityPreview'
+  | 'activeServiceNames'
   | 'deterministicIntent'
   | 'resolution'
   | 'smartBooking'
@@ -916,7 +948,7 @@ function buildSuggestedReply(input: Pick<
     return {
       prepared: true,
       reason: 'MISSING_SERVICE',
-      text: '¿Para qué servicio quieres reservar?',
+      text: buildMissingServiceReply(input.activeServiceNames),
     };
   }
 
@@ -960,6 +992,58 @@ function buildSuggestedReply(input: Pick<
     reason: 'SLOTS_AVAILABLE',
     text: buildSlotsAvailableReply(input.resolution, input.availabilityPreview),
   };
+}
+
+function needsServiceOptions(resolution: BookingResolutionResult): boolean {
+  return resolution.serviceResolution.status !== 'MATCHED';
+}
+
+function buildMissingServiceReply(activeServiceNames: string[] | undefined): string {
+  const serviceList = formatServiceNameList(activeServiceNames);
+  const baseReply = '¿Para qué servicio quieres reservar?';
+
+  if (!serviceList) {
+    return baseReply;
+  }
+
+  return `${baseReply} Ahora mismo tengo disponibles: ${serviceList}.`;
+}
+
+function formatServiceNameList(serviceNames: string[] | undefined): string | null {
+  const names = (serviceNames ?? [])
+    .map((serviceName) => serviceName.trim())
+    .filter(Boolean);
+
+  if (names.length === 0) {
+    return null;
+  }
+
+  const visibleNames = names.slice(0, 5);
+  const formattedNames = joinSpanishList(visibleNames);
+
+  if (names.length > 5) {
+    return `${formattedNames}, entre otros`;
+  }
+
+  return formattedNames;
+}
+
+function joinSpanishList(values: string[]): string {
+  if (values.length === 0) {
+    return '';
+  }
+
+  if (values.length === 1) {
+    return values[0] ?? '';
+  }
+
+  if (values.length === 2) {
+    return `${values[0]} y ${values[1]}`;
+  }
+
+  return `${values.slice(0, -1).join(', ')} y ${
+    values[values.length - 1] ?? ''
+  }`;
 }
 
 function buildSlotsAvailableReply(
