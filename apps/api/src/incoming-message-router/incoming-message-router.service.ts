@@ -10,10 +10,12 @@ import {
   TriggerType,
 } from '@prisma/client';
 import { createHash } from 'node:crypto';
+import { AutomaticReplyPolicyService } from '../automatic-replies/automatic-reply-policy.service';
 import { BookingAgentService } from '../booking-agent/booking-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
   IncomingMessageReplyCandidate,
+  IncomingMessageReplyRouterDryRunResultBase,
   IncomingMessageReplyRouterDryRunResult,
 } from './incoming-message-router.types';
 
@@ -24,6 +26,7 @@ const REPLY_TEXT_PREVIEW_MAX_LENGTH = 300;
 @Injectable()
 export class IncomingMessageRouterService {
   constructor(
+    private readonly automaticReplyPolicyService: AutomaticReplyPolicyService,
     private readonly bookingAgentService: BookingAgentService,
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
@@ -156,7 +159,22 @@ export class IncomingMessageRouterService {
     tenantId: string,
     input: Parameters<typeof buildRouterResult>[0],
   ): Promise<IncomingMessageReplyRouterDryRunResult> {
-    const result = buildRouterResult(input);
+    const baseResult = buildRouterResult(input);
+    const sendPolicy = await this.automaticReplyPolicyService.evaluate({
+      tenantId,
+      conversation: {
+        id: input.conversationId,
+        controlMode: input.controlMode,
+      },
+      triggeringMessage: {
+        id: input.messageId,
+      },
+      routerResult: baseResult,
+    });
+    const result: IncomingMessageReplyRouterDryRunResult = {
+      ...baseResult,
+      sendPolicy,
+    };
     await this.createAutomaticReplyLog(tenantId, result);
     return result;
   }
@@ -305,7 +323,7 @@ function buildRouterResult(input: {
   decisionType: IncomingMessageReplyRouterDryRunResult['decision']['type'];
   selectedSource: IncomingMessageReplyRouterDryRunResult['decision']['selectedSource'];
   reason: string;
-}): IncomingMessageReplyRouterDryRunResult {
+}): IncomingMessageReplyRouterDryRunResultBase {
   return {
     ok: true,
     mode: 'incoming_reply_router_dry_run',
@@ -348,6 +366,14 @@ function buildAutomaticReplyLogResultJson(
     decisionType: result.decision.type,
     selectedSource: result.decision.selectedSource,
     shouldSendMessage: result.decision.shouldSendMessage,
+    sendPolicy: {
+      eligibleToSend: result.sendPolicy.eligibleToSend,
+      dryRunOnly: result.sendPolicy.dryRunOnly,
+      wouldUseSender: result.sendPolicy.wouldUseSender,
+      selectedSource: result.sendPolicy.selectedSource,
+      blockReasons: result.sendPolicy.blockReasons,
+      limits: result.sendPolicy.limits,
+    },
   };
 }
 

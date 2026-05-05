@@ -1,4 +1,5 @@
 import type { ConversationControlMode } from '@prisma/client';
+import type { AutomaticReplySendPolicy } from '../automatic-replies/automatic-reply-policy.types';
 
 export type IncomingMessageReplyCandidateSource =
   | 'CLASSIC_AUTOMATION'
@@ -30,7 +31,7 @@ export type IncomingMessageReplyCandidate = {
   automationName?: string;
 };
 
-export type IncomingMessageReplyRouterDryRunResult = {
+export type IncomingMessageReplyRouterDryRunResultBase = {
   ok: true;
   mode: 'incoming_reply_router_dry_run';
   conversationId: string;
@@ -44,3 +45,8 @@ export type IncomingMessageReplyRouterDryRunResult = {
     reason: string;
   };
 };
+
+export type IncomingMessageReplyRouterDryRunResult =
+  IncomingMessageReplyRouterDryRunResultBase & {
+    sendPolicy: AutomaticReplySendPolicy;
+  };
