@@ -49,6 +49,16 @@ type PersistedMessage = {
   content: string;
   createdAt: string;
 };
+type PersistedConversation = {
+  id: string;
+  phone: string;
+  name?: string | null;
+  status: string;
+  controlMode?: 'NONE' | 'AI' | 'HUMAN';
+  isBusiness: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const privateNotesStorageKey = 'mockInbox.privateNotes';
 const automationsStorageKey = 'automations';
@@ -120,7 +130,19 @@ export default function InboxPage() {
     setConversations(mockInboxSource.loadConversations());
     setPrivateNotes(readStoredPrivateNotes());
     setIsHydrated(true);
+    let isMounted = true;
+
+    loadPersistedConversations()
+      .then((persistedConversations) => {
+        if (!isMounted) return;
+        setConversations((currentConversations) => mergeConversations(currentConversations, persistedConversations));
+      })
+      .catch((error) => {
+        console.warn('Could not load persisted inbox conversations.', error);
+      });
+
     return () => {
+      isMounted = false;
       objectUrlsRef.current.forEach((fileUrl) => window.URL.revokeObjectURL(fileUrl));
       Object.values(automationTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
       Object.values(pendingStatusTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -205,6 +227,27 @@ export default function InboxPage() {
       .finally(() => {
         if (!isCurrentRequest) return;
         setIsConversationDraftLoading(false);
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [isHydrated, selectedPersistedConversationId]);
+
+  useEffect(() => {
+    if (!isHydrated || !selectedPersistedConversationId) return;
+    let isCurrentRequest = true;
+
+    refreshPersistedConversationMessages(selectedPersistedConversationId)
+      .then((messages) => {
+        if (!isCurrentRequest) return;
+        setConversations((currentConversations) => currentConversations.map((conversation) => conversation.id === selectedPersistedConversationId ? withConversationPreview({
+          ...conversation,
+          messages,
+        }) : conversation));
+      })
+      .catch((error) => {
+        console.warn('Could not refresh persisted conversation messages.', error);
       });
 
     return () => {
@@ -1023,6 +1066,76 @@ function isPersistedConversation(conversation: Conversation): boolean {
   return conversation.source === 'whatsapp' &&
     !conversation.id.startsWith('wa-conversation-') &&
     !conversation.id.startsWith('mock-conversation-');
+}
+async function loadPersistedConversations(): Promise<Conversation[]> {
+  const persistedConversations = await apiFetch<PersistedConversation[]>('/conversations');
+  const conversationsWithMessages = await Promise.all(persistedConversations.map(async (conversation) => {
+    const messages = await refreshPersistedConversationMessages(conversation.id).catch(() => []);
+    return normalizePersistedConversation(conversation, messages);
+  }));
+
+  return conversationsWithMessages;
+}
+async function refreshPersistedConversationMessages(conversationId: string): Promise<Message[]> {
+  const messages = await apiFetch<PersistedMessage[]>(`/conversations/${conversationId}/messages`);
+  return messages.map((message) => normalizePersistedMessage(message));
+}
+function normalizePersistedConversation(conversation: PersistedConversation, messages: Message[]): Conversation {
+  return withConversationPreview({
+    id: conversation.id,
+    externalId: conversation.phone,
+    source: 'whatsapp',
+    contactName: conversation.name?.trim() || conversation.phone || 'Cliente',
+    phone: conversation.phone,
+    lastMessagePreview: '',
+    lastMessageAt: messages.at(-1)?.createdAt ?? conversation.updatedAt ?? conversation.createdAt,
+    status: normalizePersistedConversationStatus(conversation.status),
+    controlMode: normalizePersistedConversationControlMode(conversation.controlMode),
+    archived: false,
+    pendingStatusAt: null,
+    messages,
+    hasAutoReplied: messages.some((message) => message.sender === 'auto' || message.sender === 'ai'),
+    hasUserReplied: messages.some((message) => message.sender === 'user'),
+    lastAutoReplyAt: getLastAutoReplyAt(messages),
+    isAutoReplyTyping: false,
+  });
+}
+function getLastAutoReplyAt(messages: Message[]): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.sender === 'auto' || message?.sender === 'ai') {
+      return message.createdAt;
+    }
+  }
+
+  return null;
+}
+function mergeConversations(currentConversations: Conversation[], persistedConversations: Conversation[]): Conversation[] {
+  const currentById = new Map(currentConversations.map((conversation) => [conversation.id, conversation]));
+  const persistedIds = new Set(persistedConversations.map((conversation) => conversation.id));
+  const mergedPersistedConversations = persistedConversations.map((conversation) => {
+    const currentConversation = currentById.get(conversation.id);
+
+    return currentConversation ? {
+      ...currentConversation,
+      ...conversation,
+      archived: currentConversation.archived,
+      pendingStatusAt: currentConversation.pendingStatusAt,
+      isAutoReplyTyping: currentConversation.isAutoReplyTyping,
+    } : conversation;
+  });
+  const localOnlyConversations = currentConversations.filter((conversation) => !persistedIds.has(conversation.id));
+
+  return [...mergedPersistedConversations, ...localOnlyConversations];
+}
+function normalizePersistedConversationStatus(status: string): ConversationStatus {
+  if (status === 'CLOSED' || status === 'LOST' || status === 'ATTENDED') return 'done';
+  return 'pending';
+}
+function normalizePersistedConversationControlMode(controlMode: PersistedConversation['controlMode']): ConversationControlMode {
+  if (controlMode === 'AI') return 'ai';
+  if (controlMode === 'HUMAN') return 'human';
+  return 'none';
 }
 function normalizePersistedMessage(message: PersistedMessage): Message {
   return {

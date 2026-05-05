@@ -24,6 +24,7 @@ export type NormalizedConversation = {
   externalId?: string;
   source: ConversationSource;
   contactName: string;
+  phone?: string;
   lastMessagePreview: string;
   lastMessageAt: string;
   status: NormalizedConversationStatus;
@@ -254,6 +255,7 @@ function normalizeStoredConversation(value: unknown, index: number): NormalizedC
     externalId: readOptionalString(candidate.externalId),
     source: readConversationSource(candidate.source),
     contactName: readString(candidate.contactName, readString(candidate.name, 'Cliente')),
+    phone: readOptionalString(candidate.phone),
     lastMessagePreview: readString(candidate.lastMessagePreview, ''),
     lastMessageAt: readIsoDate(candidate.lastMessageAt) ?? legacyUpdatedAt ?? new Date().toISOString(),
     status: readConversationStatus(candidate.status) && !isPendingDelayExpired ? candidate.status : 'pending',
