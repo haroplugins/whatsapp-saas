@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ActionType,
@@ -15,6 +20,7 @@ import { BookingAgentService } from '../booking-agent/booking-agent.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
   IncomingMessageReplyCandidate,
+  IncomingMessageRouterInternalSendResult,
   IncomingMessageReplyRouterDryRunResultBase,
   IncomingMessageReplyRouterDryRunResult,
 } from './incoming-message-router.types';
@@ -33,6 +39,164 @@ export class IncomingMessageRouterService {
   ) {}
 
   async dryRunIncomingReply(
+    tenantId: string,
+    conversationId: string,
+    messageId: string,
+  ): Promise<IncomingMessageReplyRouterDryRunResult> {
+    const result = await this.evaluateIncomingReply(
+      tenantId,
+      conversationId,
+      messageId,
+    );
+    await this.createAutomaticReplyLog(tenantId, result);
+    return result;
+  }
+
+  async internalSendIncomingReply(
+    tenantId: string,
+    conversationId: string,
+    messageId: string,
+  ): Promise<IncomingMessageRouterInternalSendResult> {
+    const result = await this.evaluateIncomingReply(
+      tenantId,
+      conversationId,
+      messageId,
+    );
+    const selectedCandidate = this.getSelectedCandidate(result);
+    const replyText = selectedCandidate?.replyTextPreview.trim() ?? '';
+
+    if (result.decision.type === 'NO_REPLY') {
+      throw new BadRequestException('Message is not eligible for an AI reply.');
+    }
+
+    if (result.controlMode !== ConversationControlMode.AI) {
+      throw new BadRequestException(
+        'Conversation must be in AI control mode for internal send.',
+      );
+    }
+
+    if (result.decision.selectedSource !== 'BOOKING_ADVISOR') {
+      throw new BadRequestException(
+        'Only Booking Advisor internal send is supported.',
+      );
+    }
+
+    if (!selectedCandidate) {
+      throw new BadRequestException('Selected reply candidate was not found.');
+    }
+
+    if (!replyText) {
+      throw new BadRequestException('Selected reply candidate is empty.');
+    }
+
+    if (!result.sendPolicy.eligibleToSend) {
+      throw new BadRequestException({
+        message: 'Automatic reply is not eligible to send.',
+        blockReasons: result.sendPolicy.blockReasons,
+      });
+    }
+
+    if (result.sendPolicy.dryRunOnly !== true) {
+      throw new BadRequestException('Automatic reply policy must be dry-run only.');
+    }
+
+    if (result.decision.shouldSendMessage !== false) {
+      throw new BadRequestException('Router dry-run send flag must remain false.');
+    }
+
+    if (result.sendPolicy.wouldUseSender !== MessageSender.AI) {
+      throw new BadRequestException('Automatic reply must use AI sender.');
+    }
+
+    const expiresAt = new Date(
+      Date.now() + this.getAutomaticReplyLogRetentionDays() * DAY_MS,
+    );
+    const { automaticReplyLog, sentMessage } =
+      await this.prismaService.$transaction(async (transaction) => {
+        const existingSentLog = await transaction.automaticReplyLog.count({
+          where: {
+            tenantId,
+            triggeringMessageId: messageId,
+            status: AutomaticReplyStatus.SENT,
+          },
+        });
+
+        if (existingSentLog > 0) {
+          throw new ConflictException(
+            'An automatic reply was already sent for this triggering message.',
+          );
+        }
+
+        const sentMessage = await transaction.message.create({
+          data: {
+            conversationId,
+            sender: MessageSender.AI,
+            content: replyText,
+          },
+          select: {
+            id: true,
+            sender: true,
+            content: true,
+          },
+        });
+        const automaticReplyLog = await transaction.automaticReplyLog.create({
+          data: {
+            tenantId,
+            conversationId,
+            triggeringMessageId: messageId,
+            sentMessageId: sentMessage.id,
+            source: AutomaticReplySource.BOOKING_ADVISOR,
+            routerDecision: result.decision.type,
+            selectedSource: 'BOOKING_ADVISOR',
+            status: AutomaticReplyStatus.SENT,
+            reason: 'Internal AI message created. External delivery disabled.',
+            replyTextPreview: truncateText(replyText),
+            replyTextHash: hashText(replyText),
+            resultJson: buildAutomaticReplyLogResultJson(result, {
+              deliveryMode: 'INTERNAL_DB_ONLY',
+              externalDelivery: false,
+            }),
+            expiresAt,
+          },
+          select: {
+            id: true,
+            status: true,
+            source: true,
+          },
+        });
+
+        return {
+          automaticReplyLog,
+          sentMessage,
+        };
+      });
+
+    return {
+      ok: true,
+      mode: 'internal_ai_message_created',
+      externalDelivery: false,
+      deliveryMode: 'INTERNAL_DB_ONLY',
+      conversationId,
+      triggeringMessageId: messageId,
+      sentMessage: {
+        id: sentMessage.id,
+        sender: 'AI',
+        content: sentMessage.content,
+      },
+      automaticReplyLog: {
+        id: automaticReplyLog.id,
+        status: 'SENT',
+        source: 'BOOKING_ADVISOR',
+      },
+      router: {
+        decisionType: result.decision.type,
+        selectedSource: 'BOOKING_ADVISOR',
+        sendPolicyEligible: true,
+      },
+    };
+  }
+
+  private async evaluateIncomingReply(
     tenantId: string,
     conversationId: string,
     messageId: string,
@@ -69,7 +233,7 @@ export class IncomingMessageRouterService {
     }
 
     if (message.sender !== MessageSender.CLIENT) {
-      return this.persistAutomaticReplyLogAndReturn(tenantId, {
+      return this.buildRouterResultWithPolicy(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -81,7 +245,7 @@ export class IncomingMessageRouterService {
     }
 
     if (conversation.controlMode === ConversationControlMode.HUMAN) {
-      return this.persistAutomaticReplyLogAndReturn(tenantId, {
+      return this.buildRouterResultWithPolicy(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -107,7 +271,7 @@ export class IncomingMessageRouterService {
     ];
 
     if (candidates.length === 0) {
-      return this.persistAutomaticReplyLogAndReturn(tenantId, {
+      return this.buildRouterResultWithPolicy(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -119,7 +283,7 @@ export class IncomingMessageRouterService {
     }
 
     if (candidates.length > 1) {
-      return this.persistAutomaticReplyLogAndReturn(tenantId, {
+      return this.buildRouterResultWithPolicy(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -133,7 +297,7 @@ export class IncomingMessageRouterService {
     const candidate = candidates[0]!;
 
     if (candidate.source === 'CLASSIC_AUTOMATION') {
-      return this.persistAutomaticReplyLogAndReturn(tenantId, {
+      return this.buildRouterResultWithPolicy(tenantId, {
         conversationId,
         messageId,
         controlMode: conversation.controlMode,
@@ -144,7 +308,7 @@ export class IncomingMessageRouterService {
       });
     }
 
-    return this.persistAutomaticReplyLogAndReturn(tenantId, {
+    return this.buildRouterResultWithPolicy(tenantId, {
       conversationId,
       messageId,
       controlMode: conversation.controlMode,
@@ -155,7 +319,7 @@ export class IncomingMessageRouterService {
     });
   }
 
-  private async persistAutomaticReplyLogAndReturn(
+  private async buildRouterResultWithPolicy(
     tenantId: string,
     input: Parameters<typeof buildRouterResult>[0],
   ): Promise<IncomingMessageReplyRouterDryRunResult> {
@@ -175,8 +339,17 @@ export class IncomingMessageRouterService {
       ...baseResult,
       sendPolicy,
     };
-    await this.createAutomaticReplyLog(tenantId, result);
     return result;
+  }
+
+  private getSelectedCandidate(
+    result: IncomingMessageReplyRouterDryRunResult,
+  ): IncomingMessageReplyCandidate | null {
+    return result.decision.selectedSource
+      ? result.candidates.find(
+          (candidate) => candidate.source === result.decision.selectedSource,
+        ) ?? null
+      : null;
   }
 
   private async createAutomaticReplyLog(
@@ -356,6 +529,10 @@ function mapAutomaticReplySource(
 
 function buildAutomaticReplyLogResultJson(
   result: IncomingMessageReplyRouterDryRunResult,
+  delivery?: {
+    deliveryMode: 'INTERNAL_DB_ONLY';
+    externalDelivery: false;
+  },
 ): Prisma.InputJsonObject {
   return {
     mode: result.mode,
@@ -374,6 +551,12 @@ function buildAutomaticReplyLogResultJson(
       blockReasons: result.sendPolicy.blockReasons,
       limits: result.sendPolicy.limits,
     },
+    ...(delivery
+      ? {
+          deliveryMode: delivery.deliveryMode,
+          externalDelivery: delivery.externalDelivery,
+        }
+      : {}),
   };
 }
 

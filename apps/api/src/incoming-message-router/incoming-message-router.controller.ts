@@ -23,4 +23,17 @@ export class IncomingMessageRouterController {
       messageId,
     );
   }
+
+  @Post('conversations/:conversationId/messages/:messageId/internal-send')
+  internalSendIncomingReply(
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() currentUser: CurrentUserDto,
+  ) {
+    return this.incomingMessageRouterService.internalSendIncomingReply(
+      currentUser.tenantId,
+      conversationId,
+      messageId,
+    );
+  }
 }

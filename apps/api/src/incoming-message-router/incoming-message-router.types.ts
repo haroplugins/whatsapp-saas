@@ -50,3 +50,27 @@ export type IncomingMessageReplyRouterDryRunResult =
   IncomingMessageReplyRouterDryRunResultBase & {
     sendPolicy: AutomaticReplySendPolicy;
   };
+
+export type IncomingMessageRouterInternalSendResult = {
+  ok: true;
+  mode: 'internal_ai_message_created';
+  externalDelivery: false;
+  deliveryMode: 'INTERNAL_DB_ONLY';
+  conversationId: string;
+  triggeringMessageId: string;
+  sentMessage: {
+    id: string;
+    sender: 'AI';
+    content: string;
+  };
+  automaticReplyLog: {
+    id: string;
+    status: 'SENT';
+    source: 'BOOKING_ADVISOR';
+  };
+  router: {
+    decisionType: IncomingMessageReplyDecisionType;
+    selectedSource: 'BOOKING_ADVISOR';
+    sendPolicyEligible: true;
+  };
+};
