@@ -95,6 +95,22 @@ enum AutomaticReplyStatus {
   FAILED
 }
 
+enum MessageDeliveryProvider {
+  WHATSAPP_CLOUD_API
+}
+
+enum MessageDeliveryDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageDeliveryStatus {
+  DRY_RUN
+  BLOCKED
+  SENT
+  FAILED
+}
+
 model Tenant {
   id                   String                @id @default(cuid())
   name                 String
@@ -111,6 +127,7 @@ model Tenant {
   smartBookingSettings SmartBookingSettings?
   bookingAgentDryRuns  BookingAgentDryRunLog[] @relation("BookingAgentDryRunTenant")
   automaticReplyLogs   AutomaticReplyLog[]
+  messageDeliveryLogs  MessageDeliveryLog[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 }
@@ -142,6 +159,7 @@ model Conversation {
   messages    Message[]
   draft       ConversationDraft?
   automaticReplyLogs AutomaticReplyLog[]
+  messageDeliveryLogs MessageDeliveryLog[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -158,6 +176,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   automaticReplyTriggerLogs AutomaticReplyLog[] @relation("AutomaticReplyTriggeringMessage")
   automaticReplySentLogs AutomaticReplyLog[] @relation("AutomaticReplySentMessage")
+  deliveryLogs   MessageDeliveryLog[]
 
   @@index([conversationId])
 }
@@ -350,4 +369,37 @@ model AutomaticReplyLog {
   @@index([tenantId, source])
   @@index([conversationId])
   @@index([triggeringMessageId])
+}
+
+model MessageDeliveryLog {
+  id                String                   @id @default(cuid())
+  tenantId          String
+  conversationId    String
+  messageId         String
+  provider          MessageDeliveryProvider
+  direction         MessageDeliveryDirection @default(OUTBOUND)
+  status            MessageDeliveryStatus
+  externalMessageId String?
+  phoneNumberId     String?
+  recipientHash     String?
+  httpStatus        Int?
+  errorCode         String?
+  errorType         String?
+  errorMessage      String?
+  resultJson        Json?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  expiresAt         DateTime?
+  tenant            Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation      Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message           Message                  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, provider])
+  @@index([tenantId, messageId, status])
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([externalMessageId])
+  @@index([expiresAt])
 }

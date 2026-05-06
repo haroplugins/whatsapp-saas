@@ -1,4 +1,4 @@
-import type { MessageSender } from '@prisma/client';
+import type { MessageDeliveryStatus, MessageSender } from '@prisma/client';
 
 export const WHATSAPP_CLOUD_API_PROVIDER = 'WHATSAPP_CLOUD_API' as const;
 
@@ -76,4 +76,8 @@ export type WhatsappOutboundSendResult = {
   httpStatus?: number;
   wamid?: string | null;
   rawResultMinimized?: Record<string, unknown>;
+  deliveryLog?: {
+    id: string;
+    status: MessageDeliveryStatus;
+  };
 };
