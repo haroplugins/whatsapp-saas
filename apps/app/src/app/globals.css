@@ -444,6 +444,9 @@ input:focus {
 .inbox-page {
   display: grid;
   gap: 1.2rem;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: calc(100dvh - 8rem);
+  min-height: 0;
 }
 
 .automations-page {
@@ -572,7 +575,8 @@ input:focus {
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: 1rem;
-  min-height: 620px;
+  height: 100%;
+  min-height: 0;
 }
 
 .inbox-layout--with-notes {
@@ -593,6 +597,7 @@ input:focus {
   border-radius: var(--radius-lg);
   background: var(--surface-strong);
   box-shadow: 0 14px 30px rgba(22, 53, 45, 0.06);
+  min-height: 0;
 }
 
 .inbox-list {
@@ -656,7 +661,9 @@ input:focus {
   display: grid;
   align-content: start;
   gap: 0.62rem;
+  min-height: 0;
   padding: 0.55rem 0.7rem 0.75rem;
+  overscroll-behavior: contain;
   overflow-y: auto;
 }
 
@@ -3143,6 +3150,15 @@ input:focus {
 
   .inbox-hero__actions {
     justify-content: flex-start;
+  }
+
+  .inbox-page,
+  .inbox-layout {
+    height: auto;
+  }
+
+  .inbox-list {
+    max-height: min(70dvh, 620px);
   }
 
   .availability-preview {
