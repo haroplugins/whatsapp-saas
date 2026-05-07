@@ -1,6 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageSender } from '@prisma/client';
+import { MessageExternalProvider, MessageSender, Prisma } from '@prisma/client';
 import { ConversationsService } from '../conversations/conversations.service';
 import { IncomingMessageOrchestratorService } from '../incoming-messages/incoming-message-orchestrator.service';
 import { MessagesService } from '../messages/messages.service';
@@ -16,11 +16,10 @@ type WhatsappWebhookVerificationQuery = {
 type BufferedWhatsappMessage = ParsedWhatsappMessage & {
   conversationId?: string;
   persistedMessageId?: string;
+  deduplicated?: boolean;
 };
 
 const incomingMessages: BufferedWhatsappMessage[] = [];
-// TODO: persist external WhatsApp message ids when Message has an externalMessageId field.
-const persistedExternalMessageIds = new Set<string>();
 
 @Controller('webhooks/whatsapp')
 export class WhatsappWebhookController {
@@ -85,11 +84,16 @@ export class WhatsappWebhookController {
     }
 
     for (const parsedMessage of parsedMessages) {
-      if (
-        parsedMessage.externalMessageId &&
-        persistedExternalMessageIds.has(parsedMessage.externalMessageId)
-      ) {
-        continue;
+      const externalMessageId = parsedMessage.externalMessageId;
+
+      if (externalMessageId) {
+        const existingMessage = await this.findExistingWhatsappMessage(externalMessageId);
+
+        if (existingMessage) {
+          this.markParsedMessageAsDuplicate(parsedMessage, existingMessage);
+          this.logger.log('Skipped duplicate WhatsApp inbound message.');
+          continue;
+        }
       }
 
       const conversation = await this.conversationsService.findOrCreateFromWhatsapp({
@@ -98,12 +102,15 @@ export class WhatsappWebhookController {
         displayName: parsedMessage.contactName,
       });
 
-      const persistedMessage = await this.messagesService.create({
+      const persistedMessage = await this.createInboundMessage({
         conversationId: conversation.id,
-        sender: MessageSender.CLIENT,
-        content: formatParsedMessageContent(parsedMessage),
-        skipAutomations: true,
+        parsedMessage,
       });
+
+      if (!persistedMessage) {
+        continue;
+      }
+
       const orchestrationResult = await this.incomingMessageOrchestratorService.handleIncomingMessage({
         tenantId,
         conversationId: conversation.id,
@@ -120,11 +127,64 @@ export class WhatsappWebhookController {
 
       parsedMessage.conversationId = conversation.id;
       parsedMessage.persistedMessageId = persistedMessage.id;
-
-      if (parsedMessage.externalMessageId) {
-        persistedExternalMessageIds.add(parsedMessage.externalMessageId);
-      }
     }
+  }
+
+  private async createInboundMessage(input: {
+    conversationId: string;
+    parsedMessage: BufferedWhatsappMessage;
+  }) {
+    const externalMessageId = input.parsedMessage.externalMessageId;
+
+    try {
+      return await this.messagesService.create({
+        conversationId: input.conversationId,
+        sender: MessageSender.CLIENT,
+        content: formatParsedMessageContent(input.parsedMessage),
+        externalProvider: externalMessageId
+          ? MessageExternalProvider.WHATSAPP_CLOUD_API
+          : undefined,
+        externalMessageId,
+        skipAutomations: true,
+      });
+    } catch (error: unknown) {
+      if (externalMessageId && isUniqueConstraintError(error)) {
+        const existingMessage = await this.findExistingWhatsappMessage(externalMessageId);
+
+        if (existingMessage) {
+          this.markParsedMessageAsDuplicate(input.parsedMessage, existingMessage);
+          this.logger.log('Skipped duplicate WhatsApp inbound message after unique constraint conflict.');
+          return null;
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  private findExistingWhatsappMessage(externalMessageId: string) {
+    return this.prismaService.message.findFirst({
+      where: {
+        externalProvider: MessageExternalProvider.WHATSAPP_CLOUD_API,
+        externalMessageId,
+      },
+      select: {
+        id: true,
+        conversationId: true,
+      },
+    });
+  }
+
+  private markParsedMessageAsDuplicate(
+    parsedMessage: BufferedWhatsappMessage,
+    existingMessage: {
+      id: string;
+      conversationId: string;
+    },
+  ): void {
+    parsedMessage.conversationId = existingMessage.conversationId;
+    parsedMessage.persistedMessageId = existingMessage.id;
+    parsedMessage.deduplicated = true;
   }
 
   private async resolveWebhookTenantId(): Promise<string | null> {
@@ -158,6 +218,13 @@ export class WhatsappWebhookController {
 
     return firstTenant?.id ?? null;
   }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
 }
 
 function formatParsedMessageContent(parsedMessage: ParsedWhatsappMessage): string {

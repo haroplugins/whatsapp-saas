@@ -4,6 +4,7 @@ import {
   Automation,
   ConversationControlMode,
   Message,
+  MessageExternalProvider,
   MessageSender,
   TriggerType,
 } from '@prisma/client';
@@ -14,6 +15,8 @@ type CreateMessageInput = {
   conversationId: string;
   sender: MessageSender;
   content: string;
+  externalProvider?: MessageExternalProvider | null;
+  externalMessageId?: string | null;
   skipAutomations?: boolean;
 };
 

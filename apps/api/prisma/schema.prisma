@@ -34,6 +34,10 @@ enum MessageSender {
   AI
 }
 
+enum MessageExternalProvider {
+  WHATSAPP_CLOUD_API
+}
+
 enum ConversationDraftSource {
   MANUAL
   BOOKING_ADVISOR
@@ -168,17 +172,21 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(cuid())
-  conversationId String
-  sender         MessageSender
-  content        String
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id                String                   @id @default(cuid())
+  conversationId    String
+  sender            MessageSender
+  content           String
+  externalProvider  MessageExternalProvider?
+  externalMessageId String?
+  createdAt         DateTime                 @default(now())
+  conversation      Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   automaticReplyTriggerLogs AutomaticReplyLog[] @relation("AutomaticReplyTriggeringMessage")
   automaticReplySentLogs AutomaticReplyLog[] @relation("AutomaticReplySentMessage")
   deliveryLogs   MessageDeliveryLog[]
 
   @@index([conversationId])
+  @@unique([externalProvider, externalMessageId])
+  @@index([externalProvider, externalMessageId])
 }
 
 /// Draft text prepared for a conversation. Not a sent message.
