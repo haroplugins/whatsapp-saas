@@ -65,8 +65,11 @@ export class WhatsappWebhookController {
     this.logger.log(`Parsed WhatsApp webhook messages: ${JSON.stringify({
       count: parsedMessages.length,
       messages: parsedMessages.map((message) => ({
-        from: message.from,
+        fromPresent: Boolean(message.from),
         type: message.type,
+        externalMessageIdPresent: Boolean(message.externalMessageId),
+        phoneNumberIdPresent: Boolean(message.phoneNumberId),
+        displayPhoneNumberPresent: Boolean(message.displayPhoneNumber),
       })),
     })}`);
 
