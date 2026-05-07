@@ -2475,6 +2475,10 @@ input:focus {
   max-height: calc(100vh - 3rem);
 }
 
+.blocked-slot-management-modal {
+  width: min(100%, 960px);
+}
+
 .quick-appointment-modal__header,
 .quick-appointment-modal__body,
 .quick-appointment-modal__footer {
@@ -2578,6 +2582,56 @@ input:focus {
   height: 1rem;
   min-height: 1rem;
   accent-color: var(--accent);
+}
+
+.blocked-slot-management-modal__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 0;
+}
+
+.blocked-slot-management-modal__list {
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+  max-height: 460px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.blocked-slot-management-modal__item {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.8rem;
+  text-align: left;
+}
+
+.blocked-slot-management-modal__item:hover,
+.blocked-slot-management-modal__item--selected {
+  border-color: rgba(224, 142, 77, 0.42);
+  background: rgba(255, 248, 240, 0.96);
+}
+
+.blocked-slot-management-modal__item strong {
+  font-size: 0.92rem;
+}
+
+.blocked-slot-management-modal__item span,
+.blocked-slot-management-modal__item small {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.blocked-slot-management-modal__form {
+  align-content: start;
 }
 
 .service-management-modal__danger {
@@ -3238,6 +3292,14 @@ input:focus {
   .quick-appointment-modal__footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .blocked-slot-management-modal__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .blocked-slot-management-modal__list {
+    max-height: 260px;
   }
 
   .agenda-toolbar__meta {

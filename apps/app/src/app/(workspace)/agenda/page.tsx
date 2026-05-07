@@ -82,6 +82,17 @@ type PriceParseResult =
       isValid: false;
     };
 
+type BlockedSlotDateRangeResult =
+  | {
+      isValid: true;
+      startAt: string;
+      endAt: string;
+    }
+  | {
+      isValid: false;
+      message: string;
+    };
+
 type DayActivityItem =
   | {
       id: string;
@@ -198,6 +209,22 @@ export default function AgendaPage() {
   const [editBlockedSlotError, setEditBlockedSlotError] = useState<
     string | null
   >(null);
+  const [
+    isBlockedSlotManagementModalOpen,
+    setIsBlockedSlotManagementModalOpen,
+  ] = useState(false);
+  const [managingBlockedSlotId, setManagingBlockedSlotId] = useState('');
+  const [manageBlockedSlotDate, setManageBlockedSlotDate] = useState('');
+  const [manageBlockedSlotStartTime, setManageBlockedSlotStartTime] =
+    useState('');
+  const [manageBlockedSlotEndTime, setManageBlockedSlotEndTime] = useState('');
+  const [manageBlockedSlotReason, setManageBlockedSlotReason] = useState('');
+  const [manageBlockedSlotError, setManageBlockedSlotError] = useState<
+    string | null
+  >(null);
+  const [manageBlockedSlotFeedback, setManageBlockedSlotFeedback] = useState<
+    string | null
+  >(null);
 
   const [serviceName, setServiceName] = useState('');
   const [serviceDuration, setServiceDuration] = useState('45');
@@ -291,6 +318,17 @@ export default function AgendaPage() {
   const managingService = useMemo(
     () => services.find((service) => service.id === managingServiceId) ?? null,
     [managingServiceId, services],
+  );
+  const managedBlockedSlots = useMemo(
+    () => sortBlockedSlotsForManagement(blockedSlots),
+    [blockedSlots],
+  );
+  const managingBlockedSlot = useMemo(
+    () =>
+      blockedSlots.find(
+        (blockedSlot) => blockedSlot.id === managingBlockedSlotId,
+      ) ?? null,
+    [blockedSlots, managingBlockedSlotId],
   );
   const dayActivityItems = useMemo(
     () =>
@@ -904,6 +942,53 @@ export default function AgendaPage() {
     setEditBlockedSlotError(null);
   }
 
+  function loadManagedBlockedSlotForm(blockedSlot: BlockedSlot) {
+    const startAt = new Date(blockedSlot.startAt);
+    const endAt = new Date(blockedSlot.endAt);
+
+    setManagingBlockedSlotId(blockedSlot.id);
+    setManageBlockedSlotDate(toDateOnlyValue(startAt));
+    setManageBlockedSlotStartTime(toTimeOnlyValue(startAt));
+    setManageBlockedSlotEndTime(toTimeOnlyValue(endAt));
+    setManageBlockedSlotReason(blockedSlot.reason ?? '');
+    setManageBlockedSlotError(null);
+    setManageBlockedSlotFeedback(null);
+  }
+
+  function openBlockedSlotManagementModal() {
+    const firstBlockedSlot = managedBlockedSlots[0];
+
+    if (firstBlockedSlot) {
+      loadManagedBlockedSlotForm(firstBlockedSlot);
+    } else {
+      setManagingBlockedSlotId('');
+      setManageBlockedSlotDate('');
+      setManageBlockedSlotStartTime('');
+      setManageBlockedSlotEndTime('');
+      setManageBlockedSlotReason('');
+      setManageBlockedSlotError(null);
+      setManageBlockedSlotFeedback(null);
+    }
+
+    setIsBlockedSlotManagementModalOpen(true);
+  }
+
+  function closeBlockedSlotManagementModal() {
+    setIsBlockedSlotManagementModalOpen(false);
+    setManageBlockedSlotError(null);
+    setManageBlockedSlotFeedback(null);
+  }
+
+  function selectManagedBlockedSlot(blockedSlotId: string) {
+    const nextBlockedSlot = blockedSlots.find(
+      (blockedSlot) => blockedSlot.id === blockedSlotId,
+    );
+
+    if (!nextBlockedSlot) return;
+
+    loadManagedBlockedSlotForm(nextBlockedSlot);
+  }
+
   async function handleUpdateBlockedSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingBlockedSlotId) return;
@@ -927,6 +1012,45 @@ export default function AgendaPage() {
     }
   }
 
+  async function handleUpdateManagedBlockedSlot(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!canUseAgenda || !managingBlockedSlotId) return;
+
+    const dateRange = buildBlockedSlotDateRange(
+      manageBlockedSlotDate,
+      manageBlockedSlotStartTime,
+      manageBlockedSlotEndTime,
+    );
+
+    if (!dateRange.isValid) {
+      setManageBlockedSlotError(dateRange.message);
+      setManageBlockedSlotFeedback(null);
+      return;
+    }
+
+    try {
+      const nextBlockedSlot = await updateBlockedSlot(managingBlockedSlotId, {
+        startAt: dateRange.startAt,
+        endAt: dateRange.endAt,
+        reason: manageBlockedSlotReason.trim() || undefined,
+      });
+      await loadAgendaData();
+      refreshAvailability();
+      loadManagedBlockedSlotForm(nextBlockedSlot);
+      setManageBlockedSlotFeedback('Bloqueo actualizado.');
+      setFeedback('Bloqueo actualizado.');
+    } catch (error) {
+      setManageBlockedSlotFeedback(null);
+      setManageBlockedSlotError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el bloqueo.',
+      );
+    }
+  }
+
   async function handleDeleteBlockedSlot(blockedSlotId: string) {
     if (!window.confirm('¿Eliminar este bloqueo?')) {
       return;
@@ -939,6 +1063,46 @@ export default function AgendaPage() {
       refreshAvailability();
     } catch (error) {
       setFeedback(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo eliminar el bloqueo.',
+      );
+    }
+  }
+
+  async function handleDeleteManagedBlockedSlot() {
+    if (!managingBlockedSlotId) return;
+
+    if (!window.confirm('¿Eliminar este bloqueo?')) {
+      return;
+    }
+
+    try {
+      await deleteBlockedSlot(managingBlockedSlotId);
+      const remainingBlockedSlots = blockedSlots.filter(
+        (blockedSlot) => blockedSlot.id !== managingBlockedSlotId,
+      );
+      const nextBlockedSlot =
+        sortBlockedSlotsForManagement(remainingBlockedSlots)[0] ?? null;
+
+      if (nextBlockedSlot) {
+        loadManagedBlockedSlotForm(nextBlockedSlot);
+      } else {
+        setManagingBlockedSlotId('');
+        setManageBlockedSlotDate('');
+        setManageBlockedSlotStartTime('');
+        setManageBlockedSlotEndTime('');
+        setManageBlockedSlotReason('');
+        setManageBlockedSlotError(null);
+      }
+
+      setManageBlockedSlotFeedback('Bloqueo eliminado.');
+      setFeedback('Bloqueo eliminado.');
+      await loadAgendaData();
+      refreshAvailability();
+    } catch (error) {
+      setManageBlockedSlotFeedback(null);
+      setManageBlockedSlotError(
         error instanceof Error
           ? error.message
           : 'No se pudo eliminar el bloqueo.',
@@ -1432,6 +1596,13 @@ export default function AgendaPage() {
                   <span className="workspace-header__eyebrow">Bloqueos</span>
                   <h3>Crear bloqueo</h3>
                 </div>
+                <button
+                  className="button button--ghost"
+                  type="button"
+                  onClick={openBlockedSlotManagementModal}
+                >
+                  Gestionar bloqueos
+                </button>
               </div>
               <div className="business-form">
                 <label className="business-form__field">
@@ -1842,6 +2013,161 @@ export default function AgendaPage() {
                 className="button button--primary"
                 type="submit"
                 disabled={isLoading || !managingService}
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {isBlockedSlotManagementModalOpen ? (
+        <div
+          className="quick-appointment-modal-backdrop"
+          role="presentation"
+          onClick={closeBlockedSlotManagementModal}
+        >
+          <form
+            className="quick-appointment-modal blocked-slot-management-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="blocked-slot-management-modal-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleUpdateManagedBlockedSlot}
+          >
+            <div className="quick-appointment-modal__header">
+              <div>
+                <span className="workspace-header__eyebrow">Bloqueos</span>
+                <h3 id="blocked-slot-management-modal-title">
+                  Gestionar bloqueos
+                </h3>
+                <p>Edita o elimina bloqueos de agenda.</p>
+              </div>
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeBlockedSlotManagementModal}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="quick-appointment-modal__body">
+              {manageBlockedSlotError ? (
+                <p className="form-error">{manageBlockedSlotError}</p>
+              ) : null}
+              {manageBlockedSlotFeedback ? (
+                <p className="config-conflict-note">
+                  {manageBlockedSlotFeedback}
+                </p>
+              ) : null}
+
+              {managedBlockedSlots.length === 0 ? (
+                <p className="config-conflict-note">
+                  No hay bloqueos creados.
+                </p>
+              ) : (
+                <div className="blocked-slot-management-modal__layout">
+                  <div className="blocked-slot-management-modal__list">
+                    {managedBlockedSlots.map((blockedSlot) => (
+                      <button
+                        key={blockedSlot.id}
+                        className={`blocked-slot-management-modal__item${
+                          blockedSlot.id === managingBlockedSlotId
+                            ? ' blocked-slot-management-modal__item--selected'
+                            : ''
+                        }`}
+                        type="button"
+                        onClick={() => selectManagedBlockedSlot(blockedSlot.id)}
+                      >
+                        <strong>
+                          {formatDateLabel(new Date(blockedSlot.startAt))}
+                        </strong>
+                        <span>
+                          {formatTimeRange(
+                            blockedSlot.startAt,
+                            blockedSlot.endAt,
+                          )}
+                        </span>
+                        <small>{blockedSlot.reason || 'Sin motivo'}</small>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="business-form blocked-slot-management-modal__form">
+                    <label className="business-form__field">
+                      <span>Fecha</span>
+                      <input
+                        required
+                        type="date"
+                        value={manageBlockedSlotDate}
+                        onChange={(event) =>
+                          setManageBlockedSlotDate(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Hora inicio</span>
+                      <input
+                        required
+                        type="time"
+                        value={manageBlockedSlotStartTime}
+                        onChange={(event) =>
+                          setManageBlockedSlotStartTime(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field">
+                      <span>Hora fin</span>
+                      <input
+                        required
+                        type="time"
+                        value={manageBlockedSlotEndTime}
+                        onChange={(event) =>
+                          setManageBlockedSlotEndTime(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="business-form__field business-form__field--full">
+                      <span>Motivo</span>
+                      <input
+                        type="text"
+                        value={manageBlockedSlotReason}
+                        onChange={(event) =>
+                          setManageBlockedSlotReason(event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="quick-appointment-modal__footer">
+              {managingBlockedSlot ? (
+                <button
+                  className="button button--ghost service-management-modal__danger"
+                  type="button"
+                  onClick={handleDeleteManagedBlockedSlot}
+                  disabled={isLoading}
+                >
+                  Eliminar bloqueo
+                </button>
+              ) : null}
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={closeBlockedSlotManagementModal}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button button--primary"
+                type="submit"
+                disabled={isLoading || !managingBlockedSlot}
               >
                 Guardar cambios
               </button>
@@ -2460,6 +2786,27 @@ function getMonthBlockedSlots(
   });
 }
 
+function sortBlockedSlotsForManagement(
+  blockedSlots: BlockedSlot[],
+): BlockedSlot[] {
+  const currentTime = Date.now();
+
+  return [...blockedSlots].sort((firstBlockedSlot, secondBlockedSlot) => {
+    const firstStartTime = new Date(firstBlockedSlot.startAt).getTime();
+    const secondStartTime = new Date(secondBlockedSlot.startAt).getTime();
+    const firstIsPast = firstStartTime < currentTime;
+    const secondIsPast = secondStartTime < currentTime;
+
+    if (firstIsPast !== secondIsPast) {
+      return firstIsPast ? 1 : -1;
+    }
+
+    return firstIsPast
+      ? secondStartTime - firstStartTime
+      : firstStartTime - secondStartTime;
+  });
+}
+
 function toDateTimeLocalValue(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -2476,6 +2823,107 @@ function toDateOnlyValue(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
+}
+
+function toTimeOnlyValue(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
+}
+
+function buildBlockedSlotDateRange(
+  dateValue: string,
+  startTimeValue: string,
+  endTimeValue: string,
+): BlockedSlotDateRangeResult {
+  const dateParts = parseDateOnlyParts(dateValue);
+  const startTimeParts = parseTimeOnlyParts(startTimeValue);
+  const endTimeParts = parseTimeOnlyParts(endTimeValue);
+
+  if (!dateParts || !startTimeParts || !endTimeParts) {
+    return {
+      isValid: false,
+      message: 'Indica fecha, hora de inicio y hora de fin.',
+    };
+  }
+
+  const startAt = new Date(
+    dateParts.year,
+    dateParts.monthIndex,
+    dateParts.day,
+    startTimeParts.hours,
+    startTimeParts.minutes,
+  );
+  const endAt = new Date(
+    dateParts.year,
+    dateParts.monthIndex,
+    dateParts.day,
+    endTimeParts.hours,
+    endTimeParts.minutes,
+  );
+
+  if (endAt.getTime() <= startAt.getTime()) {
+    return {
+      isValid: false,
+      message: 'La hora de fin debe ser posterior a la hora de inicio.',
+    };
+  }
+
+  return {
+    isValid: true,
+    startAt: startAt.toISOString(),
+    endAt: endAt.toISOString(),
+  };
+}
+
+function parseDateOnlyParts(
+  value: string,
+): { year: number; monthIndex: number; day: number } | null {
+  const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!dateMatch) return null;
+
+  const [, yearValue = '', monthValue = '', dayValue = ''] = dateMatch;
+  const year = Number(yearValue);
+  const month = Number(monthValue);
+  const day = Number(dayValue);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return {
+    year,
+    monthIndex: month - 1,
+    day,
+  };
+}
+
+function parseTimeOnlyParts(
+  value: string,
+): { hours: number; minutes: number } | null {
+  const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!timeMatch) return null;
+
+  const [, hoursValue = '', minutesValue = ''] = timeMatch;
+  const hours = Number(hoursValue);
+  const minutes = Number(minutesValue);
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return {
+    hours,
+    minutes,
+  };
 }
 
 function toDateTimeLocalFromDateAndTime(date: Date, timeLabel: string): string {
