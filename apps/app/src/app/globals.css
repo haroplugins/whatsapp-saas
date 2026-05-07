@@ -2459,8 +2459,10 @@ input:focus {
 
 .quick-appointment-modal {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(100%, 720px);
-  max-height: min(92vh, 760px);
+  max-height: calc(100vh - 3rem);
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   background: var(--surface-strong);
@@ -2470,6 +2472,7 @@ input:focus {
 
 .service-management-modal {
   width: min(100%, 840px);
+  max-height: calc(100vh - 3rem);
 }
 
 .quick-appointment-modal__header,
@@ -2506,7 +2509,8 @@ input:focus {
 .quick-appointment-modal__body {
   display: grid;
   gap: 1rem;
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .quick-appointment-modal__body select {
@@ -3221,6 +3225,11 @@ input:focus {
   .availability-modal-backdrop,
   .quick-appointment-modal-backdrop {
     padding: 0.75rem;
+  }
+
+  .quick-appointment-modal,
+  .service-management-modal {
+    max-height: calc(100vh - 1.5rem);
   }
 
   .availability-modal__header,
