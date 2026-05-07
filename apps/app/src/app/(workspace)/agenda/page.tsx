@@ -33,6 +33,11 @@ import {
   fetchTenantEntitlements,
   type TenantEntitlements,
 } from '../../../lib/entitlements';
+import {
+  type BusinessCurrency,
+  businessCurrencyOptions,
+  getBusinessSettings,
+} from '../../../lib/business-settings';
 
 const monthOptions = [
   'Enero',
@@ -67,6 +72,15 @@ type AvailabilityDayForm = {
   isActive: boolean;
   intervals: [AvailabilityIntervalForm, AvailabilityIntervalForm];
 };
+
+type PriceParseResult =
+  | {
+      isValid: true;
+      priceCents: number | null;
+    }
+  | {
+      isValid: false;
+    };
 
 type DayActivityItem =
   | {
@@ -110,6 +124,8 @@ const appointmentStatusOptions: Array<{
   { value: 'CANCELLED', label: 'Cancelada' },
 ];
 
+const fallbackBusinessCurrency: BusinessCurrency = 'EUR';
+
 export default function AgendaPage() {
   const [entitlements, setEntitlements] = useState<TenantEntitlements>(
     defaultTenantEntitlements,
@@ -125,6 +141,9 @@ export default function AgendaPage() {
   >([]);
   const [bookingSettings, setBookingSettings] =
     useState<BookingSettings | null>(null);
+  const [defaultCurrency, setDefaultCurrency] = useState<BusinessCurrency>(
+    fallbackBusinessCurrency,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [availabilitySlots, setAvailabilitySlots] = useState<
@@ -191,7 +210,8 @@ export default function AgendaPage() {
   const [manageServiceDescription, setManageServiceDescription] = useState('');
   const [manageServiceDuration, setManageServiceDuration] = useState('45');
   const [manageServicePrice, setManageServicePrice] = useState('');
-  const [manageServiceCurrency, setManageServiceCurrency] = useState('EUR');
+  const [manageServiceCurrency, setManageServiceCurrency] =
+    useState<BusinessCurrency>(fallbackBusinessCurrency);
   const [manageServiceBuffer, setManageServiceBuffer] = useState('0');
   const [manageServiceIsActive, setManageServiceIsActive] = useState(true);
   const [manageServiceError, setManageServiceError] = useState<string | null>(
@@ -294,6 +314,30 @@ export default function AgendaPage() {
       })
       .catch(() => {
         if (isMounted) setEntitlements(defaultTenantEntitlements);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getBusinessSettings()
+      .then((settings) => {
+        if (!isMounted) return;
+        setDefaultCurrency(
+          getSupportedCurrency(
+            settings.defaultCurrency,
+            fallbackBusinessCurrency,
+          ),
+        );
+      })
+      .catch(() => {
+        if (isMounted) {
+          setDefaultCurrency(fallbackBusinessCurrency);
+        }
       });
 
     return () => {
@@ -481,11 +525,19 @@ export default function AgendaPage() {
     event.preventDefault();
     if (!canUseAgenda) return;
 
+    const parsedPrice = parsePriceToCents(servicePrice);
+
+    if (!parsedPrice.isValid) {
+      setFeedback('Introduce un precio válido, por ejemplo 25,00.');
+      return;
+    }
+
     try {
       const nextService = await createAgendaService({
         name: serviceName.trim(),
         durationMinutes: Number(serviceDuration),
-        priceCents: servicePrice ? Number(servicePrice) : undefined,
+        priceCents: parsedPrice.priceCents ?? undefined,
+        currency: defaultCurrency,
         bufferMinutes: serviceBuffer ? Number(serviceBuffer) : undefined,
       });
       setServices((currentServices) => [nextService, ...currentServices]);
@@ -511,9 +563,11 @@ export default function AgendaPage() {
     setManageServicePrice(
       service.priceCents === null || service.priceCents === undefined
         ? ''
-        : String(service.priceCents),
+        : formatPriceFromCents(service.priceCents),
     );
-    setManageServiceCurrency(service.currency || 'EUR');
+    setManageServiceCurrency(
+      getSupportedCurrency(service.currency, defaultCurrency),
+    );
     setManageServiceBuffer(String(service.bufferMinutes));
     setManageServiceIsActive(service.isActive);
     setManageServiceError(null);
@@ -548,13 +602,20 @@ export default function AgendaPage() {
     event.preventDefault();
     if (!canUseAgenda || !managingServiceId) return;
 
+    const parsedPrice = parsePriceToCents(manageServicePrice);
+
+    if (!parsedPrice.isValid) {
+      setManageServiceError('Introduce un precio válido, por ejemplo 25,00.');
+      return;
+    }
+
     try {
       const nextService = await updateAgendaService(managingServiceId, {
         name: manageServiceName.trim(),
         description: manageServiceDescription.trim(),
         durationMinutes: Number(manageServiceDuration),
-        priceCents: manageServicePrice ? Number(manageServicePrice) : null,
-        currency: manageServiceCurrency.trim().toUpperCase() || 'EUR',
+        priceCents: parsedPrice.priceCents,
+        currency: manageServiceCurrency,
         bufferMinutes: Number(manageServiceBuffer),
         isActive: manageServiceIsActive,
       });
@@ -1247,13 +1308,18 @@ export default function AgendaPage() {
                   />
                 </label>
                 <label className="business-form__field">
-                  <span>Precio centimos</span>
+                  <span>Precio</span>
                   <input
                     min="0"
-                    type="number"
+                    inputMode="decimal"
+                    placeholder="25,00"
+                    type="text"
                     value={servicePrice}
                     onChange={(event) => setServicePrice(event.target.value)}
                   />
+                  <small>
+                    Importe en {defaultCurrency}. Ejemplo: 25,00.
+                  </small>
                 </label>
                 <label className="business-form__field">
                   <span>Buffer minutos</span>
@@ -1663,27 +1729,43 @@ export default function AgendaPage() {
                     </label>
 
                     <label className="business-form__field">
-                      <span>Precio centimos</span>
+                      <span>Precio</span>
                       <input
                         min="0"
-                        type="number"
+                        inputMode="decimal"
+                        placeholder="25,00"
+                        type="text"
                         value={manageServicePrice}
                         onChange={(event) =>
                           setManageServicePrice(event.target.value)
                         }
                       />
+                      <small>
+                        Importe en {manageServiceCurrency || defaultCurrency}.
+                        Ejemplo: 25,00.
+                      </small>
                     </label>
 
                     <label className="business-form__field">
                       <span>Moneda</span>
-                      <input
+                      <select
                         required
-                        type="text"
                         value={manageServiceCurrency}
                         onChange={(event) =>
-                          setManageServiceCurrency(event.target.value)
+                          setManageServiceCurrency(
+                            event.target.value as BusinessCurrency,
+                          )
                         }
-                      />
+                      >
+                        {businessCurrencyOptions.map((currencyOption) => (
+                          <option
+                            key={currencyOption.code}
+                            value={currencyOption.code}
+                          >
+                            {currencyOption.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
 
                     <label className="business-form__field">
@@ -2406,6 +2488,56 @@ function toDateTimeLocalFromDateAndTime(date: Date, timeLabel: string): string {
   const [, hours = '0', minutes = '0'] = timeMatch;
 
   return `${toDateOnlyValue(date)}T${hours.padStart(2, '0')}:${minutes}`;
+}
+
+function formatPriceFromCents(priceCents: number | null | undefined): string {
+  if (priceCents === null || priceCents === undefined) {
+    return '';
+  }
+
+  return (priceCents / 100).toFixed(2).replace('.', ',');
+}
+
+function parsePriceToCents(input: string): PriceParseResult {
+  const normalizedInput = input.trim().replace(',', '.');
+
+  if (!normalizedInput) {
+    return {
+      isValid: true,
+      priceCents: null,
+    };
+  }
+
+  if (!/^\d+(\.\d{1,2})?$/.test(normalizedInput)) {
+    return {
+      isValid: false,
+    };
+  }
+
+  const amount = Number(normalizedInput);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return {
+      isValid: false,
+    };
+  }
+
+  return {
+    isValid: true,
+    priceCents: Math.round(amount * 100),
+  };
+}
+
+function getSupportedCurrency(
+  value: string | null | undefined,
+  fallback: BusinessCurrency,
+): BusinessCurrency {
+  const normalizedValue = value?.trim().toUpperCase();
+  const matchingCurrency = businessCurrencyOptions.find(
+    (currencyOption) => currencyOption.code === normalizedValue,
+  );
+
+  return matchingCurrency?.code ?? fallback;
 }
 
 function withTime(date: Date, hours: number, minutes: number): Date {
