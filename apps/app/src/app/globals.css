@@ -2588,6 +2588,7 @@ input:focus {
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 1rem;
+  align-items: start;
   min-height: 0;
 }
 
@@ -2595,7 +2596,7 @@ input:focus {
   display: grid;
   gap: 0.65rem;
   align-content: start;
-  max-height: 460px;
+  max-height: min(460px, calc(100vh - 18rem));
   min-height: 0;
   overflow-y: auto;
   padding-right: 0.2rem;
@@ -3299,7 +3300,7 @@ input:focus {
   }
 
   .blocked-slot-management-modal__list {
-    max-height: 260px;
+    max-height: min(260px, calc(100vh - 22rem));
   }
 
   .agenda-toolbar__meta {
