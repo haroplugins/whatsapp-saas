@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
+import {
+  type BusinessCurrency,
+  businessCurrencyOptions,
+  getBusinessSettings,
+  updateBusinessSettings,
+} from '../../../lib/business-settings';
 import {
   type BusinessProfile,
   defaultBusinessProfile,
@@ -10,11 +16,48 @@ import {
 
 export default function BusinessPage() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(defaultBusinessProfile);
+  const [defaultCurrency, setDefaultCurrency] = useState<BusinessCurrency>('EUR');
+  const [isCurrencyLoading, setIsCurrencyLoading] = useState(true);
+  const [isCurrencySaving, setIsCurrencySaving] = useState(false);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+  const [currencyFeedback, setCurrencyFeedback] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setBusinessProfile(readStoredBusinessProfile());
     setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBusinessSettings() {
+      setIsCurrencyLoading(true);
+      setCurrencyError(null);
+
+      try {
+        const settings = await getBusinessSettings();
+        if (!isMounted) return;
+        setDefaultCurrency(settings.defaultCurrency);
+      } catch (error) {
+        if (!isMounted) return;
+        setCurrencyError(
+          error instanceof Error
+            ? error.message
+            : 'No se pudo cargar la moneda del negocio.',
+        );
+      } finally {
+        if (isMounted) {
+          setIsCurrencyLoading(false);
+        }
+      }
+    }
+
+    void loadBusinessSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -27,6 +70,29 @@ export default function BusinessPage() {
       ...currentBusinessProfile,
       ...updates,
     }));
+  }
+
+  async function handleCurrencySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsCurrencySaving(true);
+    setCurrencyError(null);
+    setCurrencyFeedback(null);
+
+    try {
+      const settings = await updateBusinessSettings({
+        defaultCurrency,
+      });
+      setDefaultCurrency(settings.defaultCurrency);
+      setCurrencyFeedback('Moneda del negocio guardada.');
+    } catch (error) {
+      setCurrencyError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar la moneda del negocio.',
+      );
+    } finally {
+      setIsCurrencySaving(false);
+    }
   }
 
   return (
@@ -81,6 +147,59 @@ export default function BusinessPage() {
           </label>
         </div>
       </section>
+
+      <form
+        className="business-profile-card business-profile-card--page"
+        onSubmit={handleCurrencySubmit}
+      >
+        <div className="business-profile-card__header">
+          <div>
+            <span className="workspace-header__eyebrow">Configuración</span>
+            <h3>Moneda del negocio</h3>
+            <p>
+              Esta moneda se usará como referencia para los precios de tus
+              servicios.
+            </p>
+          </div>
+        </div>
+
+        <div className="business-form">
+          <label className="business-form__field">
+            <span>Moneda por defecto</span>
+            <select
+              value={defaultCurrency}
+              onChange={(event) => {
+                setDefaultCurrency(event.target.value as BusinessCurrency);
+                setCurrencyFeedback(null);
+              }}
+              disabled={isCurrencyLoading || isCurrencySaving}
+            >
+              {businessCurrencyOptions.map((currencyOption) => (
+                <option key={currencyOption.code} value={currencyOption.code}>
+                  {currencyOption.label}
+                </option>
+              ))}
+            </select>
+            <small>
+              Si cambias la moneda, los servicios existentes no se convertirán
+              automáticamente.
+            </small>
+          </label>
+        </div>
+
+        {currencyError ? <p className="form-error">{currencyError}</p> : null}
+        {currencyFeedback ? (
+          <p className="config-conflict-note">{currencyFeedback}</p>
+        ) : null}
+
+        <button
+          className="button button--primary"
+          type="submit"
+          disabled={isCurrencyLoading || isCurrencySaving}
+        >
+          {isCurrencySaving ? 'Guardando...' : 'Guardar moneda'}
+        </button>
+      </form>
     </section>
   );
 }
