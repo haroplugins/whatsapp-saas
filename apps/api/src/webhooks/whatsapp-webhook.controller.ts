@@ -1,6 +1,12 @@
 import { Body, Controller, ForbiddenException, Get, Logger, Post, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MessageExternalProvider, MessageSender, Prisma } from '@prisma/client';
+import {
+  MessageExternalProvider,
+  MessageSender,
+  Prisma,
+  WhatsappConnectionProvider,
+  WhatsappConnectionStatus,
+} from '@prisma/client';
 import { ConversationsService } from '../conversations/conversations.service';
 import { IncomingMessageOrchestratorService } from '../incoming-messages/incoming-message-orchestrator.service';
 import { MessagesService } from '../messages/messages.service';
@@ -77,13 +83,17 @@ export class WhatsappWebhookController {
       return;
     }
 
-    const tenantId = await this.resolveWebhookTenantId();
-    if (!tenantId) {
-      this.logger.warn('WhatsApp webhook messages were not persisted because no tenant is available.');
-      return;
-    }
-
     for (const parsedMessage of parsedMessages) {
+      const tenantId = await this.resolveWebhookTenantId(parsedMessage);
+
+      if (!tenantId) {
+        this.logger.warn(`Unknown WhatsApp phone_number_id for inbound webhook: ${JSON.stringify({
+          phoneNumberIdPresent: Boolean(parsedMessage.phoneNumberId),
+          displayPhoneNumberPresent: Boolean(parsedMessage.displayPhoneNumber),
+        })}`);
+        continue;
+      }
+
       const externalMessageId = parsedMessage.externalMessageId;
 
       if (externalMessageId) {
@@ -187,7 +197,34 @@ export class WhatsappWebhookController {
     parsedMessage.deduplicated = true;
   }
 
-  private async resolveWebhookTenantId(): Promise<string | null> {
+  private async resolveWebhookTenantId(
+    parsedMessage: ParsedWhatsappMessage,
+  ): Promise<string | null> {
+    if (parsedMessage.phoneNumberId) {
+      const connection = await this.prismaService.tenantWhatsappConnection.findFirst({
+        where: {
+          provider: WhatsappConnectionProvider.WHATSAPP_CLOUD_API,
+          phoneNumberId: parsedMessage.phoneNumberId,
+          status: WhatsappConnectionStatus.ACTIVE,
+        },
+        select: {
+          tenantId: true,
+        },
+      });
+
+      if (connection) {
+        return connection.tenantId;
+      }
+    }
+
+    if (
+      this.configService.get<string>(
+        'WHATSAPP_WEBHOOK_ALLOW_DEFAULT_TENANT_FALLBACK',
+      ) !== 'true'
+    ) {
+      return null;
+    }
+
     const configuredTenantId = this.configService.get<string>('DEFAULT_TENANT_ID')?.trim();
 
     if (configuredTenantId) {
@@ -207,6 +244,10 @@ export class WhatsappWebhookController {
       this.logger.warn('DEFAULT_TENANT_ID is configured but does not match an existing tenant.');
     }
 
+    return this.resolveFirstTenantIdForFallback();
+  }
+
+  private async resolveFirstTenantIdForFallback(): Promise<string | null> {
     const firstTenant = await this.prismaService.tenant.findFirst({
       orderBy: {
         createdAt: 'asc',

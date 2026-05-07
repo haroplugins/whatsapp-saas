@@ -115,6 +115,15 @@ enum MessageDeliveryStatus {
   FAILED
 }
 
+enum WhatsappConnectionProvider {
+  WHATSAPP_CLOUD_API
+}
+
+enum WhatsappConnectionStatus {
+  ACTIVE
+  DISABLED
+}
+
 model Tenant {
   id                   String                @id @default(cuid())
   name                 String
@@ -132,6 +141,7 @@ model Tenant {
   bookingAgentDryRuns  BookingAgentDryRunLog[] @relation("BookingAgentDryRunTenant")
   automaticReplyLogs   AutomaticReplyLog[]
   messageDeliveryLogs  MessageDeliveryLog[]
+  whatsappConnections  TenantWhatsappConnection[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 }
@@ -410,4 +420,21 @@ model MessageDeliveryLog {
   @@index([messageId])
   @@index([externalMessageId])
   @@index([expiresAt])
+}
+
+model TenantWhatsappConnection {
+  id                 String                     @id @default(cuid())
+  tenantId           String
+  provider           WhatsappConnectionProvider @default(WHATSAPP_CLOUD_API)
+  phoneNumberId      String
+  displayPhoneNumber String?
+  businessAccountId  String?
+  status             WhatsappConnectionStatus   @default(ACTIVE)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, phoneNumberId])
+  @@index([tenantId])
+  @@index([tenantId, status])
 }

@@ -1,6 +1,8 @@
 export type ParsedWhatsappMessage = {
   externalConversationId: string;
   externalMessageId?: string;
+  phoneNumberId?: string;
+  displayPhoneNumber?: string;
   contactName?: string;
   from: string;
   type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'unknown';
@@ -23,6 +25,9 @@ export function parseWhatsappWebhookPayload(payload: unknown): ParsedWhatsappMes
     const changes = readArray(readRecord(entry).changes);
     for (const change of changes) {
       const value = readRecord(readRecord(change).value);
+      const metadata = readRecord(value.metadata);
+      const phoneNumberId = readString(metadata.phone_number_id);
+      const displayPhoneNumber = readString(metadata.display_phone_number);
       const messages = readArray(value.messages);
       if (!messages.length) continue;
 
@@ -36,6 +41,8 @@ export function parseWhatsappWebhookPayload(payload: unknown): ParsedWhatsappMes
         parsedMessages.push({
           externalConversationId: from,
           externalMessageId: readString(message.id),
+          phoneNumberId,
+          displayPhoneNumber,
           contactName: readString(contact?.profile?.name),
           from,
           type: parseMessageType(readString(message.type)),
