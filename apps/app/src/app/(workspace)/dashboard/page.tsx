@@ -131,14 +131,14 @@ export default function DashboardPage() {
       <div className="dashboard-hero">
         <div>
           <span className="workspace-header__eyebrow">Panel</span>
-          <h2>Vista real del equipo</h2>
+          <h2>Resumen del espacio de trabajo</h2>
           <p>
-            Consulta la actividad real de tu espacio de trabajo en un solo
-            lugar.
+            Consulta la actividad principal de tu bandeja, agenda y
+            automatizaciones desde un solo lugar.
           </p>
           <p className="config-conflict-note">
-            Algunas métricas pueden incluir datos de prueba mientras el entorno
-            está en validación.
+            Durante la configuración inicial, algunas métricas pueden cambiar a
+            medida que conectamos los canales reales.
           </p>
         </div>
       </div>
@@ -206,7 +206,8 @@ export default function DashboardPage() {
             {isLoading ? '...' : data?.automations.total ?? 0}
           </strong>
           <p className="metric-card__summary">
-            Estado general de reglas activas e inactivas listas para operar.
+            Estado general de reglas activas e inactivas preparadas en tu
+            espacio.
           </p>
           <div className="metric-card__details">
             <div>

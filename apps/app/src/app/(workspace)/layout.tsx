@@ -113,7 +113,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         </div>
 
         <div className="workspace-sidebar__card">
-          <span className="workspace-sidebar__eyebrow">MVP</span>
+          <span className="workspace-sidebar__eyebrow">Tu espacio</span>
           <p>
             Tu espacio de trabajo reúne las herramientas principales para gestionar
             conversaciones, agenda y automatizaciones.
@@ -124,8 +124,8 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       <div className="workspace-main">
         <header className="workspace-header">
           <div>
-            <span className="workspace-header__eyebrow">Aplicación privada</span>
-            <h1>Panel interno</h1>
+            <span className="workspace-header__eyebrow">Área privada</span>
+            <h1>Panel de trabajo</h1>
           </div>
           <Link className="button button--ghost" href="/login">
             Cerrar sesión

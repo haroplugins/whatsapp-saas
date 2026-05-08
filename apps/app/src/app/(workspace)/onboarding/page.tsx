@@ -22,7 +22,8 @@ const integrations: Integration[] = [
   {
     key: 'whatsapp',
     name: 'WhatsApp',
-    description: 'Prepara la bandeja principal para empezar a responder clientes.',
+    description:
+      'Prepara la bandeja principal mientras completamos la conexión real con Meta.',
     storageKey: integrationStorageKeys.whatsapp,
   },
   {
@@ -70,21 +71,21 @@ export default function OnboardingPage() {
       <div className="onboarding-hero">
         <div>
           <span className="workspace-header__eyebrow">Primeros pasos</span>
-          <h2>Prepara WhatsApp y empieza a responder clientes.</h2>
+          <h2>Prepara tu espacio para atender clientes.</h2>
           <p>
-            En este primer paso dejamos listo el flujo principal: preparar
-            WhatsApp, abrir la bandeja y empezar a gestionar conversaciones.
+            Deja listo el perfil del negocio, prepara WhatsApp, configura la
+            agenda y entra en la bandeja cuando quieras revisar conversaciones.
             Google Drive puede quedar preparado como apoyo.
           </p>
           <p className="config-conflict-note">
-            Durante esta fase, este paso prepara el flujo de prueba. La conexión
-            real con Meta se completará más adelante.
+            La conexión real con Meta se completará cuando estén disponibles las
+            credenciales de WhatsApp Business.
           </p>
         </div>
         <div className="onboarding-hero__steps">
-          <span>1. Prepara WhatsApp</span>
-          <span>2. Suma Google Drive si lo necesitas</span>
-          <span>3. Entra en la bandeja y responde</span>
+          <span>1. Completa el perfil del negocio</span>
+          <span>2. Prepara WhatsApp y la agenda</span>
+          <span>3. Entra en la bandeja</span>
         </div>
       </div>
 
@@ -142,7 +143,7 @@ export default function OnboardingPage() {
           disabled={!isHydrated || !isReady}
           onClick={() => router.push('/inbox')}
         >
-          {isReady ? 'Entrar en la bandeja' : 'Prepara WhatsApp para empezar'}
+          {isReady ? 'Entrar en la bandeja' : 'Prepara WhatsApp para continuar'}
         </button>
         <Link className="onboarding-actions__secondary" href="/dashboard">
           Ir al panel
