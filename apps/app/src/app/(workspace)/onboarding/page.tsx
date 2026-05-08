@@ -22,7 +22,7 @@ const integrations: Integration[] = [
   {
     key: 'whatsapp',
     name: 'WhatsApp',
-    description: 'Activa la bandeja principal para empezar a responder clientes.',
+    description: 'Prepara la bandeja principal para empezar a responder clientes.',
     storageKey: integrationStorageKeys.whatsapp,
   },
   {
@@ -70,15 +70,19 @@ export default function OnboardingPage() {
       <div className="onboarding-hero">
         <div>
           <span className="workspace-header__eyebrow">Primeros pasos</span>
-          <h2>Conecta WhatsApp y empieza a responder clientes.</h2>
+          <h2>Prepara WhatsApp y empieza a responder clientes.</h2>
           <p>
-            En este primer paso dejamos listo el flujo principal: conectar
+            En este primer paso dejamos listo el flujo principal: preparar
             WhatsApp, abrir la bandeja y empezar a gestionar conversaciones.
             Google Drive puede quedar preparado como apoyo.
           </p>
+          <p className="config-conflict-note">
+            Durante esta fase, este paso prepara el flujo de prueba. La conexión
+            real con Meta se completará más adelante.
+          </p>
         </div>
         <div className="onboarding-hero__steps">
-          <span>1. Conecta WhatsApp</span>
+          <span>1. Prepara WhatsApp</span>
           <span>2. Suma Google Drive si lo necesitas</span>
           <span>3. Entra en la bandeja y responde</span>
         </div>
@@ -106,7 +110,7 @@ export default function OnboardingPage() {
                         isConnected ? 'integration-status--connected' : ''
                       }`}
                     >
-                      {isConnected ? 'Conectado' : 'No conectado'}
+                      {isConnected ? 'Preparado' : 'No preparado'}
                     </span>
                     <span className="integration-priority">
                       {integration.key === 'whatsapp' ? 'Principal' : 'Opcional'}
@@ -123,7 +127,7 @@ export default function OnboardingPage() {
                   disabled={!isHydrated || isConnected}
                   onClick={() => connectIntegration(integration)}
                 >
-                  {isConnected ? 'Conectado' : 'Conectar'}
+                  {isConnected ? 'Preparado' : 'Preparar'}
                 </button>
               </div>
             </article>
@@ -138,7 +142,7 @@ export default function OnboardingPage() {
           disabled={!isHydrated || !isReady}
           onClick={() => router.push('/inbox')}
         >
-          {isReady ? 'Entrar en la bandeja' : 'Conecta WhatsApp para empezar'}
+          {isReady ? 'Entrar en la bandeja' : 'Prepara WhatsApp para empezar'}
         </button>
         <Link className="onboarding-actions__secondary" href="/dashboard">
           Ir al panel

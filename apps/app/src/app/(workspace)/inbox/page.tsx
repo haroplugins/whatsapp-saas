@@ -755,8 +755,15 @@ export default function InboxPage() {
           <span className="workspace-header__eyebrow">Bandeja</span>
           <h2>Responde mensajes como si ya estuvieran entrando.</h2>
           <p>Gestiona conversaciones de clientes, revisa el chat y practica respuestas con datos de prueba.</p>
+          <p className="config-conflict-note">
+            Las simulaciones sirven para probar el flujo antes de conectar
+            WhatsApp real.
+          </p>
         </div>
         <div className="inbox-hero__actions">
+          <span className="automation-card__meta">
+            Herramientas de prueba interna
+          </span>
           <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular mensaje de WhatsApp</button>
           <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
         </div>

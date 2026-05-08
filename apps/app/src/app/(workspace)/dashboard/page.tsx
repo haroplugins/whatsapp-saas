@@ -90,6 +90,10 @@ export default function DashboardPage() {
             Consulta la actividad real de tu espacio de trabajo en un solo
             lugar.
           </p>
+          <p className="config-conflict-note">
+            Algunas métricas pueden incluir datos de prueba mientras el entorno
+            está en validación.
+          </p>
         </div>
       </div>
 

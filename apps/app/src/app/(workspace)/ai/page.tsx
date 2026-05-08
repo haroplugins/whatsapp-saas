@@ -130,6 +130,10 @@ export default function AIPage() {
       </div>
 
       <section className="business-profile-card business-profile-card--page">
+        <p className="config-conflict-note">
+          Configuración local de preparación. La IA real se activará más
+          adelante desde el backend.
+        </p>
         {!canUseAi ? (
           <div className="feature-lock-banner" role="note">
             <span className="feature-lock-banner__badge">PRO</span>

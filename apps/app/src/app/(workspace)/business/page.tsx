@@ -106,6 +106,9 @@ export default function BusinessPage() {
       </div>
 
       <section className="business-profile-card business-profile-card--page">
+        <p className="config-conflict-note">
+          Esta configuración se guarda en este navegador durante la fase actual.
+        </p>
         <div className="business-form">
           <label className="business-form__field">
             <span>Nombre del negocio</span>
@@ -184,6 +187,7 @@ export default function BusinessPage() {
               Si cambias la moneda, los servicios existentes no se convertirán
               automáticamente.
             </small>
+            <small>La moneda se guarda en tu espacio de trabajo.</small>
           </label>
         </div>
 

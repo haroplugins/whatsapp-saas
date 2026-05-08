@@ -301,6 +301,10 @@ export default function AutomationsPage() {
               </div>
 
               <p>{automation.description}</p>
+              <p className="config-conflict-note">
+                Estas reglas básicas se guardan en este navegador durante la
+                fase actual.
+              </p>
 
               {automation.key === 'off_hours' ? (
                 <div className="business-hours-card">
@@ -418,6 +422,9 @@ export default function AutomationsPage() {
           <p>
             Permite que el sistema ayude a responder solicitudes de cita usando
             tus servicios, horarios y disponibilidad real.
+          </p>
+          <p className="config-conflict-note">
+            Esta configuración sí se guarda en tu espacio de trabajo.
           </p>
 
           <div className="smart-booking-card__source" aria-label="Fuentes de agenda">
