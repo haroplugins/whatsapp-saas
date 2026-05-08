@@ -1581,7 +1581,7 @@ export default function AgendaPage() {
                 </label>
               </div>
               <button
-                className="button button--primary"
+                className="button button--primary agenda-form-primary-action"
                 type="submit"
                 disabled={isLoading}
               >
@@ -1659,7 +1659,7 @@ export default function AgendaPage() {
                 </label>
               </div>
               <button
-                className="button button--primary"
+                className="button button--primary agenda-form-primary-action"
                 type="submit"
                 disabled={isLoading || activeServices.length === 0}
               >
@@ -1719,7 +1719,7 @@ export default function AgendaPage() {
                 </label>
               </div>
               <button
-                className="button button--primary"
+                className="button button--primary agenda-form-primary-action"
                 type="submit"
                 disabled={isLoading}
               >

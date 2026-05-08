@@ -2275,10 +2275,14 @@ input:focus {
   width: fit-content;
 }
 
-.agenda-forms > .business-profile-card > .button--primary {
-  min-height: 40px;
-  min-width: 10rem;
-  padding: 0.62rem 1rem;
+.agenda-forms .agenda-form-primary-action {
+  align-self: start;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  min-height: 42px;
+  min-width: 8.75rem;
+  padding: 0.68rem 1.08rem;
+  width: fit-content;
 }
 
 .agenda-forms .business-profile-card__header .button {
@@ -3391,7 +3395,7 @@ input:focus {
   }
 
   .agenda-toolbar__settings,
-  .agenda-forms > .business-profile-card > .button--primary {
+  .agenda-forms .agenda-form-primary-action {
     width: 100%;
   }
 
