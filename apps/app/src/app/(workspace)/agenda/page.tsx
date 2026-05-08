@@ -323,6 +323,10 @@ export default function AgendaPage() {
     () => sortBlockedSlotsForManagement(blockedSlots),
     [blockedSlots],
   );
+  const pastBlockedSlots = useMemo(
+    () => blockedSlots.filter((blockedSlot) => isBlockedSlotPast(blockedSlot)),
+    [blockedSlots],
+  );
   const managingBlockedSlot = useMemo(
     () =>
       blockedSlots.find(
@@ -1106,6 +1110,63 @@ export default function AgendaPage() {
         error instanceof Error
           ? error.message
           : 'No se pudo eliminar el bloqueo.',
+      );
+    }
+  }
+
+  async function handleDeletePastBlockedSlots() {
+    const currentTime = Date.now();
+    const nextPastBlockedSlots = blockedSlots.filter((blockedSlot) =>
+      isBlockedSlotPast(blockedSlot, currentTime),
+    );
+
+    if (nextPastBlockedSlots.length === 0) return;
+
+    if (
+      !window.confirm(
+        '¿Eliminar definitivamente los bloqueos pasados? Esta acción no se puede deshacer.',
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await Promise.all(
+        nextPastBlockedSlots.map((blockedSlot) =>
+          deleteBlockedSlot(blockedSlot.id),
+        ),
+      );
+
+      const deletedBlockedSlotIds = new Set(
+        nextPastBlockedSlots.map((blockedSlot) => blockedSlot.id),
+      );
+      const remainingBlockedSlots = blockedSlots.filter(
+        (blockedSlot) => !deletedBlockedSlotIds.has(blockedSlot.id),
+      );
+      const nextBlockedSlot =
+        sortBlockedSlotsForManagement(remainingBlockedSlots)[0] ?? null;
+
+      if (nextBlockedSlot) {
+        loadManagedBlockedSlotForm(nextBlockedSlot);
+      } else {
+        setManagingBlockedSlotId('');
+        setManageBlockedSlotDate('');
+        setManageBlockedSlotStartTime('');
+        setManageBlockedSlotEndTime('');
+        setManageBlockedSlotReason('');
+        setManageBlockedSlotError(null);
+      }
+
+      setManageBlockedSlotFeedback('Bloqueos pasados eliminados.');
+      setFeedback('Bloqueos pasados eliminados.');
+      await loadAgendaData();
+      refreshAvailability();
+    } catch (error) {
+      setManageBlockedSlotFeedback(null);
+      setManageBlockedSlotError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudieron eliminar los bloqueos pasados.',
       );
     }
   }
@@ -2061,6 +2122,16 @@ export default function AgendaPage() {
                   {manageBlockedSlotFeedback}
                 </p>
               ) : null}
+              {pastBlockedSlots.length > 0 ? (
+                <button
+                  className="button button--ghost blocked-slot-management-modal__clear-past"
+                  type="button"
+                  onClick={handleDeletePastBlockedSlots}
+                  disabled={isLoading}
+                >
+                  Eliminar bloqueos pasados
+                </button>
+              ) : null}
 
               {managedBlockedSlots.length === 0 ? (
                 <p className="config-conflict-note">
@@ -2076,6 +2147,10 @@ export default function AgendaPage() {
                           blockedSlot.id === managingBlockedSlotId
                             ? ' blocked-slot-management-modal__item--selected'
                             : ''
+                        }${
+                          isBlockedSlotPast(blockedSlot)
+                            ? ' blocked-slot-management-modal__item--past'
+                            : ''
                         }`}
                         type="button"
                         onClick={() => selectManagedBlockedSlot(blockedSlot.id)}
@@ -2083,6 +2158,11 @@ export default function AgendaPage() {
                         <strong>
                           {formatDateLabel(new Date(blockedSlot.startAt))}
                         </strong>
+                        {isBlockedSlotPast(blockedSlot) ? (
+                          <span className="blocked-slot-management-modal__badge">
+                            Pasado
+                          </span>
+                        ) : null}
                         <span>
                           {formatTimeRange(
                             blockedSlot.startAt,
@@ -2794,8 +2874,8 @@ function sortBlockedSlotsForManagement(
   return [...blockedSlots].sort((firstBlockedSlot, secondBlockedSlot) => {
     const firstStartTime = new Date(firstBlockedSlot.startAt).getTime();
     const secondStartTime = new Date(secondBlockedSlot.startAt).getTime();
-    const firstIsPast = firstStartTime < currentTime;
-    const secondIsPast = secondStartTime < currentTime;
+    const firstIsPast = isBlockedSlotPast(firstBlockedSlot, currentTime);
+    const secondIsPast = isBlockedSlotPast(secondBlockedSlot, currentTime);
 
     if (firstIsPast !== secondIsPast) {
       return firstIsPast ? 1 : -1;
@@ -2805,6 +2885,13 @@ function sortBlockedSlotsForManagement(
       ? secondStartTime - firstStartTime
       : firstStartTime - secondStartTime;
   });
+}
+
+function isBlockedSlotPast(
+  blockedSlot: BlockedSlot,
+  currentTime = Date.now(),
+): boolean {
+  return new Date(blockedSlot.endAt).getTime() < currentTime;
 }
 
 function toDateTimeLocalValue(date: Date): string {
