@@ -1,8 +1,18 @@
 export type BusinessProfileTone = 'friendly' | 'formal';
 
 export type BusinessProfile = {
-  name: string;
-  service: string;
+  businessName: string;
+  serviceType: string;
+  shortDescription: string;
+  publicPhone: string;
+  publicEmail: string;
+  website: string;
+  instagram: string;
+  addressOrServiceArea: string;
+  paymentMethods: string;
+  cancellationPolicy: string;
+  responseTime: string;
+  importantNotes: string;
   tone: BusinessProfileTone;
   baseMessage: string;
 };
@@ -12,8 +22,18 @@ export type AutomationReplyKind = 'welcome' | 'off_hours';
 export const businessProfileStorageKey = 'businessProfile';
 
 export const defaultBusinessProfile: BusinessProfile = {
-  name: 'Mi negocio',
-  service: 'servicio general',
+  businessName: 'Mi negocio',
+  serviceType: 'servicio general',
+  shortDescription: '',
+  publicPhone: '',
+  publicEmail: '',
+  website: '',
+  instagram: '',
+  addressOrServiceArea: '',
+  paymentMethods: '',
+  cancellationPolicy: '',
+  responseTime: '',
+  importantNotes: '',
   tone: 'friendly',
   baseMessage: '',
 };
@@ -33,10 +53,28 @@ export function saveStoredBusinessProfile(profile: BusinessProfile): void {
 }
 
 export function normalizeBusinessProfile(value: unknown): BusinessProfile {
-  const candidate = value && typeof value === 'object' ? value as Partial<BusinessProfile> : {};
+  const candidate = value && typeof value === 'object'
+    ? value as Partial<BusinessProfile> & { name?: unknown; service?: unknown }
+    : {};
   return {
-    name: readRequiredText(candidate.name, defaultBusinessProfile.name),
-    service: readRequiredText(candidate.service, defaultBusinessProfile.service),
+    businessName: readRequiredText(
+      candidate.businessName ?? candidate.name,
+      defaultBusinessProfile.businessName,
+    ),
+    serviceType: readRequiredText(
+      candidate.serviceType ?? candidate.service,
+      defaultBusinessProfile.serviceType,
+    ),
+    shortDescription: readOptionalText(candidate.shortDescription),
+    publicPhone: readOptionalText(candidate.publicPhone),
+    publicEmail: readOptionalText(candidate.publicEmail),
+    website: readOptionalText(candidate.website),
+    instagram: readOptionalText(candidate.instagram),
+    addressOrServiceArea: readOptionalText(candidate.addressOrServiceArea),
+    paymentMethods: readOptionalText(candidate.paymentMethods),
+    cancellationPolicy: readOptionalText(candidate.cancellationPolicy),
+    responseTime: readOptionalText(candidate.responseTime),
+    importantNotes: readOptionalText(candidate.importantNotes),
     tone: candidate.tone === 'formal' ? 'formal' : 'friendly',
     baseMessage: readOptionalText(candidate.baseMessage),
   };
@@ -53,12 +91,12 @@ export function buildBusinessAutomationReply(kind: AutomationReplyKind, automati
 function getIntro(kind: AutomationReplyKind, profile: BusinessProfile): string {
   if (profile.tone === 'formal') {
     return kind === 'off_hours'
-      ? `Hola, le atiende ${profile.name}. Hemos recibido su consulta sobre ${profile.service}.`
-      : `Hola, le atiende ${profile.name}. Gracias por contactar por ${profile.service}.`;
+      ? `Hola, le atiende ${profile.businessName}. Hemos recibido su consulta sobre ${profile.serviceType}.`
+      : `Hola, le atiende ${profile.businessName}. Gracias por contactar por ${profile.serviceType}.`;
   }
   return kind === 'off_hours'
-    ? `Hola, soy ${profile.name}. Hemos recibido tu mensaje sobre ${profile.service}.`
-    : `Hola, soy ${profile.name}. Gracias por escribir sobre ${profile.service}.`;
+    ? `Hola, soy ${profile.businessName}. Hemos recibido tu mensaje sobre ${profile.serviceType}.`
+    : `Hola, soy ${profile.businessName}. Gracias por escribir sobre ${profile.serviceType}.`;
 }
 
 function readRequiredText(value: unknown, fallback: string): string {
