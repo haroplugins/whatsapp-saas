@@ -2269,12 +2269,21 @@ input:focus {
 }
 
 .agenda-forms .button {
-  min-height: 42px;
   max-width: 100%;
-  padding: 0.72rem 1rem;
   text-align: center;
   white-space: normal;
   width: fit-content;
+}
+
+.agenda-forms > .business-profile-card > .button--primary {
+  min-height: 40px;
+  min-width: 10rem;
+  padding: 0.62rem 1rem;
+}
+
+.agenda-forms .business-profile-card__header .button {
+  min-height: 34px;
+  padding: 0.48rem 0.75rem;
 }
 
 .agenda-locked-preview {
@@ -3382,7 +3391,7 @@ input:focus {
   }
 
   .agenda-toolbar__settings,
-  .agenda-forms .button {
+  .agenda-forms > .business-profile-card > .button--primary {
     width: 100%;
   }
 
