@@ -46,23 +46,23 @@ const automationsStorageKey = 'automations';
 const automationDefinitions: AutomationDefinition[] = [
   {
     key: 'welcome',
-    title: 'Respuesta automatica',
-    description: 'Responde automaticamente el primer mensaje',
+    title: 'Respuesta automática',
+    description: 'Responde automáticamente al primer mensaje',
   },
   {
     key: 'off_hours',
     title: 'Fuera de horario',
-    description: 'Responde cuando no estas disponible',
+    description: 'Responde cuando no estás disponible',
   },
 ];
 
 const weekdayOptions = [
   { label: 'Lunes', value: 1 },
   { label: 'Martes', value: 2 },
-  { label: 'Miercoles', value: 3 },
+  { label: 'Miércoles', value: 3 },
   { label: 'Jueves', value: 4 },
   { label: 'Viernes', value: 5 },
-  { label: 'Sabado', value: 6 },
+  { label: 'Sábado', value: 6 },
   { label: 'Domingo', value: 0 },
 ];
 
@@ -119,7 +119,7 @@ export default function AutomationsPage() {
     : 'Bloqueada';
   const smartBookingLockMessage =
     entitlements.plan === 'PRO'
-      ? 'Tu plan Pro incluye Agenda manual. La agenda inteligente estara disponible en Premium.'
+      ? 'Tu plan Pro incluye Agenda manual. La agenda inteligente estará disponible en Premium.'
       : 'Disponible en Premium.';
 
   useEffect(() => {
@@ -260,11 +260,11 @@ export default function AutomationsPage() {
     <section className="automations-page">
       <div className="dashboard-hero">
         <div>
-          <span className="workspace-header__eyebrow">Automations</span>
+          <span className="workspace-header__eyebrow">Automatizaciones</span>
           <h2>Automatiza respuestas simples sin complicarte.</h2>
           <p>
-            Activa reglas basicas, ajusta el mensaje y deja lista una primera
-            configuracion operativa directamente desde esta pantalla.
+            Activa reglas básicas, ajusta el mensaje y deja lista una primera
+            configuración operativa directamente desde esta pantalla.
           </p>
         </div>
       </div>
@@ -334,7 +334,7 @@ export default function AutomationsPage() {
                     </label>
                   </div>
                   <fieldset className="business-hours-card__days">
-                    <legend>Dias laborales</legend>
+                    <legend>Días laborales</legend>
                     <div className="business-hours-card__days-grid">
                       {weekdayOptions.map((day) => (
                         <label key={day.value} className="automation-day-pill">
@@ -425,7 +425,7 @@ export default function AutomationsPage() {
             <span>Horarios</span>
             <span>Citas</span>
             <span>Bloqueos</span>
-            <span>Disponibilidad backend</span>
+            <span>Disponibilidad real</span>
           </div>
 
           {isSmartBookingLocked ? (
@@ -433,7 +433,7 @@ export default function AutomationsPage() {
           ) : (
             <div className="smart-booking-card__config business-form">
               <label className="business-form__field">
-                <span>Modo de actuacion</span>
+                <span>Modo de actuación</span>
                 <select
                   value={smartBookingSettings.mode}
                   disabled={isSmartBookingLoading}
@@ -445,10 +445,10 @@ export default function AutomationsPage() {
                 >
                   <option value="SUGGEST_SLOTS">Solo sugerir huecos</option>
                   <option value="REQUEST_CONFIRMATION">
-                    Pedir confirmacion antes de reservar
+                    Pedir confirmación antes de reservar
                   </option>
                   {canUseAutoBookingConfirm ? (
-                    <option value="AUTO_CONFIRM">Confirmar automaticamente</option>
+                    <option value="AUTO_CONFIRM">Confirmar automáticamente</option>
                   ) : null}
                 </select>
               </label>
@@ -481,17 +481,17 @@ export default function AutomationsPage() {
                   }
                 >
                   <option value="ASK_CLIENT">Preguntar al cliente</option>
-                  <option value="HANDOFF_TO_HUMAN">Derivar a humano</option>
+                  <option value="HANDOFF_TO_HUMAN">Derivar al equipo</option>
                 </select>
               </label>
               {isSmartBookingLoading ? (
-                <p className="automation-card__meta">Guardando configuracion...</p>
+                <p className="automation-card__meta">Guardando configuración...</p>
               ) : null}
               {smartBookingError ? (
                 <p className="config-conflict-note">{smartBookingError}</p>
               ) : null}
               <p className="config-conflict-note">
-                Esta automatizacion usara la Agenda configurada. Para cambiar
+                Esta automatización usará la Agenda configurada. Para cambiar
                 horarios o servicios, ve a Agenda.
               </p>
             </div>
@@ -536,7 +536,7 @@ export default function AutomationsPage() {
             <div className="automation-modal__body">
               <div className="automation-modal__row">
                 <div>
-                  <strong>Activar automatizacion</strong>
+                  <strong>Activar automatización</strong>
                   <p>Controla si esta respuesta queda disponible ahora mismo.</p>
                 </div>
                 <button
@@ -614,6 +614,6 @@ function formatBusinessHoursSummary(businessHours: BusinessHours): string {
 
 function getAutomationTooltip(automationKey: AutomationKey): string {
   return automationKey === 'welcome'
-    ? 'Se envia una sola vez al primer mensaje del cliente'
-    : 'Responde cuando no estas disponible';
+    ? 'Se envía una sola vez al primer mensaje del cliente'
+    : 'Responde cuando no estás disponible';
 }

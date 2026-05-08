@@ -752,12 +752,12 @@ export default function InboxPage() {
     <section className="inbox-page">
       <div className="dashboard-hero inbox-hero">
         <div>
-          <span className="workspace-header__eyebrow">Inbox</span>
+          <span className="workspace-header__eyebrow">Bandeja</span>
           <h2>Responde mensajes como si ya estuvieran entrando.</h2>
-          <p>Simula conversaciones de clientes, abre el chat y practica respuestas sin conectar todavía ningún backend.</p>
+          <p>Gestiona conversaciones de clientes, revisa el chat y practica respuestas con datos de prueba.</p>
         </div>
         <div className="inbox-hero__actions">
-          <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular webhook WA</button>
+          <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular mensaje de WhatsApp</button>
           <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
         </div>
       </div>
@@ -765,7 +765,7 @@ export default function InboxPage() {
         <aside className="inbox-list">
           <div className="inbox-list__header">
             <strong>Conversaciones</strong>
-            <span>{filteredConversations.length} chats</span>
+            <span>{filteredConversations.length} conversaciones</span>
           </div>
           <div className="inbox-filters" role="tablist" aria-label="Filtrar conversaciones">
             <button className={`inbox-filter-chip${activeFilter === 'all' ? ' inbox-filter-chip--active' : ''}`} type="button" onClick={() => setActiveFilter('all')}>
@@ -784,8 +784,8 @@ export default function InboxPage() {
           <div className="inbox-list__items">
             {filteredConversations.length === 0 ? (
               <div className="inbox-empty inbox-empty--action">
-                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Aun no tienes conversaciones' : 'No hay conversaciones en este filtro'}
-                <span>{conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Genera un primer mensaje entrante para ver el inbox en accion.' : 'Prueba con otro filtro para ver mas conversaciones.'}</span>
+                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Aún no tienes conversaciones' : 'No hay conversaciones en este filtro'}
+                <span>{conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Genera un primer mensaje entrante para ver la bandeja en acción.' : 'Prueba con otro filtro para ver más conversaciones.'}</span>
                 {conversationCounts.all === 0 && conversationCounts.archived === 0 ? <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button> : null}
               </div>
             ) : null}
@@ -835,8 +835,8 @@ export default function InboxPage() {
                           <div className="conversation-item__menu-panel">
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'pending')}>Marcar como pendiente</button>
                             <button className="conversation-item__menu-option" type="button" onClick={() => markConversationStatus(conversation.id, 'done')}>Marcar como atendida</button>
-                            <button className="conversation-item__menu-option" type="button" onClick={() => toggleConversationArchived(conversation.id)}>{conversation.archived ? 'Desarchivar conversacion' : 'Archivar conversacion'}</button>
-                            <button className="conversation-item__menu-option" type="button" onClick={() => requestDeleteConversation(conversation.id)}>Eliminar conversacion</button>
+                            <button className="conversation-item__menu-option" type="button" onClick={() => toggleConversationArchived(conversation.id)}>{conversation.archived ? 'Desarchivar conversación' : 'Archivar conversación'}</button>
+                            <button className="conversation-item__menu-option" type="button" onClick={() => requestDeleteConversation(conversation.id)}>Eliminar conversación</button>
                           </div>
                         ) : null}
                       </div>
@@ -889,7 +889,7 @@ export default function InboxPage() {
                         )}
                         <div className="chat-file-message__body">
                           <span className="chat-file-message__name">{message.fileName ?? 'Archivo adjunto'}</span>
-                          {!message.fileUrl ? <span className="chat-file-message__status">Preview no disponible tras recargar</span> : null}
+                          {!message.fileUrl ? <span className="chat-file-message__status">Vista previa no disponible tras recargar</span> : null}
                         </div>
                       </div>
                     ) : editingMessageId === message.id ? (
@@ -932,7 +932,7 @@ export default function InboxPage() {
                         <span className="conversation-draft-card__badge">{getConversationDraftStatusLabel(conversationDraft.status)}</span>
                       </div>
                       <p className="conversation-draft-card__content">{conversationDraft.content}</p>
-                      <p className="conversation-draft-card__note">Pulsa 'Usar en respuesta' para copiarla al cuadro de texto. El mensaje no se enviará hasta que pulses Enviar.</p>
+                      <p className="conversation-draft-card__note">Pulsa "Usar en respuesta" para copiarla al cuadro de texto. El mensaje no se enviará hasta que pulses Enviar.</p>
                       <div className="conversation-draft-card__actions">
                         <button className="button button--ghost conversation-draft-card__button" type="button" onClick={useConversationDraftInReply}>
                           Usar en respuesta
@@ -952,7 +952,7 @@ export default function InboxPage() {
                     <>
                       <div className="conversation-draft-card__header">
                         <div>
-                          <strong>Sugerencia Advisor</strong>
+                          <strong>Sugerencia de agenda</strong>
                           <span>Genera una respuesta sugerida para revisar antes de enviarla.</span>
                         </div>
                       </div>
@@ -979,7 +979,7 @@ export default function InboxPage() {
               </form>
             </>
           ) : (
-            <div className="inbox-empty inbox-empty--large">Selecciona una conversacion para ver el chat<span>O simula un mensaje entrante para empezar.</span></div>
+            <div className="inbox-empty inbox-empty--large">Selecciona una conversación para ver el chat<span>O simula un mensaje entrante para empezar.</span></div>
           )}
         </section>
         {isResizableLayout ? <div className={`inbox-resizer${activeResizer === 'right' ? ' inbox-resizer--active' : ''}`} role="separator" aria-orientation="vertical" aria-label="Redimensionar notas" onMouseDown={(event) => startResizing('right', event)} /> : null}
@@ -993,7 +993,7 @@ export default function InboxPage() {
               <textarea className="private-notes-panel__textarea" placeholder="Ej: Prefiere que le respondamos por la tarde. Pregunto por precios del plan mensual." value={selectedConversationNote} onChange={(event) => handlePrivateNoteChange(event.target.value)} />
             </>
           ) : (
-            <div className="inbox-empty inbox-empty--large">Selecciona una conversacion para ver sus notas privadas<span>Las notas se guardan en este navegador.</span></div>
+            <div className="inbox-empty inbox-empty--large">Selecciona una conversación para ver sus notas privadas<span>Las notas se guardan en este navegador.</span></div>
           )}
         </aside>
       </div>
@@ -1001,8 +1001,8 @@ export default function InboxPage() {
         <div className="automation-modal-backdrop" role="presentation">
           <div className="automation-modal conversation-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title">
             <div className="automation-modal__header">
-              <div><span className="workspace-header__eyebrow">Accion de bandeja</span><h3 id="delete-conversation-title">Eliminar esta conversacion?</h3></div>
-              <p>Esto solo eliminara la conversacion de esta bandeja de prueba.</p>
+              <div><span className="workspace-header__eyebrow">Acción de bandeja</span><h3 id="delete-conversation-title">¿Eliminar esta conversación?</h3></div>
+              <p>Esto solo eliminará la conversación de esta bandeja de prueba.</p>
             </div>
             <div className="automation-modal__body conversation-delete-modal__actions">
               <button className="button button--ghost" type="button" onClick={closeDeleteModal}>Cancelar</button>
@@ -1025,8 +1025,8 @@ function getAvatarTone(name: string): 'amber' | 'mint' | 'lavender' {
 }
 function getConversationStatusTooltip(status: ConversationStatus): string {
   return status === 'pending'
-    ? 'Requiere tu atencion'
-    : 'Ya has respondido o revisado esta conversacion';
+    ? 'Requiere tu atención'
+    : 'Ya has respondido o revisado esta conversación';
 }
 function getStatusWeight(status: ConversationStatus): number { return status === 'pending' ? 0 : 1; }
 function formatMessageTime(value: string): string { return new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
@@ -1042,10 +1042,10 @@ function normalizeControlMode(value: PolledWhatsappMessage['controlMode']): Conv
   return undefined;
 }
 function getControlModeLabel(conversation: Conversation): string {
-  if (conversation.source === 'mock') return 'Mock';
+  if (conversation.source === 'mock') return 'Prueba';
   if (conversation.controlMode === 'human') return 'Humano';
   if (conversation.controlMode === 'ai') return 'IA';
-  return 'Sin control';
+  return 'Sin asignar';
 }
 function getControlModeBadgeClass(conversation: Conversation): string {
   if (conversation.source === 'mock') return 'conversation-badge--business';
@@ -1054,7 +1054,7 @@ function getControlModeBadgeClass(conversation: Conversation): string {
   return 'conversation-badge--control-none';
 }
 function getConversationDraftSourceLabel(source: ConversationDraft['source']): string {
-  if (source === 'BOOKING_ADVISOR') return 'Sugerencia del Advisor';
+  if (source === 'BOOKING_ADVISOR') return 'Sugerencia de agenda';
   return 'Borrador manual';
 }
 function getConversationDraftStatusLabel(status: ConversationDraft['status']): string {
@@ -1155,7 +1155,7 @@ function getMessageBubbleClass(message: Message): string {
   return 'chat-message--client';
 }
 function getMessageSenderLabel(message: Message, clientName: string): string {
-  if (isUserSender(message.sender)) return 'Tu';
+  if (isUserSender(message.sender)) return 'Tú';
   if (message.sender === 'ai') return 'Asistente';
   if (message.sender === 'auto') return 'Auto';
   return clientName;

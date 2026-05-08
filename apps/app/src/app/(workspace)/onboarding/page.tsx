@@ -73,14 +73,14 @@ export default function OnboardingPage() {
           <h2>Conecta WhatsApp y empieza a responder clientes.</h2>
           <p>
             En este primer paso dejamos listo el flujo principal: conectar
-            WhatsApp, abrir el inbox y empezar a gestionar conversaciones.
+            WhatsApp, abrir la bandeja y empezar a gestionar conversaciones.
             Google Drive puede quedar preparado como apoyo.
           </p>
         </div>
         <div className="onboarding-hero__steps">
           <span>1. Conecta WhatsApp</span>
           <span>2. Suma Google Drive si lo necesitas</span>
-          <span>3. Entra al inbox y responde</span>
+          <span>3. Entra en la bandeja y responde</span>
         </div>
       </div>
 
@@ -138,10 +138,10 @@ export default function OnboardingPage() {
           disabled={!isHydrated || !isReady}
           onClick={() => router.push('/inbox')}
         >
-          {isReady ? 'Entrar al inbox' : 'Conecta WhatsApp para empezar'}
+          {isReady ? 'Entrar en la bandeja' : 'Conecta WhatsApp para empezar'}
         </button>
         <Link className="onboarding-actions__secondary" href="/dashboard">
-          Ir al panel interno
+          Ir al panel
         </Link>
       </div>
     </section>

@@ -54,7 +54,7 @@ const monthOptions = [
   'Diciembre',
 ];
 
-const weekdayLabels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+const weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 type CalendarCell = {
   key: string;
@@ -118,10 +118,10 @@ const now = new Date();
 const availabilityWeekdays = [
   { label: 'Lunes', weekday: 1 },
   { label: 'Martes', weekday: 2 },
-  { label: 'Miercoles', weekday: 3 },
+  { label: 'Miércoles', weekday: 3 },
   { label: 'Jueves', weekday: 4 },
   { label: 'Viernes', weekday: 5 },
-  { label: 'Sabado', weekday: 6 },
+  { label: 'Sábado', weekday: 6 },
   { label: 'Domingo', weekday: 0 },
 ];
 
@@ -1179,7 +1179,7 @@ export default function AgendaPage() {
           <h2>Agenda mensual</h2>
           <p>
             Gestiona servicios, citas manuales y bloqueos sin generar huecos
-            libres todavia.
+            libres todavía.
           </p>
         </div>
       </div>
@@ -1191,7 +1191,7 @@ export default function AgendaPage() {
             <div>
               <strong>Agenda manual disponible en plan Pro</strong>
               <p>
-                Basic puede ver que el modulo existe, pero los servicios, citas
+                Basic puede ver que el módulo existe, pero los servicios, citas
                 y bloqueos se habilitan en Pro o Premium.
               </p>
             </div>
@@ -1219,7 +1219,7 @@ export default function AgendaPage() {
               </select>
             </label>
             <label className="business-form__field">
-              <span>Ano</span>
+              <span>Año</span>
               <select
                 value={year}
                 onChange={(event) => setYear(Number(event.target.value))}
@@ -1323,13 +1323,13 @@ export default function AgendaPage() {
             <aside className="agenda-detail">
               <div className="agenda-detail__header">
                 <span className="workspace-header__eyebrow">
-                  Dia seleccionado
+                  Día seleccionado
                 </span>
                 <h3>{formatDateLabel(selectedDate)}</h3>
               </div>
 
               <div className="agenda-list-block">
-                <strong>Citas y bloqueos del dia</strong>
+                <strong>Citas y bloqueos del día</strong>
                 {dayActivityItems.length > 0 ? (
                   dayActivityItems.map((item) => (
                     <article
@@ -1438,7 +1438,7 @@ export default function AgendaPage() {
                     </article>
                   ))
                 ) : (
-                  <p>No hay citas ni bloqueos para este dia.</p>
+                  <p>No hay citas ni bloqueos para este día.</p>
                 )}
               </div>
 
@@ -1469,9 +1469,9 @@ export default function AgendaPage() {
                   ) : availabilityError ? (
                     <p>{availabilityError}</p>
                   ) : availabilityReason === 'NO_RULES' ? (
-                    <p>No hay horario configurado para este dia.</p>
+                    <p>No hay horario configurado para este día.</p>
                   ) : availabilityReason === 'OUT_OF_RANGE' ? (
-                    <p>La fecha esta fuera del rango permitido de reserva.</p>
+                    <p>La fecha está fuera del rango permitido de reserva.</p>
                   ) : availabilitySlots.length === 0 ? (
                     <p>No hay huecos disponibles para este servicio.</p>
                   ) : (
@@ -1523,7 +1523,7 @@ export default function AgendaPage() {
                   />
                 </label>
                 <label className="business-form__field">
-                  <span>Duracion minutos</span>
+                  <span>Duración en minutos</span>
                   <input
                     required
                     min="1"
@@ -1547,7 +1547,7 @@ export default function AgendaPage() {
                   </small>
                 </label>
                 <label className="business-form__field">
-                  <span>Buffer minutos</span>
+                  <span>Tiempo entre citas</span>
                   <input
                     min="0"
                     type="number"
@@ -1588,7 +1588,7 @@ export default function AgendaPage() {
                   />
                 </label>
                 <label className="business-form__field">
-                  <span>Telefono</span>
+                  <span>Teléfono</span>
                   <input
                     type="text"
                     value={appointmentCustomerPhone}
@@ -1723,8 +1723,8 @@ export default function AgendaPage() {
                 <span className="workspace-header__eyebrow">Agenda</span>
                 <h3 id="availability-modal-title">Configurar horarios</h3>
                 <p>
-                  Define el horario semanal base. Estos tramos se usaran mas
-                  adelante para calcular horas libres.
+                  Define el horario semanal base. Estos tramos se usan para calcular la
+                  disponibilidad real de la agenda.
                 </p>
               </div>
               <button
@@ -1881,7 +1881,7 @@ export default function AgendaPage() {
                 <span className="workspace-header__eyebrow">Servicios</span>
                 <h3 id="service-management-modal-title">Gestionar servicios</h3>
                 <p>
-                  Edita duracion, precio, buffer y disponibilidad de los
+                  Edita duración, precio, tiempo entre citas y disponibilidad de los
                   servicios que usa la agenda.
                 </p>
               </div>
@@ -1901,7 +1901,7 @@ export default function AgendaPage() {
 
               {services.length === 0 ? (
                 <p className="config-conflict-note">
-                  Todavia no hay servicios creados.
+                  Todavía no hay servicios creados.
                 </p>
               ) : (
                 <>
@@ -1948,7 +1948,7 @@ export default function AgendaPage() {
                     </label>
 
                     <label className="business-form__field">
-                      <span>Duracion minutos</span>
+                      <span>Duración en minutos</span>
                       <input
                         required
                         min="1"
@@ -2001,7 +2001,7 @@ export default function AgendaPage() {
                     </label>
 
                     <label className="business-form__field">
-                      <span>Buffer minutos</span>
+                      <span>Tiempo entre citas</span>
                       <input
                         required
                         min="0"
@@ -2311,9 +2311,9 @@ export default function AgendaPage() {
                   </select>
                   {quickAppointmentService ? (
                     <small>
-                      Duracion {quickAppointmentService.durationMinutes} min
+                      Duración {quickAppointmentService.durationMinutes} min
                       {quickAppointmentService.bufferMinutes > 0
-                        ? ` + buffer ${quickAppointmentService.bufferMinutes} min`
+                        ? ` + ${quickAppointmentService.bufferMinutes} min entre citas`
                         : ''}
                     </small>
                   ) : null}
@@ -2344,7 +2344,7 @@ export default function AgendaPage() {
                 </label>
 
                 <label className="business-form__field">
-                  <span>Telefono</span>
+                  <span>Teléfono</span>
                   <input
                     type="text"
                     value={quickAppointmentCustomerPhone}
@@ -2430,7 +2430,7 @@ export default function AgendaPage() {
                 </label>
 
                 <label className="business-form__field">
-                  <span>Telefono</span>
+                  <span>Teléfono</span>
                   <input
                     type="text"
                     value={editAppointmentCustomerPhone}
@@ -2780,7 +2780,7 @@ function availabilityFormToRules(
     });
 
     if (rules.length === 0) {
-      throw new Error(`${day.label}: anade al menos un tramo o marca cerrado.`);
+      throw new Error(`${day.label}: añade al menos un tramo o marca cerrado.`);
     }
 
     validateDayIntervalsDoNotOverlap(day.label, rules);
@@ -3185,3 +3185,4 @@ function getServiceName(
     'Servicio manual'
   );
 }
+

@@ -14,16 +14,20 @@ type WorkspaceLayoutProps = Readonly<{
 
 const navigation = [
   { href: '/onboarding', label: 'Inicio', description: 'Primeros pasos' },
-  { href: '/dashboard', label: 'Dashboard', description: 'Resumen general' },
-  { href: '/inbox', label: 'Inbox', description: 'Conversaciones' },
-  { href: '/automations', label: 'Automations', description: 'Reglas activas' },
+  { href: '/dashboard', label: 'Panel', description: 'Resumen general' },
+  { href: '/inbox', label: 'Bandeja', description: 'Conversaciones' },
+  {
+    href: '/automations',
+    label: 'Automatizaciones',
+    description: 'Reglas activas',
+  },
   { href: '/business', label: 'Negocio', description: 'Perfil y contexto' },
   {
     href: '/agenda',
     label: 'Agenda',
     description: 'Servicios, citas y bloqueos',
   },
-  { href: '/ai', label: 'IA', description: 'Autopilot' },
+  { href: '/ai', label: 'IA', description: 'Asistente' },
 ];
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
@@ -52,12 +56,12 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         <div className="workspace-brand">
           <span className="workspace-brand__mark">WS</span>
           <div>
-            <strong>Workspace</strong>
-            <p>Control room</p>
+            <strong>Espacio de trabajo</strong>
+            <p>Panel de control</p>
           </div>
         </div>
 
-        <nav className="workspace-nav" aria-label="Primary">
+        <nav className="workspace-nav" aria-label="Navegación principal">
           {navigation.map((item) => (
             <Link
               key={item.href}
@@ -82,8 +86,8 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         <div className="workspace-sidebar__card">
           <span className="workspace-sidebar__eyebrow">MVP</span>
           <p>
-            La shell ya está lista para conectar auth y datos reales en el
-            siguiente bloque.
+            Tu espacio de trabajo reúne las herramientas principales para gestionar
+            conversaciones, agenda y automatizaciones.
           </p>
         </div>
       </aside>
@@ -91,11 +95,11 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       <div className="workspace-main">
         <header className="workspace-header">
           <div>
-            <span className="workspace-header__eyebrow">Private app</span>
+            <span className="workspace-header__eyebrow">Aplicación privada</span>
             <h1>Panel interno</h1>
           </div>
           <Link className="button button--ghost" href="/login">
-            Sign out
+            Cerrar sesión
           </Link>
         </header>
 
@@ -104,3 +108,4 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     </div>
   );
 }
+

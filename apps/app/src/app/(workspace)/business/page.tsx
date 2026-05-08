@@ -101,7 +101,7 @@ export default function BusinessPage() {
         <div>
           <span className="workspace-header__eyebrow">Negocio</span>
           <h2>Perfil del negocio</h2>
-          <p>Configura el contexto que usara el sistema para personalizar respuestas automaticas.</p>
+          <p>Configura el contexto que usará el sistema para personalizar respuestas automáticas.</p>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ export default function BusinessPage() {
               value={businessProfile.baseMessage}
               onChange={(event) => updateBusinessProfile({ baseMessage: event.target.value })}
             />
-            <small>Texto opcional que se anadira como contexto en las respuestas automaticas.</small>
+            <small>Texto opcional que se añadirá como contexto en las respuestas automáticas.</small>
           </label>
         </div>
       </section>

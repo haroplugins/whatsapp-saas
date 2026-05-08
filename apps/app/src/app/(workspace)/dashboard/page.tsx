@@ -64,7 +64,7 @@ export default function DashboardPage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : 'No se pudo cargar el dashboard.',
+            : 'No se pudo cargar el panel.',
         );
       } finally {
         if (isMounted) {
@@ -84,11 +84,11 @@ export default function DashboardPage() {
     <section className="dashboard-page">
       <div className="dashboard-hero">
         <div>
-          <span className="workspace-header__eyebrow">Dashboard</span>
+          <span className="workspace-header__eyebrow">Panel</span>
           <h2>Vista real del equipo</h2>
           <p>
-            El panel ya consume los resúmenes del backend y muestra actividad
-            real del tenant autenticado.
+            Consulta la actividad real de tu espacio de trabajo en un solo
+            lugar.
           </p>
         </div>
       </div>
@@ -102,11 +102,11 @@ export default function DashboardPage() {
             {isLoading ? '...' : data?.conversations.total ?? 0}
           </strong>
           <p className="metric-card__summary">
-            Volumen total del inbox y reparto entre business y personal.
+            Volumen total de conversaciones y reparto entre negocio y personal.
           </p>
           <div className="metric-card__details">
             <div>
-              <span>Business</span>
+              <span>Negocio</span>
               <strong className={isLoading ? 'metric-card__skeleton' : ''}>
                 {isLoading ? ' ' : data?.conversations.totalBusiness ?? 0}
               </strong>
@@ -130,13 +130,13 @@ export default function DashboardPage() {
           </p>
           <div className="metric-card__details">
             <div>
-              <span>User</span>
+              <span>Equipo</span>
               <strong className={isLoading ? 'metric-card__skeleton' : ''}>
                 {isLoading ? ' ' : data?.messages.sentByUser ?? 0}
               </strong>
             </div>
             <div>
-              <span>Client</span>
+              <span>Cliente</span>
               <strong className={isLoading ? 'metric-card__skeleton' : ''}>
                 {isLoading ? ' ' : data?.messages.sentByClient ?? 0}
               </strong>

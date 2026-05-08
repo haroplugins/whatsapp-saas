@@ -30,8 +30,8 @@ type StoredAutomationsState = {
 
 const modeOptions: Array<{ label: string; value: AIConfigMode; description: string }> = [
   { label: 'Solo sugerencias', value: 'suggestions', description: 'La IA prepara respuestas para revisar antes de enviar.' },
-  { label: 'Respuesta automatica', value: 'auto_reply', description: 'La IA puede responder casos permitidos sin salir del flujo actual.' },
-  { label: 'Autopilot', value: 'autopilot', description: 'La IA opera de forma mas autonoma cuando tenga suficiente confianza.' },
+  { label: 'Respuesta automática', value: 'auto_reply', description: 'La IA puede responder casos permitidos sin salir del flujo actual.' },
+  { label: 'Piloto automático', value: 'autopilot', description: 'La IA opera de forma más autónoma cuando tenga suficiente confianza.' },
 ];
 
 const permissionOptions: Array<{ label: string; value: keyof AIConfig['permissions'] }> = [
@@ -50,7 +50,7 @@ const toneOptions: Array<{ label: string; value: AIConfigTone }> = [
 ];
 
 const fallbackOptions: Array<{ label: string; value: AIConfigFallback }> = [
-  { label: 'Pedir mas informacion', value: 'ask_more' },
+  { label: 'Pedir más información', value: 'ask_more' },
   { label: 'Marcar como pendiente', value: 'mark_pending' },
   { label: 'Notificar al equipo', value: 'notify' },
 ];
@@ -124,8 +124,8 @@ export default function AIPage() {
       <div className="dashboard-hero">
         <div>
           <span className="workspace-header__eyebrow">IA</span>
-          <h2>AI Autopilot</h2>
-          <p>Configura como debera comportarse la IA cuando activemos la siguiente fase.</p>
+          <h2>Asistente de IA</h2>
+          <p>Configura cómo deberá comportarse la IA cuando activemos la siguiente fase.</p>
         </div>
       </div>
 
@@ -135,7 +135,7 @@ export default function AIPage() {
             <span className="feature-lock-banner__badge">PRO</span>
             <div>
               <strong>Disponible en plan Pro</strong>
-              <p>La IA se puede ver desde Basic para preparar la configuracion, pero solo se activa en planes Pro o Premium.</p>
+              <p>La IA se puede ver desde Basic para preparar la configuración, pero solo se activa en planes Pro o Premium.</p>
             </div>
           </div>
         ) : null}
@@ -143,7 +143,7 @@ export default function AIPage() {
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
               <strong>Modo IA</strong>
-              <span>Define cuanto control tendra la IA.</span>
+              <span>Define cuánto control tendrá la IA.</span>
             </div>
             <div className="ai-option-grid">
               {modeOptions.map((option) => (
@@ -166,7 +166,7 @@ export default function AIPage() {
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
               <strong>Permisos</strong>
-              <span>Temas que la IA podra tratar.</span>
+              <span>Temas que la IA podrá tratar.</span>
             </div>
             <div className="ai-permission-grid">
               {permissionOptions.map((permission) => (
@@ -247,7 +247,7 @@ export default function AIPage() {
             <button className="button button--primary" type="button" disabled={!canUseAi} onClick={() => saveStoredAIConfig(aiConfig)}>
               Guardar
             </button>
-            {!canUseAi ? <span>Disponible en plan Pro</span> : <span>Configuracion local preparada</span>}
+            {!canUseAi ? <span>Disponible en plan Pro</span> : <span>Configuración local preparada</span>}
           </div>
         </div>
       </section>
@@ -284,6 +284,6 @@ function disableClassicOffHoursAutomation() {
       },
     }));
   } catch {
-    // Si localStorage contiene datos antiguos o invalidos, no bloqueamos la configuracion de IA.
+    // Si localStorage contiene datos antiguos o inválidos, no bloqueamos la configuración de IA.
   }
 }
