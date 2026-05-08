@@ -841,8 +841,8 @@ export default function InboxPage() {
           <p className="inbox-connection-status__next-step">
             <strong>Próximo paso</strong>
             <span>
-              Cuando tengamos las credenciales de Meta, podremos completar la
-              conexión.
+              Cuando se complete la conexión con Meta, podremos activar la
+              entrada real de mensajes.
             </span>
           </p>
         </section>
@@ -1095,8 +1095,8 @@ export default function InboxPage() {
         <div className="automation-modal-backdrop" role="presentation">
           <div className="automation-modal conversation-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title">
             <div className="automation-modal__header">
-              <div><span className="workspace-header__eyebrow">Acción de bandeja</span><h3 id="delete-conversation-title">¿Eliminar esta conversación?</h3></div>
-              <p>Esto solo eliminará la conversación de esta bandeja.</p>
+              <div><span className="workspace-header__eyebrow">Conversación</span><h3 id="delete-conversation-title">¿Eliminar esta conversación?</h3></div>
+              <p>Esto quitará la conversación de la bandeja actual.</p>
             </div>
             <div className="automation-modal__body conversation-delete-modal__actions">
               <button className="button button--ghost" type="button" onClick={closeDeleteModal}>Cancelar</button>
