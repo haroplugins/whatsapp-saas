@@ -1681,6 +1681,7 @@ input:focus {
 .business-form__field {
   display: grid;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .business-form__field--full {
@@ -1702,6 +1703,8 @@ input:focus {
 .business-form input,
 .business-form select,
 .business-form textarea {
+  box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -1908,6 +1911,8 @@ input:focus {
 
 .agenda-toolbar select,
 .agenda-toolbar input {
+  box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--line);
@@ -1955,6 +1960,7 @@ input:focus {
 
 .agenda-toolbar__settings {
   min-height: 48px;
+  max-width: 100%;
   white-space: nowrap;
 }
 
@@ -2245,15 +2251,29 @@ input:focus {
 }
 
 .agenda-forms {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   align-items: start;
 }
 
 .agenda-forms .business-profile-card {
   height: 100%;
+  min-width: 0;
+}
+
+.agenda-forms .business-profile-card__header {
+  flex-wrap: wrap;
+}
+
+.agenda-forms .business-form {
+  grid-template-columns: 1fr;
 }
 
 .agenda-forms .button {
+  min-height: 42px;
+  max-width: 100%;
+  padding: 0.72rem 1rem;
+  text-align: center;
+  white-space: normal;
   width: fit-content;
 }
 
@@ -3255,6 +3275,25 @@ input:focus {
   }
 }
 
+@media (max-width: 1180px) {
+  .agenda-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agenda-toolbar__settings {
+    justify-self: start;
+  }
+
+  .agenda-toolbar__meta {
+    justify-items: start;
+    text-align: left;
+  }
+}
+
 @media (max-width: 640px) {
   .auth-page,
   .workspace-shell {
@@ -3336,6 +3375,15 @@ input:focus {
   .agenda-toolbar__meta {
     justify-items: start;
     text-align: left;
+  }
+
+  .agenda-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-toolbar__settings,
+  .agenda-forms .button {
+    width: 100%;
   }
 
   .agenda-day,
