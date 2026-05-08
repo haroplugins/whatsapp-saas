@@ -45,3 +45,19 @@ export const defaultTenantEntitlements: TenantEntitlements = {
 export async function fetchTenantEntitlements(): Promise<TenantEntitlements> {
   return apiFetch<TenantEntitlements>('/tenant/entitlements');
 }
+
+export function getTenantPlanDescription(plan: TenantPlan): string {
+  if (plan === 'BASIC') {
+    return 'Incluye bandeja básica. Agenda e IA avanzada requieren un plan superior.';
+  }
+  if (plan === 'PRO') {
+    return 'Incluye Agenda manual y gestión avanzada del negocio.';
+  }
+  return 'Incluye Agenda inteligente y funciones avanzadas de automatización.';
+}
+
+export function getTenantPlanBadgeClass(plan: TenantPlan): string {
+  if (plan === 'PREMIUM') return 'plan-badge plan-badge--premium';
+  if (plan === 'PRO') return 'plan-badge plan-badge--pro';
+  return 'plan-badge plan-badge--basic';
+}

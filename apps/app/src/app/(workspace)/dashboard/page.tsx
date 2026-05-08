@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import {
+  fetchTenantEntitlements,
+  getTenantPlanBadgeClass,
+  getTenantPlanDescription,
+  type TenantEntitlements,
+} from '../../../lib/entitlements';
 
 type ConversationsSummary = {
   total: number;
@@ -30,8 +36,24 @@ type DashboardData = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [entitlements, setEntitlements] = useState<TenantEntitlements | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [planError, setPlanError] = useState(false);
+
+  const planValue = isPlanLoading
+    ? 'Cargando plan...'
+    : planError
+      ? 'No se ha podido cargar el plan.'
+      : entitlements?.plan ?? 'Plan no disponible';
+  const planSummary = entitlements
+    ? getTenantPlanDescription(entitlements.plan)
+    : isPlanLoading
+      ? 'Estamos consultando la información de tu espacio de trabajo.'
+      : 'No se ha podido mostrar la información del plan actual.';
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +96,30 @@ export default function DashboardPage() {
     }
 
     void loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsPlanLoading(true);
+    setPlanError(false);
+
+    fetchTenantEntitlements()
+      .then((nextEntitlements) => {
+        if (isMounted) setEntitlements(nextEntitlements);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setEntitlements(null);
+          setPlanError(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsPlanLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -176,6 +222,20 @@ export default function DashboardPage() {
               </strong>
             </div>
           </div>
+        </article>
+
+        <article className="metric-card metric-card--plan">
+          <span className="metric-card__label">Plan actual</span>
+          <strong
+            className={
+              entitlements
+                ? `${getTenantPlanBadgeClass(entitlements.plan)} dashboard-plan-badge`
+                : 'plan-badge dashboard-plan-badge'
+            }
+          >
+            {planValue}
+          </strong>
+          <p className="metric-card__summary">{planSummary}</p>
         </article>
       </div>
     </section>

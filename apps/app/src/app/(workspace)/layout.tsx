@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   defaultTenantEntitlements,
   fetchTenantEntitlements,
+  getTenantPlanBadgeClass,
   type TenantEntitlements,
 } from '../../lib/entitlements';
 
@@ -31,18 +32,35 @@ const navigation = [
 ];
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  const [entitlements, setEntitlements] = useState<TenantEntitlements>(
-    defaultTenantEntitlements,
+  const [entitlements, setEntitlements] = useState<TenantEntitlements | null>(
+    null,
   );
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [planError, setPlanError] = useState(false);
+
+  const effectiveEntitlements = entitlements ?? defaultTenantEntitlements;
+  const planLabel = isPlanLoading
+    ? 'Cargando plan...'
+    : planError
+      ? 'No se ha podido cargar el plan.'
+      : entitlements?.plan ?? 'Plan no disponible';
 
   useEffect(() => {
     let isMounted = true;
+    setIsPlanLoading(true);
+    setPlanError(false);
     fetchTenantEntitlements()
       .then((nextEntitlements) => {
         if (isMounted) setEntitlements(nextEntitlements);
       })
       .catch(() => {
-        if (isMounted) setEntitlements(defaultTenantEntitlements);
+        if (isMounted) {
+          setEntitlements(null);
+          setPlanError(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsPlanLoading(false);
       });
 
     return () => {
@@ -70,11 +88,11 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             >
               <strong>
                 {item.label}
-                {item.href === '/ai' && !entitlements.features.canUseAi ? (
+                {item.href === '/ai' && !effectiveEntitlements.features.canUseAi ? (
                   <span className="workspace-nav__badge">PRO</span>
                 ) : null}
                 {item.href === '/agenda' &&
-                !entitlements.features.canUseAgenda ? (
+                !effectiveEntitlements.features.canUseAgenda ? (
                   <span className="workspace-nav__badge">PRO</span>
                 ) : null}
               </strong>
@@ -82,6 +100,17 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             </Link>
           ))}
         </nav>
+
+        <div className="workspace-plan-card" aria-live="polite">
+          <span className="workspace-sidebar__eyebrow">Plan actual</span>
+          <strong
+            className={
+              entitlements ? getTenantPlanBadgeClass(entitlements.plan) : 'plan-badge'
+            }
+          >
+            {planLabel}
+          </strong>
+        </div>
 
         <div className="workspace-sidebar__card">
           <span className="workspace-sidebar__eyebrow">MVP</span>
@@ -108,4 +137,3 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     </div>
   );
 }
-

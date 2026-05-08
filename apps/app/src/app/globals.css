@@ -407,6 +407,23 @@ input:focus {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.workspace-plan-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.workspace-plan-card .plan-badge {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
+  color: #eefcf6;
+  justify-self: start;
+  max-width: 100%;
+}
+
 .workspace-main {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -609,6 +626,10 @@ input:focus {
 .metric-card__details strong {
   color: var(--text);
   font-size: 1rem;
+}
+
+.metric-card--plan {
+  min-height: 220px;
 }
 
 .metric-card__skeleton {
@@ -2826,17 +2847,40 @@ input:focus {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
+  border: 1px solid rgba(22, 65, 53, 0.14);
+  background: rgba(22, 65, 53, 0.08);
+  color: var(--text-muted);
   padding: 0.34rem 0.72rem;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.plan-badge--basic {
+  border-color: rgba(22, 65, 53, 0.14);
+  background: rgba(22, 65, 53, 0.08);
+  color: var(--text);
+}
+
+.plan-badge--pro {
+  border-color: rgba(13, 138, 106, 0.2);
+  background: rgba(13, 138, 106, 0.12);
+  color: var(--accent-strong);
 }
 
 .plan-badge--premium {
   border: 1px solid rgba(83, 61, 132, 0.18);
   background: rgba(243, 239, 255, 0.88);
   color: #5f3f9a;
+}
+
+.dashboard-plan-badge {
+  align-self: start;
+  font-size: 0.95rem;
+  padding: 0.48rem 0.9rem;
 }
 
 .toggle-switch {
