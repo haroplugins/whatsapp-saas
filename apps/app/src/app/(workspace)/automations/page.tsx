@@ -121,7 +121,7 @@ export default function AutomationsPage() {
     entitlements.plan === 'PRO'
       ? 'Tu plan Pro incluye Agenda manual. La agenda inteligente estará disponible en Premium.'
       : 'Disponible en Premium.';
-  const shouldShowAgendaHoursReferenceNotice = entitlements.plan !== 'BASIC';
+  const shouldUseAgendaHoursReference = entitlements.plan !== 'BASIC';
 
   useEffect(() => {
     setAutomations(readStoredAutomations());
@@ -309,60 +309,68 @@ export default function AutomationsPage() {
 
               {automation.key === 'off_hours' ? (
                 <>
-                  {shouldShowAgendaHoursReferenceNotice ? (
-                    <p className="config-conflict-note">
-                      Para evitar contradicciones, la Agenda será la referencia
-                      principal de horarios en este plan. Mientras terminamos la
-                      conexión con WhatsApp real, esta configuración básica se
-                      mantiene como apoyo interno.
-                    </p>
-                  ) : null}
-                  <div className="business-hours-card">
-                    <label className="business-hours-card__field">
-                      <span>Zona horaria</span>
-                      <select
-                        value={businessHours.timezone}
-                        onChange={(event) => updateBusinessHours({ timezone: event.target.value })}
-                      >
-                        {timezoneOptions.map((timezone) => (
-                          <option key={timezone} value={timezone}>{timezone}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="business-hours-card__time-grid">
-                      <label className="business-hours-card__field">
-                        <span>Inicio</span>
-                        <input
-                          type="time"
-                          value={businessHours.start}
-                          onChange={(event) => updateBusinessHours({ start: event.target.value })}
-                        />
-                      </label>
-                      <label className="business-hours-card__field">
-                        <span>Fin</span>
-                        <input
-                          type="time"
-                          value={businessHours.end}
-                          onChange={(event) => updateBusinessHours({ end: event.target.value })}
-                        />
-                      </label>
+                  {shouldUseAgendaHoursReference ? (
+                    <div className="business-hours-card business-hours-card--agenda-source">
+                      <strong>Horarios gestionados desde Agenda</strong>
+                      <p>
+                        Para evitar contradicciones, esta automatización tomará
+                        como referencia los horarios configurados en Agenda.
+                      </p>
+                      <p className="config-conflict-note">
+                        Puedes cambiar los horarios desde la pantalla Agenda.
+                      </p>
+                      <Link className="button button--ghost" href="/agenda">
+                        Ir a Agenda
+                      </Link>
                     </div>
-                    <fieldset className="business-hours-card__days">
-                      <legend>Días laborales</legend>
-                      <div className="business-hours-card__days-grid">
-                        {weekdayOptions.map((day) => (
-                          <label key={day.value} className="automation-day-pill">
-                            <input
-                              type="checkbox"
-                              checked={businessHours.days.includes(day.value)}
-                              onChange={() => toggleBusinessHoursDay(day.value)}
-                            />
-                            <span>{day.label.slice(0, 3)}</span>
-                          </label>
-                        ))}
+                  ) : (
+                    <div className="business-hours-card">
+                      <label className="business-hours-card__field">
+                        <span>Zona horaria</span>
+                        <select
+                          value={businessHours.timezone}
+                          onChange={(event) => updateBusinessHours({ timezone: event.target.value })}
+                        >
+                          {timezoneOptions.map((timezone) => (
+                            <option key={timezone} value={timezone}>{timezone}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="business-hours-card__time-grid">
+                        <label className="business-hours-card__field">
+                          <span>Inicio</span>
+                          <input
+                            type="time"
+                            value={businessHours.start}
+                            onChange={(event) => updateBusinessHours({ start: event.target.value })}
+                          />
+                        </label>
+                        <label className="business-hours-card__field">
+                          <span>Fin</span>
+                          <input
+                            type="time"
+                            value={businessHours.end}
+                            onChange={(event) => updateBusinessHours({ end: event.target.value })}
+                          />
+                        </label>
                       </div>
-                    </fieldset>
-                  </div>
+                      <fieldset className="business-hours-card__days">
+                        <legend>Días laborales</legend>
+                        <div className="business-hours-card__days-grid">
+                          {weekdayOptions.map((day) => (
+                            <label key={day.value} className="automation-day-pill">
+                              <input
+                                type="checkbox"
+                                checked={businessHours.days.includes(day.value)}
+                                onChange={() => toggleBusinessHoursDay(day.value)}
+                              />
+                              <span>{day.label.slice(0, 3)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    </div>
+                  )}
                 </>
               ) : null}
 

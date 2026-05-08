@@ -2955,6 +2955,28 @@ input:focus {
   gap: 0.9rem;
 }
 
+.business-hours-card--agenda-source {
+  border: 1px solid rgba(13, 138, 106, 0.13);
+  border-radius: 18px;
+  background: rgba(231, 247, 240, 0.62);
+  padding: 1rem;
+}
+
+.business-hours-card--agenda-source strong {
+  color: var(--text);
+}
+
+.business-hours-card--agenda-source p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.business-hours-card--agenda-source .button {
+  justify-self: start;
+  padding: 0.64rem 0.95rem;
+}
+
 .business-hours-card__field {
   display: grid;
   gap: 0.45rem;
