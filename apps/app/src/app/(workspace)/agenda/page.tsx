@@ -93,6 +93,8 @@ type BlockedSlotDateRangeResult =
       message: string;
     };
 
+type BlockedSlotDateTimeRangeResult = BlockedSlotDateRangeResult;
+
 type DayActivityItem =
   | {
       id: string;
@@ -741,10 +743,20 @@ export default function AgendaPage() {
     event.preventDefault();
     if (!canUseAgenda) return;
 
+    const dateRange = buildBlockedSlotDateTimeRange(
+      blockedStartAt,
+      blockedEndAt,
+    );
+
+    if (!dateRange.isValid) {
+      setFeedback(dateRange.message);
+      return;
+    }
+
     try {
       await createBlockedSlot({
-        startAt: new Date(blockedStartAt).toISOString(),
-        endAt: new Date(blockedEndAt).toISOString(),
+        startAt: dateRange.startAt,
+        endAt: dateRange.endAt,
         reason: blockedReason.trim() || undefined,
       });
       setBlockedReason('');
@@ -997,10 +1009,20 @@ export default function AgendaPage() {
     event.preventDefault();
     if (!editingBlockedSlotId) return;
 
+    const dateRange = buildBlockedSlotDateTimeRange(
+      editBlockedSlotStartAt,
+      editBlockedSlotEndAt,
+    );
+
+    if (!dateRange.isValid) {
+      setEditBlockedSlotError(dateRange.message);
+      return;
+    }
+
     try {
       await updateBlockedSlot(editingBlockedSlotId, {
-        startAt: new Date(editBlockedSlotStartAt).toISOString(),
-        endAt: new Date(editBlockedSlotEndAt).toISOString(),
+        startAt: dateRange.startAt,
+        endAt: dateRange.endAt,
         reason: editBlockedSlotReason.trim() || undefined,
       });
       closeEditBlockedSlotModal();
@@ -1178,8 +1200,8 @@ export default function AgendaPage() {
           <span className="workspace-header__eyebrow">Agenda</span>
           <h2>Agenda mensual</h2>
           <p>
-            Gestiona servicios, citas manuales y bloqueos sin generar huecos
-            libres todavía.
+            Gestiona servicios, citas manuales y bloqueos desde un calendario
+            mensual.
           </p>
         </div>
       </div>
@@ -1444,7 +1466,7 @@ export default function AgendaPage() {
 
               <div className="agenda-availability-panel">
                 <div className="agenda-list-block">
-                  <strong>Disponibilidad</strong>
+                  <strong>Disponibilidad real</strong>
                   <label className="business-form__field">
                     <span>Consultar disponibilidad para</span>
                     <select
@@ -1463,7 +1485,7 @@ export default function AgendaPage() {
                   </label>
 
                   {activeServices.length === 0 ? (
-                    <p>Crea un servicio antes de consultar disponibilidad.</p>
+                    <p>Crea un servicio para calcular disponibilidad.</p>
                   ) : isAvailabilityLoading ? (
                     <p>Calculando disponibilidad...</p>
                   ) : availabilityError ? (
@@ -1531,6 +1553,7 @@ export default function AgendaPage() {
                     value={serviceDuration}
                     onChange={(event) => setServiceDuration(event.target.value)}
                   />
+                  <small>Tiempo que ocupa una cita de este servicio.</small>
                 </label>
                 <label className="business-form__field">
                   <span>Precio</span>
@@ -1554,6 +1577,7 @@ export default function AgendaPage() {
                     value={serviceBuffer}
                     onChange={(event) => setServiceBuffer(event.target.value)}
                   />
+                  <small>Minutos libres que quieres dejar después de cada cita.</small>
                 </label>
               </div>
               <button
@@ -1691,6 +1715,7 @@ export default function AgendaPage() {
                     value={blockedReason}
                     onChange={(event) => setBlockedReason(event.target.value)}
                   />
+                  <small>Opcional. Ejemplo: comida, vacaciones o reunión.</small>
                 </label>
               </div>
               <button
@@ -1723,8 +1748,8 @@ export default function AgendaPage() {
                 <span className="workspace-header__eyebrow">Agenda</span>
                 <h3 id="availability-modal-title">Configurar horarios</h3>
                 <p>
-                  Define el horario semanal base. Estos tramos se usan para calcular la
-                  disponibilidad real de la agenda.
+                  Define el horario semanal base. Estos tramos se usan para
+                  calcular la disponibilidad real de la agenda.
                 </p>
               </div>
               <button
@@ -2102,7 +2127,10 @@ export default function AgendaPage() {
                 <h3 id="blocked-slot-management-modal-title">
                   Gestionar bloqueos
                 </h3>
-                <p>Edita o elimina bloqueos de agenda.</p>
+                <p>
+                  Edita bloqueos futuros y revisa los pasados como histórico de
+                  la agenda.
+                </p>
               </div>
               <button
                 className="button button--ghost"
@@ -2123,6 +2151,12 @@ export default function AgendaPage() {
                 </p>
               ) : null}
               {pastBlockedSlots.length > 0 ? (
+                <p className="config-conflict-note">
+                  Los bloqueos pasados se mantienen marcados como histórico
+                  hasta que decidas eliminarlos.
+                </p>
+              ) : null}
+              {pastBlockedSlots.length > 0 ? (
                 <button
                   className="button button--ghost blocked-slot-management-modal__clear-past"
                   type="button"
@@ -2135,7 +2169,7 @@ export default function AgendaPage() {
 
               {managedBlockedSlots.length === 0 ? (
                 <p className="config-conflict-note">
-                  No hay bloqueos creados.
+                  No hay bloqueos creados todavía.
                 </p>
               ) : (
                 <div className="blocked-slot-management-modal__layout">
@@ -2160,7 +2194,7 @@ export default function AgendaPage() {
                         </strong>
                         {isBlockedSlotPast(blockedSlot) ? (
                           <span className="blocked-slot-management-modal__badge">
-                            Pasado
+                            Histórico
                           </span>
                         ) : null}
                         <span>
@@ -2188,7 +2222,7 @@ export default function AgendaPage() {
                     </label>
 
                     <label className="business-form__field">
-                      <span>Hora inicio</span>
+                      <span>Hora de inicio</span>
                       <input
                         required
                         type="time"
@@ -2200,7 +2234,7 @@ export default function AgendaPage() {
                     </label>
 
                     <label className="business-form__field">
-                      <span>Hora fin</span>
+                      <span>Hora de fin</span>
                       <input
                         required
                         type="time"
@@ -2220,6 +2254,7 @@ export default function AgendaPage() {
                           setManageBlockedSlotReason(event.target.value)
                         }
                       />
+                      <small>Opcional.</small>
                     </label>
                   </div>
                 </div>
@@ -2931,7 +2966,7 @@ function buildBlockedSlotDateRange(
   if (!dateParts || !startTimeParts || !endTimeParts) {
     return {
       isValid: false,
-      message: 'Indica fecha, hora de inicio y hora de fin.',
+      message: 'Indica la fecha y las horas del bloqueo.',
     };
   }
 
@@ -3023,6 +3058,43 @@ function toDateTimeLocalFromDateAndTime(date: Date, timeLabel: string): string {
   const [, hours = '0', minutes = '0'] = timeMatch;
 
   return `${toDateOnlyValue(date)}T${hours.padStart(2, '0')}:${minutes}`;
+}
+
+function buildBlockedSlotDateTimeRange(
+  startValue: string,
+  endValue: string,
+): BlockedSlotDateTimeRangeResult {
+  if (!startValue || !endValue) {
+    return {
+      isValid: false,
+      message: 'Indica la fecha y las horas del bloqueo.',
+    };
+  }
+
+  const startAt = new Date(startValue);
+  const endAt = new Date(endValue);
+  const startTime = startAt.getTime();
+  const endTime = endAt.getTime();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
+    return {
+      isValid: false,
+      message: 'Indica la fecha y las horas del bloqueo.',
+    };
+  }
+
+  if (endTime <= startTime) {
+    return {
+      isValid: false,
+      message: 'La hora de fin debe ser posterior a la hora de inicio.',
+    };
+  }
+
+  return {
+    isValid: true,
+    startAt: startAt.toISOString(),
+    endAt: endAt.toISOString(),
+  };
 }
 
 function formatPriceFromCents(priceCents: number | null | undefined): string {
@@ -3185,4 +3257,3 @@ function getServiceName(
     'Servicio manual'
   );
 }
-
