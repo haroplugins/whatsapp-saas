@@ -108,6 +108,7 @@ export default function BusinessPage() {
         </div>
       </div>
 
+      <div className="business-page__grid">
       <section className="business-profile-card business-profile-card--page">
         <div className="business-profile-card__header">
           <div>
@@ -309,7 +310,7 @@ export default function BusinessPage() {
       </section>
 
       <form
-        className="business-profile-card business-profile-card--page"
+        className="business-profile-card business-profile-card--page business-page__grid-full"
         onSubmit={handleCurrencySubmit}
       >
         <div className="business-profile-card__header">
@@ -361,6 +362,7 @@ export default function BusinessPage() {
           {isCurrencySaving ? 'Guardando...' : 'Guardar moneda'}
         </button>
       </form>
+      </div>
     </section>
   );
 }

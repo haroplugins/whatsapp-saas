@@ -1717,6 +1717,22 @@ input:focus {
   max-width: 920px;
 }
 
+.business-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 1rem;
+  width: 100%;
+  max-width: 1240px;
+}
+
+.business-page__grid .business-profile-card--page {
+  max-width: none;
+}
+
+.business-page__grid-full {
+  grid-column: 1 / -1;
+}
+
 .business-profile-card__header {
   display: flex;
   align-items: flex-start;
