@@ -196,6 +196,32 @@ export default function BusinessPage() {
             />
           </label>
 
+          <label className="business-form__field business-form__field--full">
+            <span>Dirección o zona de servicio</span>
+            <textarea
+              aria-label="Dirección o zona de servicio"
+              placeholder="Dirección del local, ciudad o zonas donde trabajas."
+              value={businessProfile.addressOrServiceArea}
+              onChange={(event) => updateBusinessProfile({ addressOrServiceArea: event.target.value })}
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="business-profile-card business-profile-card--page">
+        <div className="business-profile-card__header">
+          <div>
+            <span className="workspace-header__eyebrow">
+              Redes sociales
+            </span>
+            <h3>Perfiles públicos</h3>
+            <p>
+              Añade los canales donde tus clientes pueden seguir o contactar
+              con tu negocio.
+            </p>
+          </div>
+        </div>
+        <div className="business-form">
           <label className="business-form__field">
             <span>Instagram</span>
             <input
@@ -206,13 +232,53 @@ export default function BusinessPage() {
             />
           </label>
 
-          <label className="business-form__field business-form__field--full">
-            <span>Dirección o zona de servicio</span>
-            <textarea
-              aria-label="Dirección o zona de servicio"
-              placeholder="Dirección del local, ciudad o zonas donde trabajas."
-              value={businessProfile.addressOrServiceArea}
-              onChange={(event) => updateBusinessProfile({ addressOrServiceArea: event.target.value })}
+          <label className="business-form__field">
+            <span>Facebook</span>
+            <input
+              type="url"
+              placeholder="https://facebook.com/tunegocio"
+              value={businessProfile.facebook}
+              onChange={(event) => updateBusinessProfile({ facebook: event.target.value })}
+            />
+          </label>
+
+          <label className="business-form__field">
+            <span>TikTok</span>
+            <input
+              type="url"
+              placeholder="https://tiktok.com/@tunegocio"
+              value={businessProfile.tiktok}
+              onChange={(event) => updateBusinessProfile({ tiktok: event.target.value })}
+            />
+          </label>
+
+          <label className="business-form__field">
+            <span>YouTube</span>
+            <input
+              type="url"
+              placeholder="https://youtube.com/@tunegocio"
+              value={businessProfile.youtube}
+              onChange={(event) => updateBusinessProfile({ youtube: event.target.value })}
+            />
+          </label>
+
+          <label className="business-form__field">
+            <span>LinkedIn</span>
+            <input
+              type="url"
+              placeholder="https://linkedin.com/company/tunegocio"
+              value={businessProfile.linkedin}
+              onChange={(event) => updateBusinessProfile({ linkedin: event.target.value })}
+            />
+          </label>
+
+          <label className="business-form__field">
+            <span>X / Twitter</span>
+            <input
+              type="url"
+              placeholder="https://x.com/tunegocio"
+              value={businessProfile.twitterX}
+              onChange={(event) => updateBusinessProfile({ twitterX: event.target.value })}
             />
           </label>
         </div>

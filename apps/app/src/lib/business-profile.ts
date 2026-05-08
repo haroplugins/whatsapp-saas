@@ -8,6 +8,11 @@ export type BusinessProfile = {
   publicEmail: string;
   website: string;
   instagram: string;
+  facebook: string;
+  tiktok: string;
+  youtube: string;
+  linkedin: string;
+  twitterX: string;
   addressOrServiceArea: string;
   paymentMethods: string;
   cancellationPolicy: string;
@@ -29,6 +34,11 @@ export const defaultBusinessProfile: BusinessProfile = {
   publicEmail: '',
   website: '',
   instagram: '',
+  facebook: '',
+  tiktok: '',
+  youtube: '',
+  linkedin: '',
+  twitterX: '',
   addressOrServiceArea: '',
   paymentMethods: '',
   cancellationPolicy: '',
@@ -70,6 +80,11 @@ export function normalizeBusinessProfile(value: unknown): BusinessProfile {
     publicEmail: readOptionalText(candidate.publicEmail),
     website: readOptionalText(candidate.website),
     instagram: readOptionalText(candidate.instagram),
+    facebook: readOptionalText(candidate.facebook),
+    tiktok: readOptionalText(candidate.tiktok),
+    youtube: readOptionalText(candidate.youtube),
+    linkedin: readOptionalText(candidate.linkedin),
+    twitterX: readOptionalText(candidate.twitterX),
     addressOrServiceArea: readOptionalText(candidate.addressOrServiceArea),
     paymentMethods: readOptionalText(candidate.paymentMethods),
     cancellationPolicy: readOptionalText(candidate.cancellationPolicy),
