@@ -133,6 +133,8 @@ export default function InboxPage() {
   }), [sortedConversations]);
   const isInboxCompletelyEmpty =
     conversationCounts.all === 0 && conversationCounts.archived === 0;
+  const showCommercialConnectionState =
+    !internalToolsEnabled && isInboxCompletelyEmpty;
   const heroTitle = internalToolsEnabled
     ? 'Responde mensajes como si ya estuvieran entrando.'
     : 'WhatsApp pendiente de conexión';
@@ -818,6 +820,33 @@ export default function InboxPage() {
           </div>
         ) : null}
       </div>
+      {showCommercialConnectionState ? (
+        <section
+          className="inbox-connection-status"
+          aria-label="Estado de conexión de WhatsApp"
+        >
+          <div className="inbox-connection-status__header">
+            <div>
+              <span className="workspace-header__eyebrow">Conexión</span>
+              <h3>Estado de WhatsApp</h3>
+            </div>
+            <span className="inbox-connection-status__badge">
+              Pendiente de conexión
+            </span>
+          </div>
+          <p>
+            El número de WhatsApp Business todavía no está conectado a este
+            espacio de trabajo.
+          </p>
+          <p className="inbox-connection-status__next-step">
+            <strong>Próximo paso</strong>
+            <span>
+              Cuando tengamos las credenciales de Meta, podremos completar la
+              conexión.
+            </span>
+          </p>
+        </section>
+      ) : null}
       <div ref={inboxLayoutRef} className={`inbox-layout inbox-layout--with-notes${isResizableLayout ? ' inbox-layout--resizable' : ''}`} style={inboxLayoutStyle}>
         <aside className="inbox-list">
           <div className="inbox-list__header">
