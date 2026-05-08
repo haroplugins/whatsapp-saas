@@ -108,11 +108,20 @@ export default function InboxPage() {
   const dragStateRef = useRef<{ startX: number; startLayout: InboxLayout; type: ActiveResizer } | null>(null);
   const processedWhatsappMessageIdsRef = useRef<Set<string>>(new Set());
 
-  const sortedConversations = useMemo(() => [...conversations].sort((first, second) => {
+  const visibleConversations = useMemo(
+    () =>
+      internalToolsEnabled
+        ? conversations
+        : conversations.filter((conversation) =>
+            isPersistedConversation(conversation),
+          ),
+    [conversations],
+  );
+  const sortedConversations = useMemo(() => [...visibleConversations].sort((first, second) => {
     if (first.status !== second.status) return getStatusWeight(first.status) - getStatusWeight(second.status);
     return toTimestamp(second.lastMessageAt) - toTimestamp(first.lastMessageAt);
-  }), [conversations]);
-  const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+  }), [visibleConversations]);
+  const selectedConversation = visibleConversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
   const selectedPersistedConversationId = selectedConversation && isPersistedConversation(selectedConversation) ? selectedConversation.id : null;
   const isDraftEmpty = draftMessage.trim().length === 0;
   const selectedConversationNote = selectedConversation ? privateNotes[selectedConversation.id] ?? '' : '';
@@ -214,9 +223,16 @@ export default function InboxPage() {
   }, [isHydrated]);
 
   useEffect(() => {
-    if (!isHydrated || selectedConversationId) return;
-    setSelectedConversationId(sortedConversations[0]?.id ?? null);
-  }, [isHydrated, selectedConversationId, sortedConversations]);
+    if (!isHydrated) return;
+    const nextSelectedConversationId = sortedConversations[0]?.id ?? null;
+    if (!selectedConversationId) {
+      setSelectedConversationId(nextSelectedConversationId);
+      return;
+    }
+    if (!visibleConversations.some((conversation) => conversation.id === selectedConversationId)) {
+      setSelectedConversationId(nextSelectedConversationId);
+    }
+  }, [isHydrated, selectedConversationId, sortedConversations, visibleConversations]);
 
   useEffect(() => {
     setEditingMessageId(null);
@@ -482,7 +498,12 @@ export default function InboxPage() {
     setConversations(nextConversations);
     setPendingDeleteConversationId(null);
     if (selectedConversationId === pendingDeleteConversationId) {
-      const nextSelectedConversation = [...nextConversations].sort((first, second) => {
+      const nextVisibleConversations = internalToolsEnabled
+        ? nextConversations
+        : nextConversations.filter((conversation) =>
+            isPersistedConversation(conversation),
+          );
+      const nextSelectedConversation = [...nextVisibleConversations].sort((first, second) => {
         if (first.status !== second.status) return getStatusWeight(first.status) - getStatusWeight(second.status);
         return toTimestamp(second.lastMessageAt) - toTimestamp(first.lastMessageAt);
       })[0];
