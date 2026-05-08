@@ -71,6 +71,8 @@ const rightPanelMinWidth = 220;
 const resizerWidth = 12;
 const resizableViewportMinWidth = 1180;
 const whatsappPollingIntervalMs = 4000;
+const internalToolsEnabled =
+  process.env.NEXT_PUBLIC_INTERNAL_TOOLS_ENABLED === 'true';
 const defaultAutomationsState: AutomationsState = {
   welcome: { enabled: false, message: 'Hola, gracias por escribir. Enseguida te respondemos.' },
   off_hours: { enabled: false, message: 'Ahora mismo estamos fuera de horario. Te responderemos en cuanto volvamos.' },
@@ -120,6 +122,29 @@ export default function InboxPage() {
     done: sortedConversations.filter((conversation) => !conversation.archived && conversation.status === 'done').length,
     archived: sortedConversations.filter((conversation) => conversation.archived).length,
   }), [sortedConversations]);
+  const isInboxCompletelyEmpty =
+    conversationCounts.all === 0 && conversationCounts.archived === 0;
+  const heroTitle = internalToolsEnabled
+    ? 'Responde mensajes como si ya estuvieran entrando.'
+    : 'WhatsApp pendiente de conexión';
+  const heroDescription = internalToolsEnabled
+    ? 'Gestiona conversaciones de clientes, revisa el chat y practica respuestas con datos de prueba.'
+    : 'Cuando conectes tu número de WhatsApp Business, aquí aparecerán las conversaciones reales de tus clientes.';
+  const emptyChatHint = internalToolsEnabled
+    ? 'O simula un mensaje entrante para empezar.'
+    : 'Cuando conectes tu número de WhatsApp Business, aquí aparecerán las conversaciones reales de tus clientes.';
+  let inboxEmptyTitle = 'No hay conversaciones en este filtro';
+  let inboxEmptyDescription = internalToolsEnabled
+    ? 'Prueba con otro filtro para ver más conversaciones.'
+    : 'Cambia de filtro para ver más conversaciones.';
+  if (isInboxCompletelyEmpty) {
+    inboxEmptyTitle = internalToolsEnabled
+      ? 'Aún no tienes conversaciones'
+      : 'WhatsApp pendiente de conexión';
+    inboxEmptyDescription = internalToolsEnabled
+      ? 'Genera un primer mensaje entrante para ver la bandeja en acción.'
+      : 'Cuando conectes tu número de WhatsApp Business, aquí aparecerán las conversaciones reales de tus clientes.';
+  }
   const filteredConversations = useMemo(() => {
     if (activeFilter === 'archived') return sortedConversations.filter((conversation) => conversation.archived);
     if (activeFilter === 'all') return sortedConversations.filter((conversation) => !conversation.archived);
@@ -753,20 +778,24 @@ export default function InboxPage() {
       <div className="dashboard-hero inbox-hero">
         <div>
           <span className="workspace-header__eyebrow">Bandeja</span>
-          <h2>Responde mensajes como si ya estuvieran entrando.</h2>
-          <p>Gestiona conversaciones de clientes, revisa el chat y practica respuestas con datos de prueba.</p>
-          <p className="config-conflict-note">
-            Las simulaciones sirven para probar el flujo antes de conectar
-            WhatsApp real.
-          </p>
+          <h2>{heroTitle}</h2>
+          <p>{heroDescription}</p>
+          {internalToolsEnabled ? (
+            <p className="config-conflict-note">
+              Las simulaciones sirven para probar el flujo antes de conectar
+              WhatsApp real.
+            </p>
+          ) : null}
         </div>
-        <div className="inbox-hero__actions">
-          <span className="automation-card__meta">
-            Herramientas de prueba interna
-          </span>
-          <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular mensaje de WhatsApp</button>
-          <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
-        </div>
+        {internalToolsEnabled ? (
+          <div className="inbox-hero__actions">
+            <span className="automation-card__meta">
+              Herramientas internas
+            </span>
+            <button className="button button--ghost" type="button" title="Herramienta temporal de prueba" onClick={simulateWhatsappWebhook}>Simular mensaje de WhatsApp</button>
+            <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular mensaje entrante</button>
+          </div>
+        ) : null}
       </div>
       <div ref={inboxLayoutRef} className={`inbox-layout inbox-layout--with-notes${isResizableLayout ? ' inbox-layout--resizable' : ''}`} style={inboxLayoutStyle}>
         <aside className="inbox-list">
@@ -791,9 +820,12 @@ export default function InboxPage() {
           <div className="inbox-list__items">
             {filteredConversations.length === 0 ? (
               <div className="inbox-empty inbox-empty--action">
-                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Aún no tienes conversaciones' : 'No hay conversaciones en este filtro'}
-                <span>{conversationCounts.all === 0 && conversationCounts.archived === 0 ? 'Genera un primer mensaje entrante para ver la bandeja en acción.' : 'Prueba con otro filtro para ver más conversaciones.'}</span>
-                {conversationCounts.all === 0 && conversationCounts.archived === 0 ? <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button> : null}
+                {inboxEmptyTitle}
+                <span>{inboxEmptyDescription}</span>
+                {internalToolsEnabled &&
+                isInboxCompletelyEmpty ? (
+                  <button className="button button--primary" type="button" onClick={simulateIncomingMessage}>Simular primer mensaje</button>
+                ) : null}
               </div>
             ) : null}
             {filteredConversations.map((conversation) => {
@@ -863,9 +895,11 @@ export default function InboxPage() {
               <header className="chat-panel__header">
                 <div><strong>{selectedConversation.contactName}</strong><span>{selectedConversation.messages.length} mensajes</span></div>
                 <div className="chat-panel__header-actions">
-                  <button className="button button--ghost chat-panel__header-button" type="button" onClick={() => simulateIncomingMessageInConversation(selectedConversation.id)}>Simular cliente</button>
+                  {internalToolsEnabled ? (
+                    <button className="button button--ghost chat-panel__header-button" type="button" onClick={() => simulateIncomingMessageInConversation(selectedConversation.id)}>Simular cliente</button>
+                  ) : null}
                   <span className={`conversation-status-badge ${selectedConversation.status === 'done' ? 'conversation-status-badge--done' : ''}`} title={getConversationStatusTooltip(selectedConversation.status)}>{selectedConversation.status === 'pending' ? 'Pendiente' : 'Atendida'}</span>
-                  <span className={`conversation-badge ${getControlModeBadgeClass(selectedConversation)}`}>{getControlModeLabel(selectedConversation)}</span>
+                  <span className={`conversation-badge ${getControlModeBadgeClass(selectedConversation)}`}>{getControlModeLabel(selectedConversation, internalToolsEnabled)}</span>
                 </div>
               </header>
               <div className="chat-messages">
@@ -986,7 +1020,10 @@ export default function InboxPage() {
               </form>
             </>
           ) : (
-            <div className="inbox-empty inbox-empty--large">Selecciona una conversación para ver el chat<span>O simula un mensaje entrante para empezar.</span></div>
+            <div className="inbox-empty inbox-empty--large">
+              Selecciona una conversación para ver el chat
+              <span>{emptyChatHint}</span>
+            </div>
           )}
         </section>
         {isResizableLayout ? <div className={`inbox-resizer${activeResizer === 'right' ? ' inbox-resizer--active' : ''}`} role="separator" aria-orientation="vertical" aria-label="Redimensionar notas" onMouseDown={(event) => startResizing('right', event)} /> : null}
@@ -1009,7 +1046,7 @@ export default function InboxPage() {
           <div className="automation-modal conversation-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-conversation-title">
             <div className="automation-modal__header">
               <div><span className="workspace-header__eyebrow">Acción de bandeja</span><h3 id="delete-conversation-title">¿Eliminar esta conversación?</h3></div>
-              <p>Esto solo eliminará la conversación de esta bandeja de prueba.</p>
+              <p>Esto solo eliminará la conversación de esta bandeja.</p>
             </div>
             <div className="automation-modal__body conversation-delete-modal__actions">
               <button className="button button--ghost" type="button" onClick={closeDeleteModal}>Cancelar</button>
@@ -1048,8 +1085,11 @@ function normalizeControlMode(value: PolledWhatsappMessage['controlMode']): Conv
   if (value === 'HUMAN' || value === 'human') return 'human';
   return undefined;
 }
-function getControlModeLabel(conversation: Conversation): string {
-  if (conversation.source === 'mock') return 'Prueba';
+function getControlModeLabel(
+  conversation: Conversation,
+  showInternalTools: boolean,
+): string {
+  if (conversation.source === 'mock' && showInternalTools) return 'Prueba';
   if (conversation.controlMode === 'human') return 'Humano';
   if (conversation.controlMode === 'ai') return 'IA';
   return 'Sin asignar';
