@@ -3388,6 +3388,7 @@ input:focus {
   .inbox-layout,
   .inbox-layout--with-notes,
   .onboarding-hero,
+  .business-page__grid,
   .integration-grid {
     grid-template-columns: 1fr;
   }
@@ -3443,6 +3444,13 @@ input:focus {
   .agenda-toolbar__meta {
     justify-items: start;
     text-align: left;
+  }
+}
+
+@media (max-width: 760px) {
+  .ai-option-grid,
+  .ai-permission-grid {
+    grid-template-columns: 1fr;
   }
 }
 
