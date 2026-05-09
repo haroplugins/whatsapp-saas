@@ -1719,10 +1719,10 @@ input:focus {
 
 .business-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 1rem;
   width: 100%;
-  max-width: 1240px;
+  max-width: 1480px;
 }
 
 .business-page__grid .business-profile-card--page {
