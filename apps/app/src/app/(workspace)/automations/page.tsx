@@ -46,13 +46,13 @@ const automationsStorageKey = 'automations';
 const automationDefinitions: AutomationDefinition[] = [
   {
     key: 'welcome',
-    title: 'Respuesta automática',
-    description: 'Responde automáticamente al primer mensaje',
+    title: 'Respuesta de bienvenida',
+    description: 'Deja preparado el mensaje para el primer contacto del cliente.',
   },
   {
     key: 'off_hours',
     title: 'Fuera de horario',
-    description: 'Responde cuando no estás disponible',
+    description: 'Deja preparada una respuesta para cuando el equipo no esté disponible.',
   },
 ];
 
@@ -119,7 +119,7 @@ export default function AutomationsPage() {
     : 'Bloqueada';
   const smartBookingLockMessage =
     entitlements.plan === 'PRO'
-      ? 'Tu plan Pro incluye Agenda manual. La agenda inteligente estará disponible en Premium.'
+      ? 'Tu plan Pro incluye Agenda manual. La Agenda inteligente estará disponible en Premium.'
       : 'Disponible en Premium.';
   const shouldUseAgendaHoursReference = entitlements.plan !== 'BASIC';
 
@@ -262,10 +262,10 @@ export default function AutomationsPage() {
       <div className="dashboard-hero">
         <div>
           <span className="workspace-header__eyebrow">Automatizaciones</span>
-          <h2>Automatiza respuestas simples sin complicarte.</h2>
+          <h2>Prepara respuestas automáticas con control.</h2>
           <p>
-            Activa reglas básicas, ajusta el mensaje y deja lista una primera
-            configuración operativa directamente desde esta pantalla.
+            Deja listas reglas sencillas para atender mensajes cuando WhatsApp Business
+            esté conectado.
           </p>
         </div>
       </div>
@@ -283,7 +283,7 @@ export default function AutomationsPage() {
                       config.enabled ? 'automation-status--enabled' : ''
                     }`}
                   >
-                    {config.enabled ? 'ON' : 'OFF'}
+                    {config.enabled ? 'Activa' : 'Inactiva'}
                   </span>
                   <h3 title={getAutomationTooltip(automation.key)}>{automation.title}</h3>
                 </div>
@@ -303,8 +303,8 @@ export default function AutomationsPage() {
 
               <p>{automation.description}</p>
               <p className="config-conflict-note">
-                Estas reglas básicas se guardan en este navegador durante la
-                fase actual.
+                Estas reglas quedarán preparadas para usarse cuando el canal real
+                esté conectado.
               </p>
 
               {automation.key === 'off_hours' ? (
@@ -313,11 +313,11 @@ export default function AutomationsPage() {
                     <div className="business-hours-card business-hours-card--agenda-source">
                       <strong>Horarios gestionados desde Agenda</strong>
                       <p>
-                        Para evitar contradicciones, esta automatización tomará
-                        como referencia los horarios configurados en Agenda.
+                        Para evitar contradicciones, la Agenda será la referencia de
+                        horarios en este plan.
                       </p>
                       <p className="config-conflict-note">
-                        Puedes cambiar los horarios desde la pantalla Agenda.
+                        Puedes ajustar los horarios desde Agenda.
                       </p>
                       <Link className="button button--ghost" href="/agenda">
                         Ir a Agenda
@@ -378,12 +378,15 @@ export default function AutomationsPage() {
                 <span className="automation-card__message">{config.message}</span>
                 {automation.key === 'off_hours' ? (
                   <span className="automation-card__meta">
-                    {formatBusinessHoursSummary(businessHours)}
+                    {shouldUseAgendaHoursReference
+                      ? 'Horarios desde Agenda'
+                      : formatBusinessHoursSummary(businessHours)}
                   </span>
                 ) : null}
                 {automation.key === 'off_hours' && config.enabled ? (
                   <span className="config-conflict-note">
-                    La automatización clásica gestionará fuera de horario. La IA fuera de horario se desactivará para evitar duplicados.
+                    Esta regla queda preparada para fuera de horario. La opción equivalente
+                    de IA se desactivará para evitar duplicados.
                   </span>
                 ) : null}
                 <button
@@ -439,11 +442,11 @@ export default function AutomationsPage() {
           </div>
 
           <p>
-            Permite que el sistema ayude a responder solicitudes de cita usando
-            tus servicios, horarios y disponibilidad real.
+            Ayuda a preparar respuestas para solicitudes de cita usando tus servicios,
+            horarios y disponibilidad de Agenda.
           </p>
           <p className="config-conflict-note">
-            Esta configuración sí se guarda en tu espacio de trabajo.
+            Esta configuración se guarda en tu espacio de trabajo.
           </p>
 
           <div className="smart-booking-card__source" aria-label="Fuentes de agenda">
@@ -459,7 +462,7 @@ export default function AutomationsPage() {
           ) : (
             <div className="smart-booking-card__config business-form">
               <label className="business-form__field">
-                <span>Modo de actuación</span>
+                <span>Cómo ayudará</span>
                 <select
                   value={smartBookingSettings.mode}
                   disabled={isSmartBookingLoading}
@@ -469,12 +472,14 @@ export default function AutomationsPage() {
                     })
                   }
                 >
-                  <option value="SUGGEST_SLOTS">Solo sugerir huecos</option>
+                  <option value="SUGGEST_SLOTS">Solo sugerir horarios</option>
                   <option value="REQUEST_CONFIRMATION">
-                    Pedir confirmación antes de reservar
+                    Pedir confirmación antes de crear la cita
                   </option>
                   {canUseAutoBookingConfirm ? (
-                    <option value="AUTO_CONFIRM">Confirmar automáticamente</option>
+                    <option value="AUTO_CONFIRM">
+                      Crear cita automáticamente cuando esté permitido
+                    </option>
                   ) : null}
                 </select>
               </label>
@@ -517,8 +522,8 @@ export default function AutomationsPage() {
                 <p className="config-conflict-note">{smartBookingError}</p>
               ) : null}
               <p className="config-conflict-note">
-                Esta automatización usará la Agenda configurada. Para cambiar
-                horarios o servicios, ve a Agenda.
+                Esta automatización usará la Agenda configurada cuando el canal real
+                esté conectado. Para cambiar horarios o servicios, ve a Agenda.
               </p>
             </div>
           )}
@@ -562,8 +567,8 @@ export default function AutomationsPage() {
             <div className="automation-modal__body">
               <div className="automation-modal__row">
                 <div>
-                  <strong>Activar automatización</strong>
-                  <p>Controla si esta respuesta queda disponible ahora mismo.</p>
+                  <strong>Activar regla</strong>
+                  <p>Controla si esta regla queda preparada para usarse.</p>
                 </div>
                 <button
                   className={`toggle-switch ${
@@ -635,11 +640,11 @@ function formatBusinessHoursSummary(businessHours: BusinessHours): string {
     .map((day) => day.label.slice(0, 3))
     .join(', ');
 
-  return `${formattedDays} | ${businessHours.start} - ${businessHours.end} | ${businessHours.timezone}`;
+  return `${formattedDays} · ${businessHours.start} - ${businessHours.end} · ${businessHours.timezone}`;
 }
 
 function getAutomationTooltip(automationKey: AutomationKey): string {
   return automationKey === 'welcome'
-    ? 'Se envía una sola vez al primer mensaje del cliente'
-    : 'Responde cuando no estás disponible';
+    ? 'Se prepara para el primer mensaje del cliente'
+    : 'Se prepara para cuando el equipo no esté disponible';
 }
