@@ -10,7 +10,10 @@ import {
 import {
   type BusinessProfile,
   defaultBusinessProfile,
+  fetchBusinessProfile,
+  isDefaultBusinessProfile,
   readStoredBusinessProfile,
+  saveBusinessProfile,
   saveStoredBusinessProfile,
 } from '../../../lib/business-profile';
 
@@ -21,11 +24,52 @@ export default function BusinessPage() {
   const [isCurrencySaving, setIsCurrencySaving] = useState(false);
   const [currencyError, setCurrencyError] = useState<string | null>(null);
   const [currencyFeedback, setCurrencyFeedback] = useState<string | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileFeedback, setProfileFeedback] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setBusinessProfile(readStoredBusinessProfile());
-    setIsHydrated(true);
+    let isMounted = true;
+
+    async function loadBusinessProfile() {
+      setIsProfileLoading(true);
+      setProfileError(null);
+
+      try {
+        const backendProfile = await fetchBusinessProfile();
+        if (!isMounted) return;
+
+        const storedProfile = readStoredBusinessProfile();
+        const nextProfile =
+          isDefaultBusinessProfile(backendProfile) &&
+          !isDefaultBusinessProfile(storedProfile)
+            ? storedProfile
+            : backendProfile;
+
+        setBusinessProfile(nextProfile);
+      } catch (error) {
+        if (!isMounted) return;
+        setBusinessProfile(readStoredBusinessProfile());
+        setProfileError(
+          error instanceof Error
+            ? error.message
+            : 'No se ha podido cargar el perfil del negocio.',
+        );
+      } finally {
+        if (isMounted) {
+          setIsProfileLoading(false);
+          setIsHydrated(true);
+        }
+      }
+    }
+
+    void loadBusinessProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -70,6 +114,28 @@ export default function BusinessPage() {
       ...currentBusinessProfile,
       ...updates,
     }));
+    setProfileFeedback(null);
+  }
+
+  async function handleProfileSave() {
+    setIsProfileSaving(true);
+    setProfileError(null);
+    setProfileFeedback(null);
+
+    try {
+      const savedProfile = await saveBusinessProfile(businessProfile);
+      setBusinessProfile(savedProfile);
+      saveStoredBusinessProfile(savedProfile);
+      setProfileFeedback('Perfil guardado.');
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : 'No se ha podido guardar el perfil.',
+      );
+    } finally {
+      setIsProfileSaving(false);
+    }
   }
 
   async function handleCurrencySubmit(event: FormEvent<HTMLFormElement>) {
@@ -120,7 +186,7 @@ export default function BusinessPage() {
           </div>
         </div>
         <p className="config-conflict-note">
-          Estos datos se guardan en este navegador por ahora.
+          Estos datos se guardan en tu espacio de trabajo.
         </p>
         <div className="business-form">
           <label className="business-form__field">
@@ -373,6 +439,36 @@ export default function BusinessPage() {
             </small>
           </label>
         </div>
+      </section>
+
+      <section className="business-profile-card business-profile-card--page business-page__grid-full">
+        <div className="business-profile-card__header">
+          <div>
+            <span className="workspace-header__eyebrow">
+              Guardar perfil
+            </span>
+            <h3>Guardar perfil</h3>
+            <p>
+              Guarda los cambios del perfil del negocio en tu espacio de
+              trabajo.
+            </p>
+          </div>
+        </div>
+        {profileError ? <p className="form-error">{profileError}</p> : null}
+        {profileFeedback ? (
+          <p className="config-conflict-note">{profileFeedback}</p>
+        ) : null}
+        {isProfileLoading ? (
+          <p className="config-conflict-note">Cargando perfil...</p>
+        ) : null}
+        <button
+          className="button button--primary"
+          type="button"
+          disabled={isProfileLoading || isProfileSaving}
+          onClick={() => void handleProfileSave()}
+        >
+          {isProfileSaving ? 'Guardando...' : 'Guardar perfil'}
+        </button>
       </section>
 
       <form

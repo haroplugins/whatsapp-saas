@@ -1,3 +1,5 @@
+import { apiFetch } from './api';
+
 export type BusinessProfileTone = 'friendly' | 'formal';
 
 export type BusinessProfile = {
@@ -62,6 +64,19 @@ export function saveStoredBusinessProfile(profile: BusinessProfile): void {
   window.localStorage.setItem(businessProfileStorageKey, JSON.stringify(normalizeBusinessProfile(profile)));
 }
 
+export function fetchBusinessProfile(): Promise<BusinessProfile> {
+  return apiFetch<BusinessProfile>('/business/profile').then(normalizeBusinessProfile);
+}
+
+export function saveBusinessProfile(
+  profile: BusinessProfile,
+): Promise<BusinessProfile> {
+  return apiFetch<BusinessProfile>('/business/profile', {
+    method: 'PATCH',
+    body: normalizeBusinessProfile(profile),
+  }).then(normalizeBusinessProfile);
+}
+
 export function normalizeBusinessProfile(value: unknown): BusinessProfile {
   const candidate = value && typeof value === 'object'
     ? value as Partial<BusinessProfile> & { name?: unknown; service?: unknown }
@@ -93,6 +108,31 @@ export function normalizeBusinessProfile(value: unknown): BusinessProfile {
     tone: candidate.tone === 'formal' ? 'formal' : 'friendly',
     baseMessage: readOptionalText(candidate.baseMessage),
   };
+}
+
+export function isDefaultBusinessProfile(profile: BusinessProfile): boolean {
+  const normalizedProfile = normalizeBusinessProfile(profile);
+  return (
+    normalizedProfile.businessName === defaultBusinessProfile.businessName &&
+    normalizedProfile.serviceType === defaultBusinessProfile.serviceType &&
+    normalizedProfile.shortDescription === defaultBusinessProfile.shortDescription &&
+    normalizedProfile.publicPhone === defaultBusinessProfile.publicPhone &&
+    normalizedProfile.publicEmail === defaultBusinessProfile.publicEmail &&
+    normalizedProfile.website === defaultBusinessProfile.website &&
+    normalizedProfile.instagram === defaultBusinessProfile.instagram &&
+    normalizedProfile.facebook === defaultBusinessProfile.facebook &&
+    normalizedProfile.tiktok === defaultBusinessProfile.tiktok &&
+    normalizedProfile.youtube === defaultBusinessProfile.youtube &&
+    normalizedProfile.linkedin === defaultBusinessProfile.linkedin &&
+    normalizedProfile.twitterX === defaultBusinessProfile.twitterX &&
+    normalizedProfile.addressOrServiceArea === defaultBusinessProfile.addressOrServiceArea &&
+    normalizedProfile.paymentMethods === defaultBusinessProfile.paymentMethods &&
+    normalizedProfile.cancellationPolicy === defaultBusinessProfile.cancellationPolicy &&
+    normalizedProfile.responseTime === defaultBusinessProfile.responseTime &&
+    normalizedProfile.importantNotes === defaultBusinessProfile.importantNotes &&
+    normalizedProfile.tone === defaultBusinessProfile.tone &&
+    normalizedProfile.baseMessage === defaultBusinessProfile.baseMessage
+  );
 }
 
 export function buildBusinessAutomationReply(kind: AutomationReplyKind, automationMessage: string, profile: BusinessProfile): string {

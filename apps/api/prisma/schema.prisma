@@ -129,6 +129,7 @@ model Tenant {
   name                 String
   plan                 TenantPlan            @default(BASIC)
   defaultCurrency      String                @default("EUR")
+  businessProfile      BusinessProfile?
   users                User[]
   conversations        Conversation[]
   automations          Automation[]
@@ -438,4 +439,33 @@ model TenantWhatsappConnection {
   @@unique([provider, phoneNumberId])
   @@index([tenantId])
   @@index([tenantId, status])
+}
+
+model BusinessProfile {
+  id                   String   @id @default(cuid())
+  tenantId             String   @unique
+  businessName         String   @default("")
+  serviceType          String   @default("")
+  shortDescription     String   @default("")
+  publicPhone          String   @default("")
+  publicEmail          String   @default("")
+  website              String   @default("")
+  instagram            String   @default("")
+  facebook             String   @default("")
+  tiktok               String   @default("")
+  youtube              String   @default("")
+  linkedin             String   @default("")
+  twitterX             String   @default("")
+  addressOrServiceArea String   @default("")
+  paymentMethods       String   @default("")
+  cancellationPolicy   String   @default("")
+  responseTime         String   @default("")
+  importantNotes       String   @default("")
+  tone                 String   @default("friendly")
+  baseMessage          String   @default("")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
