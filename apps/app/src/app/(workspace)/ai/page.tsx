@@ -29,9 +29,9 @@ type StoredAutomationsState = {
 };
 
 const modeOptions: Array<{ label: string; value: AIConfigMode; description: string }> = [
-  { label: 'Solo sugerencias', value: 'suggestions', description: 'La IA prepara respuestas para revisar antes de enviar.' },
-  { label: 'Respuesta automática', value: 'auto_reply', description: 'La IA puede responder casos permitidos sin salir del flujo actual.' },
-  { label: 'Piloto automático', value: 'autopilot', description: 'La IA opera de forma más autónoma cuando tenga suficiente confianza.' },
+  { label: 'Solo sugerencias (recomendado)', value: 'suggestions', description: 'Prepara borradores para que el equipo los revise antes de enviar.' },
+  { label: 'Respuesta asistida', value: 'auto_reply', description: 'Ayuda con respuestas en casos permitidos cuando el flujo real esté conectado.' },
+  { label: 'Automatización avanzada', value: 'autopilot', description: 'Actúa en casos de alta confianza según los permisos definidos por el equipo.' },
 ];
 
 const permissionOptions: Array<{ label: string; value: keyof AIConfig['permissions'] }> = [
@@ -125,29 +125,35 @@ export default function AIPage() {
         <div>
           <span className="workspace-header__eyebrow">IA</span>
           <h2>Asistente de IA</h2>
-          <p>Configura cómo deberá comportarse la IA cuando activemos la siguiente fase.</p>
+          <p>
+            Prepara cómo ayudará la IA al equipo cuando WhatsApp Business esté
+            conectado.
+          </p>
         </div>
       </div>
 
       <section className="business-profile-card business-profile-card--page">
         <p className="config-conflict-note">
-          Configuración local de preparación. La IA real se activará más
-          adelante desde el backend.
+          Preparación de configuración. La activación completa dependerá de la
+          conexión real con WhatsApp Business.
         </p>
         {!canUseAi ? (
           <div className="feature-lock-banner" role="note">
             <span className="feature-lock-banner__badge">PRO</span>
             <div>
               <strong>Disponible en plan Pro</strong>
-              <p>La IA se puede ver desde Basic para preparar la configuración, pero solo se activa en planes Pro o Premium.</p>
+              <p>
+                Puedes preparar esta pantalla desde Basic, pero la ayuda de IA
+                se activa en planes Pro o Premium.
+              </p>
             </div>
           </div>
         ) : null}
         <div className="ai-settings">
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
-              <strong>Modo IA</strong>
-              <span>Define cuánto control tendrá la IA.</span>
+              <strong>Nivel de ayuda</strong>
+              <span>Elige cuánto revisa el equipo antes de enviar.</span>
             </div>
             <div className="ai-option-grid">
               {modeOptions.map((option) => (
@@ -170,7 +176,7 @@ export default function AIPage() {
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
               <strong>Permisos</strong>
-              <span>Temas que la IA podrá tratar.</span>
+              <span>Temas en los que la IA puede ayudar.</span>
             </div>
             <div className="ai-permission-grid">
               {permissionOptions.map((permission) => (
@@ -202,7 +208,7 @@ export default function AIPage() {
             </label>
 
             <label className="business-form__field">
-              <span>Comportamiento en duda</span>
+              <span>Cuando falte información</span>
               <select
                 value={aiConfig.fallback}
                 disabled={!canUseAi}
@@ -229,7 +235,7 @@ export default function AIPage() {
           <div className="ai-settings__section">
             <div className="ai-settings__section-header">
               <strong>Fuera de horario</strong>
-              <span>Controla si la IA debe aplicar este comportamiento fuera del horario del negocio.</span>
+              <span>Define si la IA puede ayudar con mensajes recibidos fuera del horario del negocio.</span>
             </div>
             <label className="ai-toggle-row">
               <input
@@ -238,20 +244,21 @@ export default function AIPage() {
                 disabled={!canUseAi}
                 onChange={(event) => updateOutsideHoursUsage(event.target.checked)}
               />
-              <span>Usar IA fuera de horario</span>
+              <span>Aplicar ayuda de IA fuera de horario</span>
             </label>
             {aiConfig.useOutsideHours ? (
               <p className="config-conflict-note">
-                La IA gestionará las respuestas fuera de horario. La automatización clásica se desactivará para evitar duplicados.
+                La IA preparará respuestas fuera de horario. La automatización
+                clásica se desactivará para evitar duplicados.
               </p>
             ) : null}
           </div>
 
           <div className="feature-lock-actions">
             <button className="button button--primary" type="button" disabled={!canUseAi} onClick={() => saveStoredAIConfig(aiConfig)}>
-              Guardar
+              Guardar preparación
             </button>
-            {!canUseAi ? <span>Disponible en plan Pro</span> : <span>Configuración local preparada</span>}
+            {!canUseAi ? <span>Disponible en plan Pro</span> : <span>Preparación guardada en este navegador</span>}
           </div>
         </div>
       </section>
